@@ -55,6 +55,33 @@ class GalleryScreen extends StatelessWidget {
     );
   }
 
+  void _showDeleteConfirm(BuildContext context, AppState app) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(app.t('delete_confirm')),
+        content: Text(app.t('delete_confirm_msg')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(app.t('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              app.deleteSelectedImages();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              app.t('delete'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
@@ -91,9 +118,19 @@ class GalleryScreen extends StatelessWidget {
                   onPressed: () => _showSavePdfDialog(context, app),
                 ),
                 IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: app.t('share'),
+                  onPressed: () {
+                    Share.shareXFiles(
+                      app.selectedImages.map((p) => XFile(p)).toList(),
+                    );
+                    app.clearImageSelection();
+                  },
+                ),
+                IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   tooltip: app.t('delete'),
-                  onPressed: () => app.deleteSelectedImages(),
+                  onPressed: () => _showDeleteConfirm(context, app),
                 ),
               ],
             )
@@ -139,7 +176,10 @@ class GalleryScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => FullScreenImage(file: file),
+                            builder: (_) => FullScreenImage(
+                              images: app.images,
+                              initialIndex: index,
+                            ),
                           ),
                         );
                       }
@@ -180,23 +220,47 @@ class GalleryScreen extends StatelessWidget {
 }
 
 class FullScreenImage extends StatefulWidget {
-  final File file;
-  const FullScreenImage({super.key, required this.file});
+  final List<File> images;
+  final int initialIndex;
+  const FullScreenImage({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
 
   @override
   State<FullScreenImage> createState() => _FullScreenImageState();
 }
 
 class _FullScreenImageState extends State<FullScreenImage> {
-  // We use this key to force the screen to redraw the new image
-  Key _imageKey = UniqueKey();
+  late PageController _pageController;
+  late int _currentIndex;
+  // Use a map to store unique keys for each image to force refresh after editing
+  final Map<int, Key> _imageKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+    for (int i = 0; i < widget.images.length; i++) {
+      _imageKeys[i] = UniqueKey();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   void _openEditor() {
+    final currentFile = widget.images[_currentIndex];
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ProImageEditor.file(
-          widget.file,
+          currentFile,
           callbacks: ProImageEditorCallbacks(
             onImageEditingComplete: (bytes) async {
               // 1. Show instant feedback
@@ -212,13 +276,13 @@ class _FullScreenImageState extends State<FullScreenImage> {
               // 3. Save to disk and clear cache in the background
               await context.read<AppState>().saveImage(
                 bytes,
-                existingFile: widget.file,
+                existingFile: currentFile,
               );
 
               // 4. Force the UI to refresh and show the new edited image!
               if (mounted) {
                 setState(() {
-                  _imageKey = UniqueKey();
+                  _imageKeys[_currentIndex] = UniqueKey();
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -234,28 +298,93 @@ class _FullScreenImageState extends State<FullScreenImage> {
     );
   }
 
+  void _showDeleteConfirm(BuildContext context, AppState app) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(app.t('delete_confirm')),
+        content: Text(app.t('delete_confirm_msg')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(app.t('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final currentFile = widget.images[_currentIndex];
+              if (await currentFile.exists()) {
+                await currentFile.delete();
+              }
+              await app.loadData();
+              if (context.mounted) {
+                Navigator.pop(context); // Close dialog
+                if (widget.images.length == 1) {
+                  Navigator.pop(context); // Go back to gallery if last image
+                } else {
+                  // If we are here, app.loadData() updated app.images,
+                  // but widget.images is still the old list.
+                  // For simplicity, we just go back to gallery to refresh correctly.
+                  Navigator.pop(context);
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              app.t('delete'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final app = context.read<AppState>();
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        title: Text("${_currentIndex + 1} / ${widget.images.length}"),
         actions: [
           IconButton(icon: const Icon(Icons.edit), onPressed: _openEditor),
           IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () => _showDeleteConfirm(context, app),
+          ),
+          IconButton(
             icon: const Icon(Icons.share),
-            onPressed: () => Share.shareXFiles([XFile(widget.file.path)]),
+            onPressed: () => Share.shareXFiles(
+              [XFile(widget.images[_currentIndex].path)],
+            ),
           ),
         ],
       ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          // The key ensures Flutter fetches the fresh file from disk
-          child: Image.file(widget.file, key: _imageKey),
-        ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.images.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        itemBuilder: (context, index) {
+          return Center(
+            // Use InteractiveViewer but ensure it doesn't block the PageView scroll
+            child: InteractiveViewer(
+              minScale: 1.0, // Start at 1.0 to prevent jumpy swiping
+              maxScale: 4.0,
+              // This ensures that when zoomed out, swiping works normally.
+              child: Image.file(
+                widget.images[index],
+                key: _imageKeys[index],
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

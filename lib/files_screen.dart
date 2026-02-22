@@ -59,6 +59,36 @@ class FilesScreen extends StatelessWidget {
     );
   }
 
+  void _showDeleteConfirm(BuildContext context, AppState app, {File? file}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(app.t('delete_confirm')),
+        content: Text(app.t('delete_confirm_msg')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(app.t('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (file != null) {
+                app.togglePdfSelection(file.path);
+              }
+              app.deleteSelectedPdfs();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              app.t('delete'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _openPdfMenu(
     BuildContext context,
     AppState app,
@@ -67,8 +97,7 @@ class FilesScreen extends StatelessWidget {
   ) {
     if (action == 'share') Share.shareXFiles([XFile(file.path)]);
     if (action == 'delete') {
-      app.togglePdfSelection(file.path);
-      app.deleteSelectedPdfs();
+      _showDeleteConfirm(context, app, file: file);
     }
     if (action == 'rename') _showRenameDialog(context, app, file);
     if (action == 'edit') {
@@ -131,7 +160,7 @@ class FilesScreen extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   tooltip: app.t('delete'),
-                  onPressed: () => app.deleteSelectedPdfs(),
+                  onPressed: () => _showDeleteConfirm(context, app),
                 ),
               ],
             )
