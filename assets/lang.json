@@ -46,9 +46,21 @@
     "details": "Details",
     "file_details": "File Details",
     "path": "Path",
-    "modified": "Modified"
+    "modified": "Modified",
+    "language": "Language",
+    "swipe_to_exit": "Swipe to exit",
+    "open": "Open",
+    "Create PDFs from the Gallery tab": "Create PDFs from the Gallery tab",
+    "Tap + to add some": "Tap + to add some",
+    "name": "Name",
+    "resolution": "Resolution",
+    "size": "Size",
+    "selected": "Selected"
   },
   "it": {
+    "name": "Nome",
+    "resolution": "Risoluzione",
+    "size": "Dimensione",
     "gallery": "Galleria",
     "files": "File",
     "settings": "Impostazioni",
@@ -95,6 +107,12 @@
     "details": "Dettagli",
     "file_details": "Dettagli File",
     "path": "Percorso",
-    "modified": "Modificato"
+    "modified": "Modificato",
+    "language": "Lingua",
+    "swipe_to_exit": "Scorri per uscire",
+    "open": "Apri",
+    "Create PDFs from the Gallery tab": "Crea PDF dalla Galleria",
+    "Tap + to add some": "Clicca + per aggiungere foto",
+    "selected": "Selezionati"
   }
 }

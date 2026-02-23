@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path/path.dart' as p;
 import 'app_state.dart';
 import 'settings_modal.dart';
 import 'pdf_preview_screen.dart';
@@ -10,29 +13,43 @@ import 'pdf_editor_screen.dart';
 class FilesScreen extends StatelessWidget {
   const FilesScreen({super.key});
 
+  // --- LOGIC: Rename & Delete ---
+
   void _showRenameDialog(BuildContext context, AppState app, File file) {
-    final String currentName = file.path.split('/').last.replaceAll('.pdf', '');
-    final TextEditingController nameController = TextEditingController(
-      text: currentName,
+    final colorScheme = Theme.of(context).colorScheme;
+    final nameController = TextEditingController(
+      text: p.basenameWithoutExtension(file.path),
     );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(app.t('rename')),
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Text(
+          app.t('rename') ?? 'Rename File',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: nameController,
-          decoration: const InputDecoration(
+          autofocus: true,
+          decoration: InputDecoration(
             suffixText: '.pdf',
-            border: OutlineInputBorder(),
+            filled: true,
+            fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(app.t('cancel')),
+            child: Text(app.t('cancel') ?? 'Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 final success = await app.renamePdf(
@@ -43,16 +60,17 @@ class FilesScreen extends StatelessWidget {
                   Navigator.pop(context);
                   if (!success) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Name exists!'),
-                        backgroundColor: Colors.red,
+                      SnackBar(
+                        content: const Text('Name already exists!'),
+                        backgroundColor: colorScheme.error,
+                        behavior: SnackBarBehavior.floating,
                       ),
                     );
                   }
                 }
               }
             },
-            child: Text(app.t('save')),
+            child: Text(app.t('save') ?? 'Save'),
           ),
         ],
       ),
@@ -60,136 +78,266 @@ class FilesScreen extends StatelessWidget {
   }
 
   void _showDeleteConfirm(BuildContext context, AppState app, {File? file}) {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(app.t('delete_confirm')),
-        content: Text(app.t('delete_confirm_msg')),
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: colorScheme.error,
+          size: 32,
+        ),
+        title: Text(app.t('delete_confirm') ?? 'Delete?'),
+        content: Text(app.t('delete_confirm_msg') ?? 'This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(app.t('cancel')),
+            child: Text(app.t('cancel') ?? 'Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            ),
             onPressed: () {
-              if (file != null) {
-                app.togglePdfSelection(file.path);
-              }
+              HapticFeedback.vibrate();
+              if (file != null) app.togglePdfSelection(file.path);
               app.deleteSelectedPdfs();
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(
-              app.t('delete'),
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(app.t('delete') ?? 'Delete'),
           ),
         ],
       ),
     );
   }
 
-  void _openPdfMenu(
-    BuildContext context,
-    AppState app,
-    File file,
-    String action,
-  ) {
-    if (action == 'share') Share.shareXFiles([XFile(file.path)]);
-    if (action == 'delete') {
-      _showDeleteConfirm(context, app, file: file);
-    }
-    if (action == 'rename') _showRenameDialog(context, app, file);
-    if (action == 'edit') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              VisualPdfEditorScreen(file: file, onSaved: () => app.loadData()),
+  void _showFileActionModal(BuildContext context, AppState app, File file) {
+    HapticFeedback.mediumImpact();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withOpacity(0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.edit_note_rounded,
+                title: app.t('edit'),
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VisualPdfEditorScreen(
+                        file: file,
+                        onSaved: () => app.loadData(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.drive_file_rename_outline_rounded,
+                title: app.t('rename'),
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenameDialog(context, app, file);
+                },
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.ios_share_rounded,
+                title: app.t('share'),
+                color: colorScheme.primary,
+                onTap: () {
+                  Navigator.pop(context);
+                  Share.shareXFiles([XFile(file.path)]);
+                },
+              ),
+              const Divider(indent: 32, endIndent: 32, height: 32),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.delete_outline_rounded,
+                title: app.t('delete'),
+                color: colorScheme.error,
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirm(context, app, file: file);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
-      );
-    }
+      ),
+    );
   }
+
+  Widget _buildBottomSheetItem(
+    BuildContext context, {
+    required IconData icon,
+    required String? title,
+    required Color color,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(
+        title ?? '',
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 32),
+    );
+  }
+
+  // --- MAIN BUILD ---
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final colorScheme = Theme.of(context).colorScheme;
+    final selectedList = app.selectedPdfs.toList();
     final sortedPdfs = List<File>.from(app.pdfs);
+
     sortedPdfs.sort((a, b) {
       final aPinned = app.pinnedPdfs.contains(a.path) ? 1 : 0;
       final bPinned = app.pinnedPdfs.contains(b.path) ? 1 : 0;
-      return bPinned.compareTo(aPinned);
+      if (aPinned != bPinned) return bPinned.compareTo(aPinned);
+      return b.lastModifiedSync().compareTo(a.lastModifiedSync());
     });
 
-    // Check if all items are currently selected
     final bool isAllSelected =
         app.selectedPdfs.length == app.pdfs.length && app.pdfs.isNotEmpty;
 
     return Scaffold(
-      appBar: app.isPdfSelectionMode
-          ? AppBar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => app.clearPdfSelection(),
-              ),
-              title: Text("${app.selectedPdfs.length}"),
-              actions: [
-                // NEW: SELECT ALL / DESELECT ALL BUTTON
-                IconButton(
-                  icon: Icon(isAllSelected ? Icons.deselect : Icons.select_all),
-                  tooltip: isAllSelected ? 'Deselect All' : 'Select All',
-                  onPressed: () {
-                    if (isAllSelected) {
-                      app.clearPdfSelection();
-                    } else {
-                      app.selectAllPdfs();
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  tooltip: app.t('share'),
-                  onPressed: () {
-                    Share.shareXFiles(
-                      app.selectedPdfs.map((p) => XFile(p)).toList(),
-                    );
-                    app.clearPdfSelection();
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: app.t('delete'),
-                  onPressed: () => _showDeleteConfirm(context, app),
-                ),
-              ],
-            )
-          : AppBar(
-              title: Text(
-                app.t('files'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    app.isFilesGrid ? Icons.view_list : Icons.grid_view,
-                  ),
-                  onPressed: () => app.toggleFilesLayout(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () => showSettingsModal(context, app),
-                ),
-              ],
-            ),
+      backgroundColor: colorScheme.surface,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: app.isPdfSelectionMode
+              ? _buildSelectionAppBar(context, app, isAllSelected, colorScheme)
+              : _buildNormalAppBar(context, app, colorScheme),
+        ),
+      ),
       body: sortedPdfs.isEmpty
-          ? Center(child: Text(app.t('empty_files')))
+          ? _buildEmptyState(context, app, colorScheme)
           : RefreshIndicator(
               onRefresh: () async => await app.loadData(),
               child: app.isFilesGrid
-                  ? _buildGridView(context, app, sortedPdfs)
-                  : _buildListView(context, app, sortedPdfs),
+                  ? _buildGridView(context, app, sortedPdfs, selectedList)
+                  : _buildListView(context, app, sortedPdfs, selectedList),
             ),
+    );
+  }
+
+  // --- COMPONENTS ---
+
+  AppBar _buildNormalAppBar(
+    BuildContext context,
+    AppState app,
+    ColorScheme colorScheme,
+  ) {
+    return AppBar(
+      key: const ValueKey('n'),
+      title: Text(
+        app.t('files') ?? 'Files',
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.8,
+          fontSize: 24,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            app.isFilesGrid ? Icons.view_list_rounded : Icons.grid_view_rounded,
+          ),
+          onPressed: () => app.toggleFilesLayout(),
+        ),
+        IconButton(
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => showSettingsModal(context, app),
+        ),
+      ],
+    );
+  }
+
+  AppBar _buildSelectionAppBar(
+    BuildContext context,
+    AppState app,
+    bool isAllSelected,
+    ColorScheme colorScheme,
+  ) {
+    return AppBar(
+      key: const ValueKey('s'),
+      backgroundColor: colorScheme.primaryContainer,
+      leading: IconButton(
+        icon: const Icon(Icons.close_rounded),
+        onPressed: () => app.clearPdfSelection(),
+      ),
+      title: Text(
+        "${app.selectedPdfs.length} ${app.t('selected')}",
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            isAllSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+          ),
+          onPressed: () =>
+              isAllSelected ? app.clearPdfSelection() : app.selectAllPdfs(),
+        ),
+        IconButton(
+          icon: const Icon(Icons.ios_share_rounded),
+          onPressed: () {
+            Share.shareXFiles(app.selectedPdfs.map((p) => XFile(p)).toList());
+            app.clearPdfSelection();
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline_rounded),
+          onPressed: () => _showDeleteConfirm(context, app),
+        ),
+      ],
     );
   }
 
@@ -197,86 +345,26 @@ class FilesScreen extends StatelessWidget {
     BuildContext context,
     AppState app,
     List<File> sortedPdfs,
+    List<String> selectedList,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      key: const PageStorageKey('pdf_list'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       itemCount: sortedPdfs.length,
       itemBuilder: (context, index) {
         final file = sortedPdfs[index];
-        final isSelected = app.selectedPdfs.contains(file.path);
+        final selectionIndex = selectedList.indexOf(file.path);
+        final isSelected = selectionIndex != -1;
         final isPinned = app.pinnedPdfs.contains(file.path);
 
-        return Card(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer
-              : null,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            onLongPress: () => app.togglePdfSelection(file.path),
-            onTap: () {
-              if (app.isPdfSelectionMode) {
-                app.togglePdfSelection(file.path);
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PdfPreviewScreen(file: file),
-                  ),
-                );
-              }
-            },
-            leading: Icon(
-              isSelected ? Icons.check_circle : Icons.picture_as_pdf,
-              color: isSelected ? Colors.white : Colors.red,
-              size: 40,
-            ),
-            title: Text(
-              file.path.split('/').last,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              "${(file.lengthSync() / 1024).toStringAsFixed(1)} KB",
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    isPinned ? Icons.star : Icons.star_border,
-                    color: isPinned ? Colors.amber : null,
-                  ),
-                  onPressed: () => app.togglePdfPin(file.path),
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (val) => _openPdfMenu(context, app, file, val),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text(
-                        app.t('edit'),
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'rename',
-                      child: Text(app.t('rename')),
-                    ),
-                    PopupMenuItem(value: 'share', child: Text(app.t('share'))),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        app.t('delete'),
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return _buildFileCard(
+          context,
+          app,
+          file,
+          isSelected,
+          selectionIndex,
+          isPinned,
+          isGrid: false,
         );
       },
     );
@@ -286,121 +374,321 @@ class FilesScreen extends StatelessWidget {
     BuildContext context,
     AppState app,
     List<File> sortedPdfs,
+    List<String> selectedList,
   ) {
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
+      key: const PageStorageKey('pdf_grid'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.85,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.9,
       ),
       itemCount: sortedPdfs.length,
       itemBuilder: (context, index) {
         final file = sortedPdfs[index];
-        final isSelected = app.selectedPdfs.contains(file.path);
+        final selectionIndex = selectedList.indexOf(file.path);
+        final isSelected = selectionIndex != -1;
         final isPinned = app.pinnedPdfs.contains(file.path);
 
-        return GestureDetector(
-          onLongPress: () => app.togglePdfSelection(file.path),
-          onTap: () {
-            if (app.isPdfSelectionMode) {
-              app.togglePdfSelection(file.path);
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PdfPreviewScreen(file: file)),
-              );
-            }
-          },
-          child: Card(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: Stack(
-              children: [
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isSelected ? Icons.check_circle : Icons.picture_as_pdf,
-                        color: isSelected ? Colors.white : Colors.red,
-                        size: 50,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8.0,
-                          vertical: 4.0,
-                        ),
-                        child: Text(
-                          file.path.split('/').last,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        "${(file.lengthSync() / 1024).toStringAsFixed(1)} KB",
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  child: IconButton(
-                    icon: Icon(
-                      isPinned ? Icons.star : Icons.star_border,
-                      color: isPinned ? Colors.amber : Colors.grey,
-                    ),
-                    onPressed: () => app.togglePdfPin(file.path),
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: PopupMenuButton<String>(
-                    onSelected: (val) => _openPdfMenu(context, app, file, val),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Text(
-                          app.t('edit'),
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'rename',
-                        child: Text(app.t('rename')),
-                      ),
-                      PopupMenuItem(
-                        value: 'share',
-                        child: Text(app.t('share')),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text(
-                          app.t('delete'),
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return _buildFileCard(
+          context,
+          app,
+          file,
+          isSelected,
+          selectionIndex,
+          isPinned,
+          isGrid: true,
         );
       },
+    );
+  }
+
+  Widget _buildFileCard(
+    BuildContext context,
+    AppState app,
+    File file,
+    bool isSelected,
+    int selectionIndex,
+    bool isPinned, {
+    required bool isGrid,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fileSize = (file.lengthSync() / 1024).toStringAsFixed(1);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? colorScheme.primaryContainer.withOpacity(0.7)
+            : colorScheme.surface,
+        borderRadius: BorderRadius.circular(isGrid ? 28 : 20),
+        border: Border.all(
+          color: isSelected
+              ? colorScheme.primary
+              : colorScheme.outline.withOpacity(0.08),
+          width: 1.5,
+        ),
+        boxShadow: [
+          if (!isSelected)
+            BoxShadow(
+              color: colorScheme.shadow.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onLongPress: () {
+            HapticFeedback.heavyImpact();
+            app.togglePdfSelection(file.path);
+          },
+          onTap: () => app.isPdfSelectionMode
+              ? app.togglePdfSelection(file.path)
+              : Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PdfPreviewScreen(file: file),
+                  ),
+                ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: isGrid
+                ? _buildGridContent(
+                    context,
+                    app,
+                    file,
+                    isSelected,
+                    selectionIndex,
+                    isPinned,
+                    fileSize,
+                  )
+                : _buildListContent(
+                    context,
+                    app,
+                    file,
+                    isSelected,
+                    selectionIndex,
+                    isPinned,
+                    fileSize,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListContent(
+    BuildContext context,
+    AppState app,
+    File file,
+    bool isSelected,
+    int selectionIndex,
+    bool isPinned,
+    String size,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        _buildLeadingIcon(colorScheme, isSelected, selectionIndex),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.basename(file.path),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              _buildMetadataPill(colorScheme, "$size KB"),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+            color: isPinned ? Colors.amber : colorScheme.outline,
+            size: 20,
+          ),
+          onPressed: () => app.togglePdfPin(file.path),
+        ),
+        IconButton(
+          icon: const Icon(Icons.more_vert_rounded),
+          onPressed: () => _showFileActionModal(context, app, file),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridContent(
+    BuildContext context,
+    AppState app,
+    File file,
+    bool isSelected,
+    int selectionIndex,
+    bool isPinned,
+    String size,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLeadingIcon(
+                colorScheme,
+                isSelected,
+                selectionIndex,
+                large: true,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                p.basename(file.path),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              _buildMetadataPill(colorScheme, "$size KB"),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          child: IconButton(
+            icon: Icon(
+              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              color: isPinned ? Colors.amber : colorScheme.outline,
+              size: 18,
+            ),
+            onPressed: () => app.togglePdfPin(file.path),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: IconButton(
+            icon: const Icon(Icons.more_horiz_rounded, size: 20),
+            onPressed: () => _showFileActionModal(context, app, file),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLeadingIcon(
+    ColorScheme colorScheme,
+    bool isSelected,
+    int selectionIndex, {
+    bool large = false,
+  }) {
+    final size = large ? 56.0 : 46.0;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: isSelected
+          ? Container(
+              key: const ValueKey('s'),
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '${selectionIndex + 1}',
+                  style: TextStyle(
+                    color: colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: large ? 20 : 16,
+                  ),
+                ),
+              ),
+            )
+          : Container(
+              key: const ValueKey('u'),
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: colorScheme.errorContainer.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(large ? 18 : 14),
+              ),
+              child: Icon(
+                Icons.picture_as_pdf_rounded,
+                color: colorScheme.error,
+                size: large ? 28 : 22,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildMetadataPill(ColorScheme colorScheme, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.onSurface.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.onSurface.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    AppState app,
+    ColorScheme colorScheme,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceVariant.withOpacity(0.4),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.folder_open_rounded,
+              size: 64,
+              color: colorScheme.outline.withOpacity(0.5),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            app.t('empty_files') ?? 'No Documents',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your scanned PDFs will appear here.',
+            style: TextStyle(color: colorScheme.outline),
+          ),
+        ],
+      ),
     );
   }
 }
