@@ -37,7 +37,7 @@
     "error_empty_pdf": "Cannot save an empty PDF!",
     "pdf_saved": "PDF Edited & Saved!",
     "rotate": "Rotate",
-    "duplicate": "Duplicate",
+    "duplicate": "Duplica",
     "blank_page": "Blank Page",
     "camera": "Camera",
     "blank": "Blank",
@@ -55,7 +55,9 @@
     "name": "Name",
     "resolution": "Resolution",
     "size": "Size",
-    "selected": "Selected"
+    "selected": "Selected",
+    "tap_to_add": "Tap + to add some photos",
+    "tap_gallery_to_create": "Create PDFs from the Gallery tab"
   },
   "it": {
     "name": "Nome",
@@ -113,6 +115,8 @@
     "open": "Apri",
     "Create PDFs from the Gallery tab": "Crea PDF dalla Galleria",
     "Tap + to add some": "Clicca + per aggiungere foto",
-    "selected": "Selezionati"
+    "selected": "Selezionati",
+    "tap_to_add": "Tocca + per aggiungere delle foto",
+    "tap_gallery_to_create": "Crea PDF dalla scheda Galleria"
   }
 }
