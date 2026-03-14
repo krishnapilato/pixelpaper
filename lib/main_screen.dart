@@ -1,73 +1,69 @@
 import 'dart:io';
 import 'dart:ui';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+
+// Assuming these exist in your project:
 import 'app_state.dart';
 import 'gallery_screen.dart';
 import 'files_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  bool _isMenuOpen = false;
-
   late PageController _pageController;
-  late AnimationController _menuController;
-
-  late Animation<double> _menuScale;
-  late Animation<double> _contentOpacity;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
-
-    _menuController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    _menuScale = CurvedAnimation(
-      parent: _menuController,
-      curve: Curves.easeOutBack,
-      reverseCurve: Curves.easeInBack,
-    );
-
-    _contentOpacity = CurvedAnimation(
-      parent: _menuController,
-      curve: const Interval(0.4, 1.0, curve: Curves.easeIn),
-    );
   }
 
   @override
   void dispose() {
-    _menuController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _toggleMenu() async {
-    if (_isMenuOpen) {
-      HapticFeedback.lightImpact();
-      await _menuController.reverse();
-      if (mounted) setState(() => _isMenuOpen = false);
-    } else {
-      HapticFeedback.mediumImpact();
-      setState(() => _isMenuOpen = true);
-      _menuController.forward();
+  void _onTabTapped(int index) {
+    if (_currentIndex != index) {
+      HapticFeedback.selectionClick();
+      setState(() => _currentIndex = index);
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.fastEaseInToSlowEaseOut,
+      );
     }
   }
 
-  Future<void> _handleAction(ImageSource source) async {
-    await _toggleMenu();
+  Future<void> _showAddMenu(BuildContext context, AppState app) async {
+    HapticFeedback.mediumImpact();
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      barrierColor: Theme.of(context).colorScheme.shadow.withOpacity(0.4),
+      builder: (context) => _MediaActionSheet(
+        app: app,
+        onActionSelect: (source) => _handleAction(source, app),
+      ),
+    );
+  }
+
+  Future<void> _handleAction(ImageSource source, AppState app) async {
+    Navigator.of(context).pop(); // Close the bottom sheet
+
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
@@ -76,20 +72,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     if (image != null && mounted) {
       final bytes = await image.readAsBytes();
-      await context.read<AppState>().saveImage(bytes);
+      await app.saveImage(bytes);
+
       if (_currentIndex != 0) _onTabTapped(0);
       HapticFeedback.heavyImpact();
-    }
-  }
-
-  void _onTabTapped(int index) {
-    if (_currentIndex != index) {
-      HapticFeedback.selectionClick();
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.fastOutSlowIn,
-      );
     }
   }
 
@@ -98,298 +84,243 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final app = context.watch<AppState>();
     final colorScheme = Theme.of(context).colorScheme;
 
-    return PopScope(
-      canPop: !_isMenuOpen,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isMenuOpen) _toggleMenu();
-      },
-      child: Scaffold(
-        backgroundColor: colorScheme.surface,
-        extendBody: true,
-        body: Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            // 1. CONTENT LAYER (PAGEVIEW)
-            RepaintBoundary(
-              child: PageView(
-                controller: _pageController,
-                physics: _isMenuOpen
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(),
-                onPageChanged: (index) {
-                  if (_currentIndex != index) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _currentIndex = index);
-                  }
-                },
-                children: const [GalleryScreen(), FilesScreen()],
-              ),
-            ),
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      extendBody: true, // Allows the PageView to scroll behind the nav bar
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          if (_currentIndex != index) {
+            HapticFeedback.selectionClick();
+            setState(() => _currentIndex = index);
+          }
+        },
+        children: const [GalleryScreen(), FilesScreen()],
+      ),
 
-            // 2. BLUR OVERLAY
-            if (_isMenuOpen)
-              Positioned.fill(
-                child: FadeTransition(
-                  opacity: _menuController,
-                  child: GestureDetector(
-                    onTap: _toggleMenu,
-                    behavior: HitTestBehavior.opaque,
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        color: colorScheme.surface.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-            // 3. MORPHING ACTION ISLAND (UX Bento Grid)
-            if (_isMenuOpen) _buildActionIsland(app, colorScheme),
-
-            // 4. FLOATING NAV DOCK
-            Positioned(
-              bottom: 24,
-              left: 20,
-              right: 20,
-              child: IgnorePointer(
-                ignoring: _isMenuOpen,
-                child: _buildFloatingDock(app, colorScheme),
-              ),
-            ),
-
-            // 5. FAB ORB
-            Positioned(bottom: 30, child: _buildOrbFab(colorScheme)),
-          ],
+      // Floating Pill Navigation Dock
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 20.0, left: 24, right: 24),
+          child: _buildFloatingDock(app, colorScheme),
         ),
       ),
-    );
-  }
-
-  Widget _buildActionIsland(AppState app, ColorScheme colorScheme) {
-    return Positioned(
-      bottom: 124, // Positioned right above the FAB
-      child: ScaleTransition(
-        scale: _menuScale,
-        alignment: Alignment.bottomCenter,
-        child: FadeTransition(
-          opacity: _contentOpacity,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // PRIMARY ACTION: High Contrast, Solid Color
-              _buildBentoAction(
-                icon: Icons.camera_alt_rounded,
-                label: app.t('take_photo') ?? 'Camera',
-                bgColor: colorScheme.primary,
-                iconColor: colorScheme.onPrimary,
-                textColor: colorScheme.onPrimary,
-                isPrimary: true,
-                onTap: () => _handleAction(ImageSource.camera),
-              ),
-              const SizedBox(width: 16),
-              // SECONDARY ACTION: Low Contrast, Glass/Surface
-              _buildBentoAction(
-                icon: Icons.photo_library_rounded,
-                label: app.t('import_photo') ?? 'Gallery',
-                bgColor: colorScheme.surface,
-                iconColor: colorScheme.secondary,
-                textColor: colorScheme.onSurface,
-                isPrimary: false,
-                onTap: () => _handleAction(ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBentoAction({
-    required IconData icon,
-    required String label,
-    required Color bgColor,
-    required Color iconColor,
-    required Color textColor,
-    required bool isPrimary,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        width: 140,
-        height: 120,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: isPrimary
-                  ? bgColor.withOpacity(0.4)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: 25,
-              offset: const Offset(0, 10),
-            ),
-          ],
-          border: isPrimary
-              ? null
-              : Border.all(color: colorScheme.outline.withOpacity(0.1)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isPrimary
-                    ? Colors.white.withOpacity(0.2)
-                    : iconColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 32),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOrbFab(ColorScheme colorScheme) {
-    return AnimatedBuilder(
-      animation: _menuController,
-      builder: (context, child) {
-        final val = _menuController.value;
-        final bgColor = Color.lerp(colorScheme.primary, colorScheme.error, val);
-        final iconColor = Color.lerp(
-          colorScheme.onPrimary,
-          colorScheme.onError,
-          val,
-        );
-        final shadowColor = Color.lerp(
-          colorScheme.primary.withOpacity(0.3),
-          colorScheme.error.withOpacity(0.3),
-          val,
-        );
-
-        return Container(
-          height: 72,
-          width: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor ?? Colors.transparent,
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: FloatingActionButton.large(
-            elevation: 0,
-            focusElevation: 0,
-            hoverElevation: 0,
-            highlightElevation: 0,
-            shape: const CircleBorder(),
-            backgroundColor: bgColor,
-            foregroundColor: iconColor,
-            onPressed: _toggleMenu,
-            child: Transform.rotate(
-              angle: val * (math.pi / 4),
-              child: const Icon(Icons.add_rounded, size: 40),
-            ),
-          ),
-        );
-      },
     );
   }
 
   Widget _buildFloatingDock(AppState app, ColorScheme colorScheme) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double barWidth = constraints.maxWidth;
-        final double tabAreaWidth = (barWidth - 80) / 2;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        final double actualBulbWidth = math.min(100.0, tabAreaWidth - 16);
-        const double bulbHeight = 58;
-
-        final double tabCenter = _currentIndex == 0
-            ? tabAreaWidth / 2
-            : tabAreaWidth + 80 + (tabAreaWidth / 2);
-
-        final double bulbLeftOffset = math.max(
-          0,
-          tabCenter - (actualBulbWidth / 2),
-        );
-
-        return AnimatedBuilder(
-          animation: _menuController,
-          builder: (context, child) {
-            final double dockOpacity = 1.0 - (_menuController.value * 0.8);
-            return Opacity(opacity: dockOpacity, child: child);
-          },
+    return Container(
+      height: 72,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(36),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(36),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
           child: Container(
-            height: 84,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHigh.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(42),
-              border: Border.all(color: colorScheme.outline.withOpacity(0.12)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 25,
-                  offset: const Offset(0, 8),
+              color: colorScheme.surface.withOpacity(isDark ? 0.75 : 0.9),
+              border: Border.all(
+                color: colorScheme.outline.withOpacity(isDark ? 0.15 : 0.05),
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(36),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.grid_view_rounded,
+                    label: app.t('gallery') ?? 'Gallery',
+                    index: 0,
+                    colorScheme: colorScheme,
+                  ),
+                ),
+                _buildFab(app, colorScheme, isDark),
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.folder_copy_rounded,
+                    label: app.t('files') ?? 'Files',
+                    index: 1,
+                    colorScheme: colorScheme,
+                  ),
                 ),
               ],
             ),
-            child: Stack(
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required ColorScheme colorScheme,
+  }) {
+    final isActive = _currentIndex == index;
+    final color = isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
+
+    return GestureDetector(
+      onTap: () => _onTabTapped(index),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: isActive ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutBack,
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 300),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                letterSpacing: isActive ? -0.2 : 0,
+              ),
+              child: Text(label),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFab(AppState app, ColorScheme colorScheme, bool isDark) {
+    return InteractiveBounce(
+      onTap: () => _showAddMenu(context, app),
+      child: Container(
+        height: 56,
+        width: 56,
+        decoration: BoxDecoration(
+          color: colorScheme.primary,
+          shape: BoxShape.circle,
+          border: isDark
+              ? Border.all(color: Colors.white.withOpacity(0.15), width: 1.5)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: colorScheme.primary.withOpacity(isDark ? 0.5 : 0.4),
+              blurRadius: isDark ? 24 : 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(Icons.add_rounded, color: colorScheme.onPrimary, size: 32),
+      ),
+    );
+  }
+}
+
+/// ---------------------------------------------------------
+/// MODERN FROSTED BOTTOM SHEET FOR ACTIONS
+/// ---------------------------------------------------------
+class _MediaActionSheet extends StatelessWidget {
+  final AppState app;
+  final Function(ImageSource) onActionSelect;
+
+  const _MediaActionSheet({required this.app, required this.onActionSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withOpacity(isDark ? 0.85 : 0.95),
+            border: Border(
+              top: BorderSide(
+                color: colorScheme.outline.withOpacity(isDark ? 0.2 : 0.05),
+                width: 1.5,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPadding + 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutBack,
-                  left: bulbLeftOffset,
-                  top: (84 - bulbHeight) / 2,
-                  child: Container(
-                    width: actualBulbWidth,
-                    height: bulbHeight,
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                // Drag Handle
+                Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
+                const SizedBox(height: 24),
+
+                // Header
+                Text(
+                  app.t('add_content') ?? 'Add Media',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  app.t('choose_source') ??
+                      'Choose a source to import an image',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Bento Grid Actions
                 Row(
                   children: [
                     Expanded(
-                      child: _buildNavItem(
-                        Icons.grid_view_rounded,
-                        app.t('gallery'),
-                        0,
-                        colorScheme,
+                      child: _BentoActionCard(
+                        icon: Icons.camera_alt_rounded,
+                        title: app.t('take_photo') ?? 'Camera',
+                        subtitle: app.t('Capture now') ?? 'Capture now',
+                        isPrimary: true,
+                        onTap: () => onActionSelect(ImageSource.camera),
                       ),
                     ),
-                    const SizedBox(width: 80), // FAB Space Hole
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: _buildNavItem(
-                        Icons.folder_copy_rounded,
-                        app.t('files'),
-                        1,
-                        colorScheme,
+                      child: _BentoActionCard(
+                        icon: Icons.photo_library_rounded,
+                        title: app.t('import_photo') ?? 'Gallery',
+                        subtitle: app.t('Browse device') ?? 'Browse device',
+                        isPrimary: false,
+                        onTap: () => onActionSelect(ImageSource.gallery),
                       ),
                     ),
                   ],
@@ -397,48 +328,176 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
 
-  Widget _buildNavItem(
-    IconData icon,
-    String? label,
-    int index,
-    ColorScheme colorScheme,
-  ) {
-    final isActive = _currentIndex == index;
-    final color = isActive
+class _BentoActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isPrimary;
+  final VoidCallback onTap;
+
+  const _BentoActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isPrimary,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final backgroundColor = isPrimary
         ? colorScheme.primary
-        : colorScheme.onSurfaceVariant.withOpacity(0.5);
+        : colorScheme.surfaceContainerHighest.withOpacity(isDark ? 0.5 : 1.0);
 
-    return InkWell(
-      onTap: () => _onTabTapped(index),
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedScale(
-            scale: isActive ? 1.1 : 1.0,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutBack,
-            child: Icon(icon, color: color, size: 26),
+    final textColor = isPrimary ? colorScheme.onPrimary : colorScheme.onSurface;
+
+    final iconBgColor = isPrimary
+        ? Colors.white.withOpacity(0.2)
+        : colorScheme.surface;
+
+    return InteractiveBounce(
+      onTap: onTap,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(28),
+          border: isPrimary
+              ? (isDark
+                    ? Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                        width: 1.5,
+                      )
+                    : null)
+              : Border.all(
+                  color: colorScheme.outline.withOpacity(isDark ? 0.15 : 0.05),
+                  width: 1.5,
+                ),
+          boxShadow: isPrimary
+              ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withOpacity(isDark ? 0.4 : 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : [],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  shape: BoxShape.circle,
+                  border: !isPrimary && isDark
+                      ? Border.all(color: colorScheme.outline.withOpacity(0.2))
+                      : null,
+                ),
+                child: Icon(icon, color: textColor, size: 28),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: textColor.withOpacity(isDark ? 0.6 : 0.7),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-              letterSpacing: isActive ? -0.3 : 0,
-            ),
-            child: Text(label ?? ''),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// ---------------------------------------------------------
+/// MICRO-INTERACTION WRAPPER (Professional iOS-like Bounce)
+/// ---------------------------------------------------------
+class InteractiveBounce extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const InteractiveBounce({
+    super.key,
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<InteractiveBounce> createState() => _InteractiveBounceState();
+}
+
+class _InteractiveBounceState extends State<InteractiveBounce>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+      reverseDuration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.94,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) => _controller.forward();
+
+  void _onTapUp(TapUpDetails details) {
+    _controller.reverse();
+    widget.onTap();
+  }
+
+  void _onTapCancel() => _controller.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }

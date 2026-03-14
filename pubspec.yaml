@@ -13,14 +13,14 @@ dependencies:
   provider: ^6.1.5+1
   flutter_expandable_fab: ^2.5.2
   image_picker: ^1.2.1
-  pro_image_editor: ^12.0.2
+  pro_image_editor: ^12.0.6
   shared_preferences: ^2.5.4
   package_info_plus: ^9.0.0
   path_provider: ^2.1.5
   share_plus: ^12.0.1
   pdf: ^3.11.3
   file_picker: ^10.3.10
-  syncfusion_flutter_pdf: ^32.2.5
+  syncfusion_flutter_pdf: ^32.2.9
   printing: ^5.14.2
   path: ^1.9.1
   open_filex: ^4.7.0

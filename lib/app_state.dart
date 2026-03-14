@@ -1,10 +1,19 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // For compute
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+
+// A simple model to cache metadata so we don't hit the disk during sorting
+class FileEntry {
+  final File file;
+  final DateTime modified;
+  FileEntry(this.file, this.modified);
+}
 
 class AppState extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
@@ -14,10 +23,10 @@ class AppState extends ChangeNotifier {
   bool isFilesGrid = false;
   bool useExternalStorage = false;
 
+  // We store the actual Files for the UI
   List<File> images = [];
   List<File> pdfs = [];
 
-  // Using Set to keep unique paths and preserve tap order
   Set<String> selectedImages = {};
   Set<String> selectedPdfs = {};
   List<String> pinnedPdfs = [];
@@ -26,6 +35,7 @@ class AppState extends ChangeNotifier {
   bool get isPdfSelectionMode => selectedPdfs.isNotEmpty;
 
   Map<String, dynamic> _localizedStrings = {};
+  bool isLoading = false;
 
   AppState() {
     _initPrefsAndData();
@@ -51,7 +61,8 @@ class AppState extends ChangeNotifier {
       final dir = await getExternalStorageDirectory();
       return dir!.path;
     }
-    return (await getApplicationDocumentsDirectory()).path;
+    final dir = await getApplicationDocumentsDirectory();
+    return dir.path;
   }
 
   Future<void> toggleStorageDirectory() async {
@@ -61,41 +72,45 @@ class AppState extends ChangeNotifier {
     await loadData();
   }
 
+  bool isInitialLoading = true; // Add this variable
+
+  /// OPTIMIZED: Asynchronous data loading with Metadata Caching
   Future<void> loadData() async {
+    if (isLoading) return;
+    isLoading = true;
+
     final dirPath = await activeDirectory;
     final dir = Directory(dirPath);
     if (!await dir.exists()) await dir.create(recursive: true);
 
-    final files = dir.listSync().whereType<File>().toList();
+    // 1. Get the list of files asynchronously
+    final List<FileSystemEntity> entities = await dir.list().toList();
 
-    images = files.where((f) => f.path.toLowerCase().endsWith('.jpg')).toList();
-    images.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    // 2. Process metadata in parallel (much faster than a loop)
+    final List<FileEntry> imageEntries = [];
+    final List<FileEntry> pdfEntries = [];
 
-    pdfs = files.where((f) => f.path.toLowerCase().endsWith('.pdf')).toList();
-    pdfs.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    await Future.wait(
+      entities.whereType<File>().map((file) async {
+        final ext = p.extension(file.path).toLowerCase();
+        if (ext == '.jpg' || ext == '.pdf') {
+          final stat = await file.stat(); // Async stat
+          final entry = FileEntry(file, stat.modified);
+          if (ext == '.jpg') imageEntries.add(entry);
+          if (ext == '.pdf') pdfEntries.add(entry);
+        }
+      }),
+    );
 
-    notifyListeners();
-  }
+    // 3. Sort using the cached metadata (avoiding disk hits during sort)
+    imageEntries.sort((a, b) => b.modified.compareTo(a.modified));
+    pdfEntries.sort((a, b) => b.modified.compareTo(a.modified));
 
-  // --- SETTINGS METHOD (FIXES YOUR ERROR) ---
-  void updateSettings({ThemeMode? theme, Color? color, String? lang}) async {
-    final prefs = await SharedPreferences.getInstance();
+    // 4. Update memory lists
+    images = imageEntries.map((e) => e.file).toList();
+    pdfs = pdfEntries.map((e) => e.file).toList();
 
-    if (theme != null) {
-      themeMode = theme;
-      await prefs.setBool('isDark', theme == ThemeMode.dark);
-    }
-
-    if (color != null) {
-      seedColor = color;
-      await prefs.setInt('color', color.value);
-    }
-
-    if (lang != null) {
-      language = lang;
-      await prefs.setString('lang', lang);
-    }
-
+    isLoading = false;
     notifyListeners();
   }
 
@@ -103,27 +118,21 @@ class AppState extends ChangeNotifier {
     final path = await activeDirectory;
     DateTime? originalTimestamp;
 
-    // 1. If we are editing an existing file, capture its current "Last Modified" date
     if (existingFile != null && await existingFile.exists()) {
       originalTimestamp = await existingFile.lastModified();
     }
 
     final file =
         existingFile ??
-        File('$path/IMG_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        File(p.join(path, 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg'));
 
-    // 2. Write the new edited bytes
     await file.writeAsBytes(bytes);
 
-    // 3. IMPORTANT: Restore the original timestamp so the sort order doesn't change
     if (originalTimestamp != null) {
       await file.setLastModified(originalTimestamp);
     }
 
-    // 4. Clear the image from Flutter's memory cache so the UI shows the new version
     await FileImage(file).evict();
-
-    // 5. Reload the list
     await loadData();
   }
 
@@ -132,11 +141,12 @@ class AppState extends ChangeNotifier {
 
     final pdf = pw.Document();
 
-    // Logic: Iterate through the Set to maintain order of selection
+    // Maintain selection order
     for (var imagePath in selectedImages) {
       final file = File(imagePath);
-      if (file.existsSync()) {
-        final image = pw.MemoryImage(file.readAsBytesSync());
+      if (await file.exists()) {
+        final imageBytes = await file.readAsBytes();
+        final image = pw.MemoryImage(imageBytes);
         pdf.addPage(
           pw.Page(
             margin: const pw.EdgeInsets.all(10),
@@ -147,10 +157,15 @@ class AppState extends ChangeNotifier {
     }
 
     final path = await activeDirectory;
-    File file = File('$path/$customName.pdf');
+    String fileName = '$customName.pdf';
+    File file = File(p.join(path, fileName));
+
     if (await file.exists()) {
       file = File(
-        '$path/${customName}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        p.join(
+          path,
+          '${customName}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        ),
       );
     }
 
@@ -159,6 +174,8 @@ class AppState extends ChangeNotifier {
     await loadData();
     return true;
   }
+
+  // --- SELECTION LOGIC ---
 
   void toggleImageSelection(String path) {
     selectedImages.contains(path)
@@ -194,25 +211,71 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- DELETE & RENAME ---
+
   Future<void> deleteSelectedImages() async {
-    for (String path in selectedImages) {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
-    }
+    await Future.wait(
+      selectedImages.map((path) async {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      }),
+    );
     clearImageSelection();
     await loadData();
   }
 
   Future<void> deleteSelectedPdfs() async {
-    for (String path in selectedPdfs) {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
-      pinnedPdfs.remove(path);
-    }
+    await Future.wait(
+      selectedPdfs.map((path) async {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+        pinnedPdfs.remove(path);
+      }),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pinnedPdfs', pinnedPdfs);
     clearPdfSelection();
     await loadData();
+  }
+
+  Future<bool> renamePdf(File file, String newName) async {
+    try {
+      final dir = file.parent.path;
+      final newPath = p.join(dir, '$newName.pdf');
+      if (await File(newPath).exists()) return false;
+
+      await file.rename(newPath);
+
+      if (pinnedPdfs.contains(file.path)) {
+        pinnedPdfs.remove(file.path);
+        pinnedPdfs.add(newPath);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('pinnedPdfs', pinnedPdfs);
+      }
+      await loadData();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // --- UI SETTINGS ---
+
+  void updateSettings({ThemeMode? theme, Color? color, String? lang}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (theme != null) {
+      themeMode = theme;
+      await prefs.setBool('isDark', theme == ThemeMode.dark);
+    }
+    if (color != null) {
+      seedColor = color;
+      await prefs.setInt('color', color.value);
+    }
+    if (lang != null) {
+      language = lang;
+      await prefs.setString('lang', lang);
+    }
+    notifyListeners();
   }
 
   void toggleGalleryGrid() {
@@ -230,26 +293,6 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pinnedPdfs', pinnedPdfs);
     notifyListeners();
-  }
-
-  Future<bool> renamePdf(File file, String newName) async {
-    try {
-      final dir = file.parent.path;
-      final newPath = '$dir/$newName.pdf';
-      if (await File(newPath).exists()) return false;
-      await file.rename(newPath);
-
-      if (pinnedPdfs.contains(file.path)) {
-        pinnedPdfs.remove(file.path);
-        pinnedPdfs.add(newPath);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setStringList('pinnedPdfs', pinnedPdfs);
-      }
-      await loadData();
-      return true;
-    } catch (e) {
-      return false;
-    }
   }
 
   Future<void> loadLanguageJson() async {

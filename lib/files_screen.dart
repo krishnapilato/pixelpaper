@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:intl/intl.dart';
+
 import 'app_state.dart';
 import 'settings_modal.dart';
 import 'pdf_preview_screen.dart';
@@ -28,9 +29,7 @@ class _FilesScreenState extends State<FilesScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
-      });
+      setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
   }
 
@@ -47,15 +46,14 @@ class _FilesScreenState extends State<FilesScreen> {
       _isSearchActive = !_isSearchActive;
       if (!_isSearchActive) {
         _searchController.clear();
-        _searchFocusNode.unfocus(); // Hide keyboard when closing
+        _searchFocusNode.unfocus();
       } else {
-        _searchFocusNode.requestFocus(); // Show keyboard when opening
+        _searchFocusNode.requestFocus();
       }
     });
   }
 
-  // --- ACTIONS: Rename, Delete, Modal ---
-  // ... (Dialogs remain exactly the same as your code)
+  // --- PREMIUM MODALS ---
 
   void _showRenameDialog(BuildContext context, AppState app, File file) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -63,145 +61,186 @@ class _FilesScreenState extends State<FilesScreen> {
       text: p.basenameWithoutExtension(file.path),
     );
 
-    showDialog(
+    HapticFeedback.mediumImpact();
+    showGeneralDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(32),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.drive_file_rename_outline_rounded,
-                  color: Colors.orange,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                app.t('rename') ?? 'Rename File',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  suffixText: '.pdf',
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(
-                    0.5,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: colorScheme.shadow.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+          child: FadeTransition(
+            opacity: anim1,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(36),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                  child: Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(36),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.drive_file_rename_outline_rounded,
+                            color: Colors.orange,
+                            size: 32,
+                          ),
                         ),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        app.t('cancel') ?? 'Cancel',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                        const SizedBox(height: 20),
+                        Text(
+                          app.t('rename') ?? 'Rename File',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest
+                                .withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: colorScheme.outline.withOpacity(0.1),
+                            ),
+                          ),
+                          child: TextField(
+                            controller: nameController,
+                            autofocus: true,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                            ),
+                            decoration: InputDecoration(
+                              suffixText: '.pdf',
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _InteractiveBounce(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest
+                                        .withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    app.t('cancel') ?? 'Cancel',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _InteractiveBounce(
+                                onTap: () async {
+                                  if (nameController.text.trim().isNotEmpty) {
+                                    final success = await app.renamePdf(
+                                      file,
+                                      nameController.text.trim(),
+                                    );
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      if (!success)
+                                        _showErrorToast(
+                                          context,
+                                          colorScheme,
+                                          'Name already exists!',
+                                        );
+                                    }
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.orange.withOpacity(0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    app.t('save') ?? 'Save',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: () async {
-                        if (nameController.text.trim().isNotEmpty) {
-                          final success = await app.renamePdf(
-                            file,
-                            nameController.text.trim(),
-                          );
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            if (!success) _showErrorBar(context, colorScheme);
-                          }
-                        }
-                      },
-                      child: Text(
-                        app.t('save') ?? 'Save',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showErrorBar(BuildContext context, ColorScheme colorScheme) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Name already exists!',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        backgroundColor: colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      ),
+        );
+      },
     );
   }
 
   void _showDeleteConfirm(BuildContext context, AppState app, {File? file}) {
     final colorScheme = Theme.of(context).colorScheme;
+    HapticFeedback.mediumImpact();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(32),
-          ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        ),
+        child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -217,11 +256,11 @@ class _FilesScreenState extends State<FilesScreen> {
                   size: 36,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
                 app.t('delete_confirm') ?? 'Delete PDF?',
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
                 ),
@@ -234,15 +273,15 @@ class _FilesScreenState extends State<FilesScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 32),
               Row(
                 children: [
                   Expanded(
-                    child: TextButton(
-                      style: TextButton.styleFrom(
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -290,8 +329,6 @@ class _FilesScreenState extends State<FilesScreen> {
   void _showFileActionModal(BuildContext context, AppState app, File file) {
     HapticFeedback.mediumImpact();
     final colorScheme = Theme.of(context).colorScheme;
-
-    // File metadata for the header
     final fileName = p.basename(file.path);
     final fileSize = (file.lengthSync() / (1024 * 1024)).toStringAsFixed(2);
     final formattedDate = DateFormat(
@@ -301,139 +338,137 @@ class _FilesScreenState extends State<FilesScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                color: colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-
-            // --- NEW: PREMIUM HEADER ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: Colors.red,
+                        size: 32,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.picture_as_pdf_rounded,
-                      color: Colors.red,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          fileName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            fileName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$fileSize MB • $formattedDate',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: colorScheme.onSurface.withOpacity(0.5),
+                          const SizedBox(height: 6),
+                          Text(
+                            '$fileSize MB • $formattedDate',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Divider(
-              indent: 24,
-              endIndent: 24,
-              height: 32,
-              color: colorScheme.outline.withOpacity(0.1),
-            ),
-
-            // ---------------------------
-            _buildBottomSheetItem(
-              context,
-              icon: Icons.edit_note_rounded,
-              title: app.t('edit') ?? 'Edit Pages',
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => VisualPdfEditorScreen(
-                      file: file,
-                      onSaved: () => app.loadData(),
+              const SizedBox(height: 16),
+              Divider(
+                indent: 24,
+                endIndent: 24,
+                height: 32,
+                color: colorScheme.outline.withOpacity(0.1),
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.edit_note_rounded,
+                title: app.t('edit') ?? 'Edit Pages',
+                color: Colors.blueAccent,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VisualPdfEditorScreen(
+                        file: file,
+                        onSaved: () => app.loadData(),
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-            _buildBottomSheetItem(
-              context,
-              icon: Icons.drive_file_rename_outline_rounded,
-              title: app.t('rename') ?? 'Rename',
-              color: Colors.orange,
-              onTap: () {
-                Navigator.pop(context);
-                _showRenameDialog(context, app, file);
-              },
-            ),
-            _buildBottomSheetItem(
-              context,
-              icon: Icons.ios_share_rounded,
-              title: app.t('share') ?? 'Share',
-              color: colorScheme.primary,
-              onTap: () {
-                Navigator.pop(context);
-                Share.shareXFiles([XFile(file.path)]);
-              },
-            ),
-            Divider(
-              indent: 24,
-              endIndent: 24,
-              height: 32,
-              color: colorScheme.outline.withOpacity(0.1),
-            ),
-            _buildBottomSheetItem(
-              context,
-              icon: Icons.delete_outline_rounded,
-              title: app.t('delete') ?? 'Delete',
-              color: Colors.red,
-              isDestructive: true,
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirm(context, app, file: file);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+                  );
+                },
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.drive_file_rename_outline_rounded,
+                title: app.t('rename') ?? 'Rename',
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenameDialog(context, app, file);
+                },
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.ios_share_rounded,
+                title: app.t('share') ?? 'Share',
+                color: colorScheme.primary,
+                onTap: () {
+                  Navigator.pop(context);
+                  Share.shareXFiles([XFile(file.path)]);
+                },
+              ),
+              Divider(
+                indent: 24,
+                endIndent: 24,
+                height: 32,
+                color: colorScheme.outline.withOpacity(0.1),
+              ),
+              _buildBottomSheetItem(
+                context,
+                icon: Icons.delete_outline_rounded,
+                title: app.t('delete') ?? 'Delete',
+                color: Colors.red,
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirm(context, app, file: file);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
@@ -448,17 +483,17 @@ class _FilesScreenState extends State<FilesScreen> {
     bool isDestructive = false,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
+    return _InteractiveBounce(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: color, size: 24),
             ),
@@ -470,16 +505,61 @@ class _FilesScreenState extends State<FilesScreen> {
                   color: isDestructive ? Colors.red : colorScheme.onSurface,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
-                  letterSpacing: -0.5,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
             Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: colorScheme.onSurface.withOpacity(0.2),
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorToast(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String message,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 100, left: 24, right: 24),
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: colorScheme.error,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.error.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: colorScheme.onError),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: colorScheme.onError,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -494,7 +574,6 @@ class _FilesScreenState extends State<FilesScreen> {
     final double safeAreaTop = MediaQuery.of(context).padding.top;
     final selectedList = app.selectedPdfs.toList();
 
-    // Base Sort
     List<File> sortedPdfs = List<File>.from(app.pdfs);
     sortedPdfs.sort((a, b) {
       final aPinned = app.pinnedPdfs.contains(a.path) ? 1 : 0;
@@ -503,11 +582,13 @@ class _FilesScreenState extends State<FilesScreen> {
       return b.lastModifiedSync().compareTo(a.lastModifiedSync());
     });
 
-    // Apply Real-time Search Filter
     if (_searchQuery.isNotEmpty) {
-      sortedPdfs = sortedPdfs.where((file) {
-        return p.basename(file.path).toLowerCase().contains(_searchQuery);
-      }).toList();
+      sortedPdfs = sortedPdfs
+          .where(
+            (file) =>
+                p.basename(file.path).toLowerCase().contains(_searchQuery),
+          )
+          .toList();
     }
 
     final bool isAllSelected =
@@ -515,7 +596,8 @@ class _FilesScreenState extends State<FilesScreen> {
     final bool isSelection = app.isPdfSelectionMode;
 
     return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLowest,
+      // FIXED: Matched Gallery background exactly
+      backgroundColor: colorScheme.surface,
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
@@ -548,7 +630,7 @@ class _FilesScreenState extends State<FilesScreen> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            top: safeAreaTop + 12,
+            top: safeAreaTop + 16,
             left: 20,
             right: 20,
             child: _buildDynamicHeaderIsland(
@@ -573,15 +655,13 @@ class _FilesScreenState extends State<FilesScreen> {
     bool isAllSelected,
     ColorScheme colorScheme,
   ) {
-    // Determine background color based on active state
+    // FIXED: Matched Gallery selection background exactly
     final bgColor = isSelection
-        ? colorScheme.primaryContainer.withOpacity(0.95)
+        ? colorScheme.primary.withOpacity(0.95)
         : colorScheme.surface.withOpacity(0.85);
-
-    // Determine drop shadow based on active state
     final shadowColor = isSelection
         ? colorScheme.primary.withOpacity(0.2)
-        : Colors.black.withOpacity(0.08);
+        : colorScheme.shadow.withOpacity(0.08);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
@@ -592,8 +672,8 @@ class _FilesScreenState extends State<FilesScreen> {
         boxShadow: [
           BoxShadow(
             color: shadowColor,
-            blurRadius: 30,
-            offset: const Offset(0, 10),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -604,16 +684,14 @@ class _FilesScreenState extends State<FilesScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 350),
             color: bgColor,
-            // AnimatedSwitcher smoothly cross-fades the internal rows!
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
               transitionBuilder: (child, animation) {
-                // A subtle slide + fade makes it feel like it's unfolding
                 return FadeTransition(
                   opacity: animation,
                   child: SlideTransition(
                     position: Tween<Offset>(
-                      begin: const Offset(0.0, 0.15),
+                      begin: const Offset(0.0, 0.2),
                       end: Offset.zero,
                     ).animate(animation),
                     child: child,
@@ -643,7 +721,7 @@ class _FilesScreenState extends State<FilesScreen> {
   ) {
     return Padding(
       key: const ValueKey('normal_mode'),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Icon(Icons.folder_copy_rounded, color: colorScheme.primary, size: 24),
@@ -651,31 +729,65 @@ class _FilesScreenState extends State<FilesScreen> {
           Expanded(
             child: Text(
               app.t('files') ?? 'Files',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
                 fontSize: 20,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.search_outlined),
-            onPressed: _toggleSearch,
-          ),
-          IconButton(
-            icon: Icon(
-              app.isFilesGrid
-                  ? Icons.view_list_rounded
-                  : Icons.grid_view_rounded,
+          _InteractiveBounce(
+            onTap: _toggleSearch,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
-            onPressed: () {
+          ),
+          const SizedBox(width: 8),
+          _InteractiveBounce(
+            onTap: () {
               HapticFeedback.lightImpact();
               app.toggleFilesLayout();
             },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                app.isFilesGrid
+                    ? Icons.view_list_rounded
+                    : Icons.grid_view_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => showSettingsModal(context, app),
+          const SizedBox(width: 8),
+          _InteractiveBounce(
+            onTap: () => showSettingsModal(context, app),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),
@@ -694,11 +806,15 @@ class _FilesScreenState extends State<FilesScreen> {
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: colorScheme.onSurface,
+              ),
               decoration: InputDecoration(
                 hintText: 'Search files...',
                 hintStyle: TextStyle(
-                  color: colorScheme.outline.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -708,15 +824,21 @@ class _FilesScreenState extends State<FilesScreen> {
           ),
           if (_searchQuery.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.cancel_rounded, size: 20),
+              icon: Icon(
+                Icons.cancel_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
               onPressed: () {
                 HapticFeedback.lightImpact();
                 _searchController.clear();
               },
             ),
-          // The beautiful 'X' to close the search state
           IconButton(
-            icon: const Icon(Icons.close_rounded),
+            icon: Icon(
+              Icons.close_rounded,
+              color: colorScheme.onSurfaceVariant,
+            ),
             onPressed: _toggleSearch,
           ),
         ],
@@ -731,11 +853,12 @@ class _FilesScreenState extends State<FilesScreen> {
   ) {
     return Padding(
       key: const ValueKey('selection_mode'),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
+          // FIXED: Use onPrimary to perfectly match Gallery Screen
           IconButton(
-            icon: const Icon(Icons.close_rounded),
+            icon: Icon(Icons.close_rounded, color: colorScheme.onPrimary),
             onPressed: () {
               HapticFeedback.lightImpact();
               app.clearPdfSelection();
@@ -745,8 +868,8 @@ class _FilesScreenState extends State<FilesScreen> {
             child: Text(
               "${app.selectedPdfs.length} Selected",
               style: TextStyle(
-                color: colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w900,
+                color: colorScheme.onPrimary,
+                fontWeight: FontWeight.w800,
                 fontSize: 16,
                 letterSpacing: -0.5,
               ),
@@ -755,6 +878,7 @@ class _FilesScreenState extends State<FilesScreen> {
           IconButton(
             icon: Icon(
               isAllSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+              color: colorScheme.onPrimary,
             ),
             onPressed: () {
               HapticFeedback.selectionClick();
@@ -762,14 +886,17 @@ class _FilesScreenState extends State<FilesScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.ios_share_rounded),
+            icon: Icon(Icons.ios_share_rounded, color: colorScheme.onPrimary),
             onPressed: () {
               Share.shareXFiles(app.selectedPdfs.map((p) => XFile(p)).toList());
               app.clearPdfSelection();
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: colorScheme.onPrimary,
+            ),
             onPressed: () => _showDeleteConfirm(context, app),
           ),
         ],
@@ -790,52 +917,57 @@ class _FilesScreenState extends State<FilesScreen> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final fileSize = (file.lengthSync() / (1024 * 1024)).toStringAsFixed(2);
+    final formattedDate = DateFormat(
+      'MMM d, yyyy',
+    ).format(file.lastModifiedSync());
 
-    // Formatting date beautifully using intl
-    final date = file.lastModifiedSync();
-    final formattedDate = DateFormat('MMM d, yyyy').format(date);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      margin: isGrid ? EdgeInsets.zero : const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? colorScheme.primaryContainer.withOpacity(0.6)
-            : colorScheme.surface,
-        borderRadius: BorderRadius.circular(isGrid ? 28 : 24),
-        border: Border.all(
+    return _InteractiveBounce(
+      onTap: () {
+        if (app.isPdfSelectionMode) {
+          HapticFeedback.selectionClick();
+          app.togglePdfSelection(file.path);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PdfPreviewScreen(file: file)),
+          );
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        margin: isGrid ? EdgeInsets.zero : const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary
-              : colorScheme.outline.withOpacity(0.1),
-          width: isSelected ? 2 : 1,
+              ? colorScheme.primary.withOpacity(0.15)
+              : colorScheme.surfaceContainerHighest.withOpacity(
+                  0.3,
+                ), // Matches Gallery better
+          borderRadius: BorderRadius.circular(isGrid ? 28 : 24),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.outline.withOpacity(0.08),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? []
+              : [
+                  BoxShadow(
+                    color: colorScheme.shadow.withOpacity(0.04),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
         ),
-        boxShadow: [
-          if (!isSelected)
-            BoxShadow(
-              color: colorScheme.shadow.withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+        child: GestureDetector(
           onLongPress: () {
             HapticFeedback.heavyImpact();
             app.togglePdfSelection(file.path);
           },
-          onTap: () => app.isPdfSelectionMode
-              ? app.togglePdfSelection(file.path)
-              : Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PdfPreviewScreen(file: file),
-                  ),
-                ),
+          behavior: HitTestBehavior.opaque,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isGrid ? 20 : 16),
             child: isGrid
                 ? _buildGridContent(
                     context,
@@ -888,7 +1020,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 p.basename(file.path),
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
+                  fontSize: 16,
                   letterSpacing: -0.3,
                 ),
                 maxLines: 1,
@@ -913,17 +1045,30 @@ class _FilesScreenState extends State<FilesScreen> {
             ],
           ),
         ),
-        IconButton(
-          icon: Icon(
-            isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-            color: isPinned ? Colors.amber : colorScheme.outline,
-            size: 22,
+        _InteractiveBounce(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            app.togglePdfPin(file.path);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(
+              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              color: isPinned ? Colors.amber : colorScheme.onSurfaceVariant,
+              size: 22,
+            ),
           ),
-          onPressed: () => app.togglePdfPin(file.path),
         ),
-        IconButton(
-          icon: const Icon(Icons.more_vert_rounded),
-          onPressed: () => _showFileActionModal(context, app, file),
+        _InteractiveBounce(
+          onTap: () => _showFileActionModal(context, app, file),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(
+              Icons.more_vert_rounded,
+              color: colorScheme.onSurfaceVariant,
+              size: 22,
+            ),
+          ),
         ),
       ],
     );
@@ -970,28 +1115,41 @@ class _FilesScreenState extends State<FilesScreen> {
                 null,
                 "$size MB • $date",
                 small: true,
-              ), // FIXED KB -> MB
+              ),
             ],
           ),
         ),
         Positioned(
-          top: -8,
-          left: -8,
-          child: IconButton(
-            icon: Icon(
-              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-              color: isPinned ? Colors.amber : colorScheme.outline,
-              size: 20,
+          top: -12,
+          left: -12,
+          child: _InteractiveBounce(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              app.togglePdfPin(file.path);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Icon(
+                isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                color: isPinned ? Colors.amber : colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
             ),
-            onPressed: () => app.togglePdfPin(file.path),
           ),
         ),
         Positioned(
-          top: -8,
-          right: -8,
-          child: IconButton(
-            icon: const Icon(Icons.more_horiz_rounded, size: 22),
-            onPressed: () => _showFileActionModal(context, app, file),
+          top: -12,
+          right: -12,
+          child: _InteractiveBounce(
+            onTap: () => _showFileActionModal(context, app, file),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Icon(
+                Icons.more_horiz_rounded,
+                color: colorScheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ),
           ),
         ),
       ],
@@ -1066,22 +1224,22 @@ class _FilesScreenState extends State<FilesScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 8 : 10, vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.onSurface.withOpacity(0.05),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.6),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 10, color: colorScheme.onSurface.withOpacity(0.5)),
+            Icon(icon, size: 10, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 4),
           ],
           Text(
             text,
             style: TextStyle(
               fontSize: small ? 9 : 10,
-              fontWeight: FontWeight.w800,
-              color: colorScheme.onSurface.withOpacity(0.6),
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -1117,10 +1275,11 @@ class _FilesScreenState extends State<FilesScreen> {
             _searchQuery.isNotEmpty
                 ? 'No matches found'
                 : (app.t('empty_files') ?? 'No Scanned PDFs'),
-            style: const TextStyle(
-              fontSize: 20,
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.5,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -1130,7 +1289,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 : (app.t('tap_gallery_to_create') ??
                       'Create PDFs from the gallery tab.'),
             style: TextStyle(
-              color: colorScheme.outline,
+              color: colorScheme.onSurfaceVariant,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -1151,7 +1310,8 @@ class _FilesScreenState extends State<FilesScreen> {
   ) {
     return ListView.builder(
       key: const PageStorageKey('pdf_list'),
-      padding: EdgeInsets.fromLTRB(20, safeAreaTop + 96, 20, 140),
+      padding: EdgeInsets.fromLTRB(16, safeAreaTop + 104, 16, 140),
+      physics: const BouncingScrollPhysics(),
       itemCount: sortedPdfs.length,
       itemBuilder: (context, index) {
         final file = sortedPdfs[index];
@@ -1178,11 +1338,12 @@ class _FilesScreenState extends State<FilesScreen> {
   ) {
     return GridView.builder(
       key: const PageStorageKey('pdf_grid'),
-      padding: EdgeInsets.fromLTRB(20, safeAreaTop + 96, 20, 140),
+      padding: EdgeInsets.fromLTRB(16, safeAreaTop + 104, 16, 140),
+      physics: const BouncingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
         childAspectRatio: 0.85,
       ),
       itemCount: sortedPdfs.length,
@@ -1199,6 +1360,57 @@ class _FilesScreenState extends State<FilesScreen> {
           isGrid: true,
         );
       },
+    );
+  }
+}
+
+// --- MICRO-INTERACTION WRAPPER ---
+class _InteractiveBounce extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _InteractiveBounce({required this.child, required this.onTap});
+
+  @override
+  State<_InteractiveBounce> createState() => _InteractiveBounceState();
+}
+
+class _InteractiveBounceState extends State<_InteractiveBounce>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+      reverseDuration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.94,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }
