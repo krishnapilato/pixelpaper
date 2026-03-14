@@ -28,7 +28,7 @@ jobs:
 
       - name: Build Web App
         # Replace <your-repo-name> with your actual repository name!
-        run: flutter build web --base-href "/PixelPaper/"
+        run: flutter build web --base-href "/pixelpaper/"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
