@@ -1,5 +1,6 @@
 {
   "en": {
+    "add_page": "Add Page",
     "gallery": "Gallery",
     "files": "Files",
     "settings": "Settings",
@@ -77,6 +78,7 @@
     "Browse device": "Browse device"
   },
   "it": {
+    "add_page": "Aggiungi Pagina",
     "name": "Nome",
     "resolution": "Risoluzione",
     "size": "Dimensione",

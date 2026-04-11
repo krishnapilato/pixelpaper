@@ -27,7 +27,6 @@ jobs:
         run: flutter pub get
 
       - name: Build Web App
-        # Replace <your-repo-name> with your actual repository name!
         run: flutter build web --base-href "/pixelpaper/"
 
       - name: Upload artifact
