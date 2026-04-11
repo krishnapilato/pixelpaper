@@ -14,6 +14,76 @@ import 'package:path/path.dart' as p;
 
 import 'app_state.dart';
 
+// -----------------------------------------------------------------------------
+// PRO FLUID BOUNCE (Apple-style spring physics)
+// -----------------------------------------------------------------------------
+class ProFluidBounce extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final double scaleEnd;
+
+  const ProFluidBounce({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.onLongPress,
+    this.scaleEnd = 0.92,
+  });
+
+  @override
+  State<ProFluidBounce> createState() => _ProFluidBounceState();
+}
+
+class _ProFluidBounceState extends State<ProFluidBounce>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+      reverseDuration: const Duration(milliseconds: 300),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleEnd).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeOutBack,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      onLongPress: widget.onLongPress != null
+          ? () {
+              HapticFeedback.heavyImpact();
+              widget.onLongPress!();
+            }
+          : null,
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
+    );
+  }
+}
+
 // --- DATA MODEL ---
 
 class PdfPageData {
@@ -144,12 +214,12 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_thumbnailScrollController.hasClients) {
         final double screenWidth = MediaQuery.of(context).size.width;
-        const double itemWidth = 80.0; // 64 width + 16 margins
+        const double itemWidth = 76.0;
         double targetOffset =
             (_currentIndex * itemWidth) -
             (screenWidth / 2) +
             (itemWidth / 2) +
-            72; // +72 accounts for the Add button width
+            80;
 
         _thumbnailScrollController.animateTo(
           targetOffset.clamp(
@@ -176,113 +246,104 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
 
   // --- ACTIONS ---
 
-  void _showAddPageMenu() {
+  void _showProAddMenu() {
     final app = context.read<AppState>();
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     HapticFeedback.mediumImpact();
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (context) => Container(
+        margin: const EdgeInsets.all(
+          16,
+        ).copyWith(bottom: MediaQuery.of(context).padding.bottom + 16),
         decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              _buildBottomSheetActionRow(
-                icon: Icons.camera_alt_rounded,
-                label: app.t('take_photo') ?? 'Camera',
-                color: colorScheme.primary,
-                onTap: () {
-                  Navigator.pop(context);
-                  _addNewPhoto(ImageSource.camera);
-                },
-              ),
-              _buildBottomSheetActionRow(
-                icon: Icons.photo_library_rounded,
-                label: app.t('import_photo') ?? 'Gallery',
-                color: Colors.blueAccent,
-                onTap: () {
-                  Navigator.pop(context);
-                  _addNewPhoto(ImageSource.gallery);
-                },
-              ),
-              Divider(
-                indent: 24,
-                endIndent: 24,
-                height: 32,
-                color: colorScheme.outline.withOpacity(0.1),
-              ),
-              _buildBottomSheetActionRow(
-                icon: Icons.note_add_rounded,
-                label: app.t('blank_page') ?? 'Blank Page',
-                color: Colors.orange,
-                onTap: () {
-                  Navigator.pop(context);
-                  _addBlankPage();
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomSheetActionRow({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return _InteractiveBounce(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(40),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 40,
+              spreadRadius: -10,
+              offset: const Offset(0, 20),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(40),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            child: Container(
+              color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.85),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Text(
+                    app.t('add_page') ?? 'Insert Page',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Pro Bento Layout
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _BentoAction(
+                          icon: Icons.camera_rounded,
+                          label: app.t('take_photo') ?? 'Camera',
+                          isPrimary: true,
+                          onTap: () {
+                            Navigator.pop(context);
+                            _addNewPhoto(ImageSource.camera);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _BentoAction(
+                          icon: Icons.photo_library_rounded,
+                          label: app.t('import_photo') ?? 'Gallery',
+                          isPrimary: false,
+                          onTap: () {
+                            Navigator.pop(context);
+                            _addNewPhoto(ImageSource.gallery);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _BentoAction(
+                    icon: Icons.note_add_rounded,
+                    label: app.t('blank_page') ?? 'Insert Blank Page',
+                    isPrimary: false,
+                    isWide: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _addBlankPage();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -292,7 +353,7 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
     HapticFeedback.lightImpact();
     final pickedFile = await ImagePicker().pickImage(
       source: source,
-      imageQuality: 85,
+      imageQuality: 100,
     );
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
@@ -322,14 +383,6 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
       _currentIndex = index + 1;
     });
     _jumpToCurrentPage();
-  }
-
-  void _rotatePage(int index) {
-    if (_pages[index].isBlank) return;
-    HapticFeedback.selectionClick();
-    setState(
-      () => _pages[index].rotation = (_pages[index].rotation + 90) % 360,
-    );
   }
 
   void _deletePage(int index) {
@@ -439,12 +492,18 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
   Widget build(BuildContext context) {
     final appState = context.read<AppState>();
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final double safeAreaTop = MediaQuery.of(context).padding.top;
     final double safeAreaBottom = MediaQuery.of(context).padding.bottom;
 
+    // By giving the scaffold a deep background, the white PDF pages pop dynamically
+    final bgColor = isDark ? Colors.black : colorScheme.surfaceContainerHighest;
+
     return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLowest,
+      backgroundColor: bgColor,
       extendBodyBehindAppBar: true,
+      extendBody: true,
       body: Stack(
         children: [
           // 1. MAIN PAGE VIEWER
@@ -472,87 +531,21 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
           ),
 
           // 2. HEADER ISLAND
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
+          Positioned(
             top: safeAreaTop + 16,
             left: 20,
             right: 20,
-            child: _buildHeaderIsland(context, appState, colorScheme),
+            child: _buildProHeader(context, appState, colorScheme),
           ),
 
-          // 3. FLOATING ACTION DOCK (For active page)
-          if (_pages.isNotEmpty)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutBack,
-              bottom:
-                  safeAreaBottom + 120, // Floating above the thumbnail strip
-              left: 0,
-              right: 0,
-              child: Center(child: _buildPageActionDock(appState, colorScheme)),
-            ),
-
-          // 4. THUMBNAIL NAV DOCK
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            bottom: safeAreaBottom > 0 ? safeAreaBottom : 24,
-            left: 16,
-            right: 16,
-            child: _buildThumbnailDock(colorScheme),
+          // 3. UNIFIED BOTTOM CONSOLE
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: _buildProBottomConsole(colorScheme, safeAreaBottom),
           ),
 
-          // 5. LOADING / SAVING OVERLAY
-          if (_isLoading || _isSaving)
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  color: colorScheme.surface.withOpacity(0.5),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 24,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.shadow.withOpacity(0.1),
-                            blurRadius: 40,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(
-                            color: colorScheme.primary,
-                            strokeWidth: 3,
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            _isSaving
-                                ? "Saving Document..."
-                                : "Analyzing Pages...",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: colorScheme.onSurface,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          // 4. LOADING / SAVING OVERLAY (Apple HUD Style)
+          if (_isLoading || _isSaving) _buildProLoadingOverlay(colorScheme),
         ],
       ),
     );
@@ -563,34 +556,27 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.auto_awesome_motion_rounded,
-              size: 64,
-              color: colorScheme.primary,
-            ),
+          Icon(
+            Icons.auto_awesome_motion_rounded,
+            size: 64,
+            color: colorScheme.onSurface.withOpacity(0.2),
           ),
           const SizedBox(height: 24),
           Text(
-            appState.t('no_pages') ?? 'Document is Empty',
+            appState.t('no_pages') ?? 'Empty Document',
             style: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
               color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap the + button below to add pages',
+            'Tap + to insert a new page.',
             style: TextStyle(
               fontSize: 14,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.onSurface.withOpacity(0.5),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -599,35 +585,42 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
     );
   }
 
-  Widget _buildHeaderIsland(
+  Widget _buildProHeader(
     BuildContext context,
     AppState app,
     ColorScheme colorScheme,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final fileName = p.basename(widget.file.path);
 
     return Container(
-      height: 64,
+      height: 60,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
           child: Container(
-            color: colorScheme.surface.withOpacity(0.85),
             padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withOpacity(isDark ? 0.5 : 0.7),
+              border: Border.all(
+                color: colorScheme.onSurface.withOpacity(0.08),
+                width: 0.5,
+              ),
+            ),
             child: Row(
               children: [
-                _InteractiveBounce(
+                ProFluidBounce(
                   onTap: () {
                     HapticFeedback.lightImpact();
                     Navigator.pop(context);
@@ -635,9 +628,7 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(
-                        0.5,
-                      ),
+                      color: colorScheme.onSurface.withOpacity(0.05),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -658,8 +649,8 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
                           color: colorScheme.onSurface,
                         ),
@@ -669,38 +660,31 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
                             ? 'Empty'
                             : 'Page ${_currentIndex + 1} of ${_pages.length}',
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface.withOpacity(0.5),
                         ),
                       ),
                     ],
                   ),
                 ),
                 if (_pages.isNotEmpty)
-                  _InteractiveBounce(
+                  ProFluidBounce(
                     onTap: _isSaving ? () {} : _savePdf,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
-                        vertical: 12,
+                        vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.primary,
+                        color: colorScheme.onSurface,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
                       child: Text(
                         app.t('save') ?? 'Save',
                         style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: colorScheme.onPrimary,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.surface,
                           fontSize: 14,
                         ),
                       ),
@@ -726,22 +710,22 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       margin: EdgeInsets.only(
-        top: safeAreaTop + 104, // Avoid header
-        bottom: safeAreaBottom + 200, // Avoid bottom docks
-        left: 24,
-        right: 24,
+        top: safeAreaTop + 90,
+        // 160 is roughly the height of the bottom console
+        bottom: safeAreaBottom + 160,
+        left: 20,
+        right: 20,
       ),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 40,
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 30,
             offset: const Offset(0, 15),
           ),
         ],
-        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
       ),
       clipBehavior: Clip.antiAlias,
       child: page.isBlank
@@ -752,14 +736,14 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
                   Icon(
                     Icons.insert_page_break_rounded,
                     size: 64,
-                    color: colorScheme.outline.withOpacity(0.4),
+                    color: colorScheme.onSurface.withOpacity(0.2),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     appState.t('blank_page') ?? 'Blank Page',
                     style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface.withOpacity(0.5),
+                      fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
                   ),
@@ -779,162 +763,180 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
     );
   }
 
-  Widget _buildPageActionDock(AppState app, ColorScheme colorScheme) {
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+  // --- UNIFIED BOTTOM CONSOLE ---
+  Widget _buildProBottomConsole(
+    ColorScheme colorScheme,
+    double safeAreaBottom,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.only(
+            top: 20,
+            bottom: safeAreaBottom > 0 ? safeAreaBottom : 20,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-          child: Container(
-            color: colorScheme.surface.withOpacity(0.9),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min, // Hugs the content
-              children: [
-                if (!_pages[_currentIndex].isBlank)
-                  _buildIconAction(
-                    Icons.edit_note_rounded,
-                    colorScheme.primary,
-                    () => _navigateToImageEditor(_currentIndex),
-                  ),
-                if (!_pages[_currentIndex].isBlank)
-                  _buildIconAction(
-                    Icons.rotate_right_rounded,
-                    Colors.orange,
-                    () => _rotatePage(_currentIndex),
-                  ),
-                _buildIconAction(
-                  Icons.copy_rounded,
-                  Colors.blueAccent,
-                  () => _duplicatePage(_currentIndex),
-                ),
-                _buildIconAction(
-                  Icons.delete_outline_rounded,
-                  Colors.red,
-                  () => _deletePage(_currentIndex),
-                ),
-              ],
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.85),
+            border: Border(
+              top: BorderSide(
+                color: colorScheme.onSurface.withOpacity(0.08),
+                width: 0.5,
+              ),
             ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Page Actions (Edit, Duplicate, Delete)
+              if (_pages.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (!_pages[_currentIndex].isBlank)
+                        _buildConsoleAction(
+                          Icons.tune_rounded,
+                          'Edit',
+                          colorScheme.onSurface,
+                          () => _navigateToImageEditor(_currentIndex),
+                        ),
+                      if (!_pages[_currentIndex].isBlank)
+                        const SizedBox(width: 16),
+                      _buildConsoleAction(
+                        Icons.copy_rounded,
+                        'Duplicate',
+                        colorScheme.onSurface,
+                        () => _duplicatePage(_currentIndex),
+                      ),
+                      const SizedBox(width: 16),
+                      _buildConsoleAction(
+                        Icons.delete_outline_rounded,
+                        'Delete',
+                        Colors.redAccent,
+                        () => _deletePage(_currentIndex),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // Horizontal Thumbnails Strip
+              SizedBox(
+                height: 72,
+                child: Row(
+                  children: [
+                    // Pinned Add Button
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20, right: 12),
+                      child: ProFluidBounce(
+                        onTap: _showProAddMenu,
+                        child: Container(
+                          height: 72,
+                          width: 56,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurface.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.onSurface.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: colorScheme.onSurface,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: colorScheme.onSurface.withOpacity(0.1),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Reorderable Thumbnails
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        scrollController: _thumbnailScrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.only(right: 24),
+                        itemCount: _pages.length,
+                        onReorder: _onReorder,
+                        buildDefaultDragHandles: false,
+                        proxyDecorator: (child, index, animation) =>
+                            AnimatedBuilder(
+                              animation: animation,
+                              builder: (context, child) =>
+                                  Transform.scale(scale: 1.05, child: child),
+                              child: Material(
+                                color: Colors.transparent,
+                                elevation: 20,
+                                shadowColor: Colors.black54,
+                                borderRadius: BorderRadius.circular(16),
+                                child: child,
+                              ),
+                            ),
+                        itemBuilder: (context, index) =>
+                            ReorderableDragStartListener(
+                              key: ValueKey(_pages[index].id),
+                              index: index,
+                              child: _buildThumbnail(
+                                index,
+                                _pages[index],
+                                colorScheme,
+                              ),
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildIconAction(IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildConsoleAction(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
-    return _InteractiveBounce(
+    return ProFluidBounce(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          shape: BoxShape.circle,
+          color: colorScheme.onSurface.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Icon(icon, color: color, size: 22),
-      ),
-    );
-  }
-
-  Widget _buildThumbnailDock(ColorScheme colorScheme) {
-    return Container(
-      height: 84,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(42),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(42),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: colorScheme.surface.withOpacity(0.85),
-            child: Row(
-              children: [
-                // Fixed Add Button
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 8),
-                  child: _InteractiveBounce(
-                    onTap: _showAddPageMenu,
-                    child: Container(
-                      height: 60,
-                      width: 60,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: colorScheme.primary,
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: colorScheme.outline.withOpacity(0.2),
-                ),
-                // Scrollable Thumbnails
-                Expanded(
-                  child: ReorderableListView.builder(
-                    scrollController: _thumbnailScrollController,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    itemCount: _pages.length,
-                    onReorder: _onReorder,
-                    buildDefaultDragHandles: false,
-                    proxyDecorator: (child, index, animation) =>
-                        AnimatedBuilder(
-                          animation: animation,
-                          builder: (context, child) =>
-                              Transform.scale(scale: 1.05, child: child),
-                          child: Material(
-                            color: Colors.transparent,
-                            elevation: 10,
-                            shadowColor: Colors.black45,
-                            borderRadius: BorderRadius.circular(16),
-                            child: child,
-                          ),
-                        ),
-                    itemBuilder: (context, index) =>
-                        ReorderableDragStartListener(
-                          key: ValueKey(_pages[index].id),
-                          index: index,
-                          child: _buildThumbnail(
-                            index,
-                            _pages[index],
-                            colorScheme,
-                          ),
-                        ),
-                  ),
-                ),
-              ],
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                letterSpacing: -0.2,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -942,34 +944,25 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
 
   Widget _buildThumbnail(int index, PdfPageData page, ColorScheme colorScheme) {
     final isSelected = index == _currentIndex;
-    return _InteractiveBounce(
+    return ProFluidBounce(
       onTap: () {
         HapticFeedback.selectionClick();
         setState(() => _currentIndex = index);
         _jumpToCurrentPage();
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: 64,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
+        duration: const Duration(milliseconds: 200),
+        width: 56,
+        margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.1),
-            width: isSelected ? 3 : 1,
+                ? colorScheme.onSurface
+                : colorScheme.onSurface.withOpacity(0.1),
+            width: isSelected ? 2.5 : 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -977,42 +970,38 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
           children: [
             page.isBlank
                 ? Container(
-                    color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    color: colorScheme.onSurface.withOpacity(0.05),
                     child: Icon(
                       Icons.description_rounded,
-                      color: colorScheme.outline.withOpacity(0.4),
+                      color: colorScheme.onSurface.withOpacity(0.2),
                     ),
                   )
-                : Container(
-                    color: colorScheme.surface,
-                    child: Transform.rotate(
-                      angle: page.rotation * math.pi / 180,
-                      child: Image.memory(
-                        page.displayImage!,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                : Transform.rotate(
+                    angle: page.rotation * math.pi / 180,
+                    child: Image.memory(page.displayImage!, fit: BoxFit.cover),
                   ),
-            if (!isSelected) Container(color: Colors.black.withOpacity(0.1)),
+            if (!isSelected) Container(color: Colors.black.withOpacity(0.15)),
+
+            // Subtle page number indicator
             Positioned(
               bottom: 4,
               right: 4,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? colorScheme.primary
+                      ? colorScheme.onSurface
                       : colorScheme.surface.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '${index + 1}',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: isSelected
-                        ? colorScheme.onPrimary
+                        ? colorScheme.surface
                         : colorScheme.onSurface,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -1023,8 +1012,53 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
     );
   }
 
-  // --- IMAGE EDITOR NAVIGATION ---
+  // --- APPLE iOS STYLE HUD OVERLAY ---
+  Widget _buildProLoadingOverlay(ColorScheme colorScheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.2),
+        child: Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
+                  border: Border.all(
+                    color: colorScheme.onSurface.withOpacity(0.1),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      color: colorScheme.onSurface,
+                      strokeWidth: 3,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      _isSaving ? "Saving..." : "Loading...",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
+  // --- BENTO ACTIONS (For Add Menu) ---
   Future<void> _navigateToImageEditor(int index) async {
     HapticFeedback.selectionClick();
     final page = _pages[index];
@@ -1043,8 +1077,7 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
                 _pages[index] = PdfPageData(
                   displayImage: editedBytes,
                   newRawImage: editedBytes,
-                  rotation:
-                      0, // Reset rotation because edit usually outputs straight
+                  rotation: 0,
                   isBlank: false,
                 );
               });
@@ -1056,53 +1089,75 @@ class _VisualPdfEditorScreenState extends State<VisualPdfEditorScreen> {
   }
 }
 
-// --- MICRO-INTERACTION WRAPPER ---
-class _InteractiveBounce extends StatefulWidget {
-  final Widget child;
+class _BentoAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isPrimary;
+  final bool isWide;
   final VoidCallback onTap;
 
-  const _InteractiveBounce({required this.child, required this.onTap});
-
-  @override
-  State<_InteractiveBounce> createState() => _InteractiveBounceState();
-}
-
-class _InteractiveBounceState extends State<_InteractiveBounce>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-      reverseDuration: const Duration(milliseconds: 150),
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.92,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _BentoAction({
+    required this.icon,
+    required this.label,
+    required this.isPrimary,
+    this.isWide = false,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
+    final colorScheme = Theme.of(context).colorScheme;
+    final bgColor = isPrimary
+        ? colorScheme.onSurface
+        : colorScheme.onSurface.withOpacity(0.05);
+    final fgColor = isPrimary ? colorScheme.surface : colorScheme.onSurface;
+
+    return ProFluidBounce(
+      onTap: onTap,
+      child: Container(
+        height: isWide ? 80 : 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(24),
+          border: isPrimary
+              ? null
+              : Border.all(color: colorScheme.onSurface.withOpacity(0.08)),
+        ),
+        child: isWide
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: fgColor, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: fgColor, size: 32),
+                  const SizedBox(height: 12),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }

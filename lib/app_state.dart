@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // For compute
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +27,10 @@ class AppState extends ChangeNotifier {
   List<File> images = [];
   List<File> pdfs = [];
 
+  // Metadata caches used for our Smart Diffing Algorithm
+  List<FileEntry> _currentImageEntries = [];
+  List<FileEntry> _currentPdfEntries = [];
+
   Set<String> selectedImages = {};
   Set<String> selectedPdfs = {};
   List<String> pinnedPdfs = [];
@@ -36,6 +40,7 @@ class AppState extends ChangeNotifier {
 
   Map<String, dynamic> _localizedStrings = {};
   bool isLoading = false;
+  bool isInitialLoading = true;
 
   AppState() {
     _initPrefsAndData();
@@ -44,16 +49,23 @@ class AppState extends ChangeNotifier {
   Future<void> _initPrefsAndData() async {
     await loadLanguageJson();
     final prefs = await SharedPreferences.getInstance();
+
     language = prefs.getString('lang') ?? 'en';
+
     final isDark = prefs.getBool('isDark');
     if (isDark != null) themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+
     final colorVal = prefs.getInt('color');
     if (colorVal != null) seedColor = Color(colorVal);
+
     gridColumns = prefs.getInt('gridColumns') ?? 3;
     isFilesGrid = prefs.getBool('isFilesGrid') ?? false;
     useExternalStorage = prefs.getBool('useExtStorage') ?? false;
     pinnedPdfs = prefs.getStringList('pinnedPdfs') ?? [];
+
     await loadData();
+    isInitialLoading = false;
+    notifyListeners();
   }
 
   Future<String> get activeDirectory async {
@@ -69,12 +81,20 @@ class AppState extends ChangeNotifier {
     useExternalStorage = !useExternalStorage;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('useExtStorage', useExternalStorage);
+
+    // Clear lists so the UI visually refreshes to the new directory immediately
+    images.clear();
+    pdfs.clear();
+    _currentImageEntries.clear();
+    _currentPdfEntries.clear();
+    notifyListeners();
+
     await loadData();
   }
 
-  bool isInitialLoading = true; // Add this variable
+  // --- OPTIMIZED CORE LOAD ENGINE ---
 
-  /// OPTIMIZED: Asynchronous data loading with Metadata Caching
+  /// Reads directory, maps metadata, and performs Smart Diffing
   Future<void> loadData() async {
     if (isLoading) return;
     isLoading = true;
@@ -86,33 +106,63 @@ class AppState extends ChangeNotifier {
     // 1. Get the list of files asynchronously
     final List<FileSystemEntity> entities = await dir.list().toList();
 
-    // 2. Process metadata in parallel (much faster than a loop)
-    final List<FileEntry> imageEntries = [];
-    final List<FileEntry> pdfEntries = [];
+    // 2. Process metadata in parallel for maximum speed
+    final List<FileEntry> newImageEntries = [];
+    final List<FileEntry> newPdfEntries = [];
 
     await Future.wait(
       entities.whereType<File>().map((file) async {
         final ext = p.extension(file.path).toLowerCase();
         if (ext == '.jpg' || ext == '.pdf') {
-          final stat = await file.stat(); // Async stat
+          final stat = await file.stat();
           final entry = FileEntry(file, stat.modified);
-          if (ext == '.jpg') imageEntries.add(entry);
-          if (ext == '.pdf') pdfEntries.add(entry);
+          if (ext == '.jpg') newImageEntries.add(entry);
+          if (ext == '.pdf') newPdfEntries.add(entry);
         }
       }),
     );
 
-    // 3. Sort using the cached metadata (avoiding disk hits during sort)
-    imageEntries.sort((a, b) => b.modified.compareTo(a.modified));
-    pdfEntries.sort((a, b) => b.modified.compareTo(a.modified));
+    // 3. Sort by last modified
+    newImageEntries.sort((a, b) => b.modified.compareTo(a.modified));
+    newPdfEntries.sort((a, b) => b.modified.compareTo(a.modified));
 
-    // 4. Update memory lists
-    images = imageEntries.map((e) => e.file).toList();
-    pdfs = pdfEntries.map((e) => e.file).toList();
+    // 4. SMART DIFFING: Only update UI if files actually changed
+    final bool imagesChanged = _hasChanges(
+      _currentImageEntries,
+      newImageEntries,
+    );
+    final bool pdfsChanged = _hasChanges(_currentPdfEntries, newPdfEntries);
+
+    if (imagesChanged || pdfsChanged) {
+      if (imagesChanged) {
+        _currentImageEntries = newImageEntries;
+        images = newImageEntries.map((e) => e.file).toList();
+      }
+      if (pdfsChanged) {
+        _currentPdfEntries = newPdfEntries;
+        pdfs = newPdfEntries.map((e) => e.file).toList();
+      }
+
+      // Only rebuild the UI if a structural change occurred
+      notifyListeners();
+    }
 
     isLoading = false;
-    notifyListeners();
   }
+
+  /// Helper: Checks if two FileEntry lists differ in content or modification dates
+  bool _hasChanges(List<FileEntry> oldList, List<FileEntry> newList) {
+    if (oldList.length != newList.length) return true;
+    for (int i = 0; i < oldList.length; i++) {
+      if (oldList[i].file.path != newList[i].file.path ||
+          oldList[i].modified != newList[i].modified) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // --- FILE OPERATIONS ---
 
   Future<void> saveImage(Uint8List bytes, {File? existingFile}) async {
     final path = await activeDirectory;
@@ -125,14 +175,20 @@ class AppState extends ChangeNotifier {
     final file =
         existingFile ??
         File(p.join(path, 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg'));
-
     await file.writeAsBytes(bytes);
 
     if (originalTimestamp != null) {
+      // Retain chronological order
       await file.setLastModified(originalTimestamp);
+
+      // IMPORTANT: Evict the old image from Flutter's cache so the edit shows immediately
+      await FileImage(file).evict();
+
+      // Force a manual UI update because the smart-differ will ignore it
+      // (since the path and timestamp didn't technically change)
+      notifyListeners();
     }
 
-    await FileImage(file).evict();
     await loadData();
   }
 
@@ -141,7 +197,6 @@ class AppState extends ChangeNotifier {
 
     final pdf = pw.Document();
 
-    // Maintain selection order
     for (var imagePath in selectedImages) {
       final file = File(imagePath);
       if (await file.exists()) {
@@ -259,7 +314,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // --- UI SETTINGS ---
+  // --- UI SETTINGS LOGIC ---
 
   void updateSettings({ThemeMode? theme, Color? color, String? lang}) async {
     final prefs = await SharedPreferences.getInstance();
@@ -295,9 +350,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- LOCALIZATION ---
+
   Future<void> loadLanguageJson() async {
-    final String response = await rootBundle.loadString('assets/lang.json');
-    _localizedStrings = json.decode(response);
+    try {
+      final String response = await rootBundle.loadString('assets/lang.json');
+      _localizedStrings = json.decode(response);
+    } catch (e) {
+      _localizedStrings = {}; // Failsafe
+    }
     notifyListeners();
   }
 
