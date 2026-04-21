@@ -1,4 +1,4 @@
-package com.example.doc_scanner_pro
+package com.khovakrishnapilato.pixelpaper
 
 import io.flutter.embedding.android.FlutterActivity
 

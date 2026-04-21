@@ -24,14 +24,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // True Edge-to-Edge Experience
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        systemNavigationBarColor: Colors.transparent,
-        statusBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-    );
     _pageController = PageController(initialPage: _currentIndex);
   }
 
@@ -55,24 +47,32 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _showAddMenu(BuildContext context, AppState app) async {
     HapticFeedback.mediumImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    await showModalBottomSheet(
+    // Wait for the bottom sheet to return an ImageSource result safely
+    final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      useSafeArea: true,
+      useSafeArea: false, // Avoids double-padding with manual bottom margin
       elevation: 0,
-      barrierColor: Theme.of(context).colorScheme.shadow.withOpacity(0.15),
-      builder: (context) => _ProActionSheet(
+      barrierColor: Theme.of(
+        context,
+      ).colorScheme.shadow.withOpacity(isDark ? 0.4 : 0.2),
+      builder: (sheetContext) => _ProActionSheet(
         app: app,
-        onActionSelect: (source) => _handleAction(source, app),
+        onActionSelect: (selectedSource) {
+          Navigator.of(sheetContext).pop(selectedSource);
+        },
       ),
     );
+
+    if (source != null) {
+      await _handleAction(source, app);
+    }
   }
 
   Future<void> _handleAction(ImageSource source, AppState app) async {
-    Navigator.of(context).pop();
-
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
@@ -91,26 +91,38 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      extendBody: true,
-      body: PageView(
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (index) {
-          if (_currentIndex != index) {
-            HapticFeedback.selectionClick();
-            setState(() => _currentIndex = index);
-          }
-        },
-        children: const [GalleryScreen(), FilesScreen()],
+    // AnnotatedRegion ensures edge-to-edge system colors adapt dynamically to theme changes
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
+        statusBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      bottomNavigationBar: _GlassDock(
-        currentIndex: _currentIndex,
-        onTabTapped: _onTabTapped,
-        onFabTapped: () => _showAddMenu(context, app),
-        app: app,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        extendBody: true,
+        body: PageView(
+          controller: _pageController,
+          physics: const BouncingScrollPhysics(),
+          onPageChanged: (index) {
+            if (_currentIndex != index) {
+              HapticFeedback.selectionClick();
+              setState(() => _currentIndex = index);
+            }
+          },
+          children: const [GalleryScreen(), FilesScreen()],
+        ),
+        bottomNavigationBar: _GlassDock(
+          currentIndex: _currentIndex,
+          onTabTapped: _onTabTapped,
+          onFabTapped: () => _showAddMenu(context, app),
+          app: app,
+        ),
       ),
     );
   }
@@ -135,7 +147,7 @@ class _GlassDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
@@ -174,7 +186,7 @@ class _GlassDock extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _DockItem(
-                      icon: Icons.collections_rounded, // Sleeker icon
+                      icon: Icons.collections_rounded,
                       label: app.t('gallery') ?? 'Gallery',
                       isActive: currentIndex == 0,
                       onTap: () => onTabTapped(0),
@@ -226,27 +238,26 @@ class _DockItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedSwitcher(
+            // Replaced AnimatedSwitcher with TweenAnimationBuilder to stop ugly double icon overlay bugs
+            TweenAnimationBuilder<Color?>(
               duration: const Duration(milliseconds: 250),
-              transitionBuilder: (child, animation) =>
-                  ScaleTransition(scale: animation, child: child),
-              child: Icon(
-                icon,
-                key: ValueKey(isActive),
-                color: color,
-                size: 26,
-              ),
+              curve: Curves.easeOutCubic,
+              tween: ColorTween(end: color),
+              builder: (context, animatedColor, child) {
+                return Icon(icon, color: animatedColor, size: 26);
+              },
             ),
             const SizedBox(height: 4),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
               style: TextStyle(
                 color: color,
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                 letterSpacing: -0.2,
               ),
-              child: Text(label),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
@@ -299,7 +310,7 @@ class _ProActionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -343,6 +354,8 @@ class _ProActionSheet extends StatelessWidget {
                     letterSpacing: -0.5,
                     color: colorScheme.onSurface,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -351,6 +364,9 @@ class _ProActionSheet extends StatelessWidget {
                     color: colorScheme.onSurface.withOpacity(0.5),
                     fontWeight: FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 32),
 
@@ -406,7 +422,9 @@ class _ProBentoCard extends StatelessWidget {
     final bgColor = isPrimary
         ? colorScheme
               .onSurface // Stark contrast
-        : colorScheme.surface.withOpacity(isDark ? 0.3 : 0.5);
+        : colorScheme.onSurface.withOpacity(
+            isDark ? 0.1 : 0.05,
+          ); // Fixed for contrast
     final fgColor = isPrimary ? colorScheme.surface : colorScheme.onSurface;
 
     return ProFluidBounce(
@@ -445,6 +463,8 @@ class _ProBentoCard extends StatelessWidget {
                   fontSize: 16,
                   letterSpacing: -0.3,
                 ),
+                maxLines: 2, // Wraps long text gracefully
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -478,22 +498,15 @@ class _ProFluidBounceState extends State<ProFluidBounce>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),
-      reverseDuration: const Duration(
-        milliseconds: 300,
-      ), // Smooth spring return
+      reverseDuration: const Duration(milliseconds: 300),
     );
-    _scaleAnimation =
-        Tween<double>(
-          begin: 1.0,
-          end: 0.95, // Less dramatic, more "Pro"
-        ).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: Curves.easeOutCubic,
-            reverseCurve:
-                Curves.easeOutBack, // Gives that Apple springy release
-          ),
-        );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeOutBack,
+      ),
+    );
   }
 
   @override

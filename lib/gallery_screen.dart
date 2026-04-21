@@ -10,7 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:intl/intl.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'app_state.dart';
-import 'settings_modal.dart';
+import 'settings_modal.dart'; // Assuming this holds your settings functions
 
 // -----------------------------------------------------------------------------
 // PRO FLUID BOUNCE (Apple-style spring physics)
@@ -88,7 +88,7 @@ class _ProFluidBounceState extends State<ProFluidBounce>
 class GalleryScreen extends StatelessWidget {
   const GalleryScreen({super.key});
 
-  void _showSavePdfDialog(BuildContext context, AppState app) {
+  void _showSavePdfSheet(BuildContext context, AppState app) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameController = TextEditingController(
@@ -96,153 +96,160 @@ class GalleryScreen extends StatelessWidget {
     );
 
     HapticFeedback.mediumImpact();
-    showGeneralDialog(
+
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.4),
-      transitionDuration: const Duration(milliseconds: 350),
-      pageBuilder: (context, anim1, anim2) => const SizedBox(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: FadeTransition(
-            opacity: anim1,
-            child: Dialog(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(40),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                  child: Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withOpacity(
-                        isDark ? 0.6 : 0.8,
-                      ),
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(
-                        color: colorScheme.onSurface.withOpacity(0.08),
-                        width: 0.5,
-                      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) {
+        final viewInsets = MediaQuery.viewInsetsOf(context);
+        return Padding(
+          padding: EdgeInsets.only(bottom: viewInsets.bottom),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.onSurface.withOpacity(0.08),
+                      width: 0.5,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.picture_as_pdf_rounded,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: colorScheme.onSurface,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        app.t('create_pdf') ?? 'Export PDF',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
                           color: colorScheme.onSurface,
-                          size: 48,
                         ),
-                        const SizedBox(height: 20),
-                        Text(
-                          app.t('create_pdf') ?? 'Export PDF',
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: colorScheme.onSurface.withOpacity(0.08),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: nameController,
+                          autofocus: true,
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
+                            fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
+                            fontSize: 16,
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.onSurface.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.onSurface.withOpacity(0.1),
-                            ),
-                          ),
-                          child: TextField(
-                            controller: nameController,
-                            autofocus: true,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
+                          decoration: InputDecoration(
+                            suffixText: '.pdf',
+                            suffixStyle: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.4),
                               fontWeight: FontWeight.w600,
-                              color: colorScheme.onSurface,
                             ),
-                            decoration: InputDecoration(
-                              suffixText: '.pdf',
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ProFluidBounce(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.onSurface.withOpacity(
-                                      0.08,
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    app.t('cancel') ?? 'Cancel',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
+                      ),
+                      const SizedBox(height: 28),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ProFluidBounce(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ProFluidBounce(
-                                onTap: () async {
-                                  if (nameController.text.trim().isEmpty)
-                                    return;
-                                  Navigator.pop(context);
-                                  final success = await app.generatePDF(
-                                    nameController.text.trim(),
-                                  );
-                                  if (context.mounted && success) {
-                                    HapticFeedback.heavyImpact();
-                                    _showProToast(
-                                      context,
-                                      app.t('pdf_generated_success') ??
-                                          'PDF created',
-                                      Icons.check_circle_rounded,
-                                    );
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.onSurface.withOpacity(
+                                    0.05,
                                   ),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  app.t('cancel') ?? 'Cancel',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
                                     color: colorScheme.onSurface,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    app.t('save') ?? 'Export',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: colorScheme.surface,
-                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ProFluidBounce(
+                              onTap: () async {
+                                if (nameController.text.trim().isEmpty) return;
+                                Navigator.pop(context);
+                                final success = await app.generatePDF(
+                                  nameController.text.trim(),
+                                );
+                                if (context.mounted && success) {
+                                  HapticFeedback.heavyImpact();
+                                  _showProToast(
+                                    context,
+                                    app.t('pdf_generated_success') ??
+                                        'PDF created successfully',
+                                    Icons.check_circle_rounded,
+                                  );
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.onSurface,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  app.t('save') ?? 'Export',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.surface,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -253,7 +260,12 @@ class GalleryScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirm(BuildContext context, AppState app) {
+  void _showDeleteConfirm(
+    BuildContext context,
+    AppState app, {
+    bool isSingle = false,
+    VoidCallback? onConfirm,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     HapticFeedback.mediumImpact();
@@ -262,116 +274,120 @@ class GalleryScreen extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(
-          16,
-        ).copyWith(bottom: MediaQuery.of(context).padding.bottom + 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 40,
-              spreadRadius: -10,
-              offset: const Offset(0, 20),
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 24,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.red,
-                      size: 36,
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    app.t('delete_confirm') ?? 'Delete Photos?',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: colorScheme.onSurface,
-                    ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.12),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    app.t('delete_confirm_msg') ??
-                        'Selected items will be permanently removed.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface.withOpacity(0.5),
-                    ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                    size: 36,
                   ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: colorScheme.onSurface.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('cancel') ?? 'Cancel',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  app.t('delete_confirm') ??
+                      (isSingle ? 'Delete Photo?' : 'Delete Photos?'),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  app.t('delete_confirm_msg') ??
+                      'This action cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurface.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('cancel') ?? 'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () {
-                            HapticFeedback.heavyImpact();
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () {
+                          HapticFeedback.heavyImpact();
+                          if (onConfirm != null) {
+                            onConfirm();
+                          } else {
                             app.deleteSelectedImages();
                             Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('delete') ?? 'Delete',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('delete') ?? 'Delete',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -383,12 +399,19 @@ class GalleryScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Safely capture messenger
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.showSnackBar(
       SnackBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(top: 50, left: 24, right: 24),
+        margin: const EdgeInsets.only(
+          bottom: 100,
+          left: 24,
+          right: 24,
+        ), // Avoid docks
         padding: EdgeInsets.zero,
         content: ClipRRect(
           borderRadius: BorderRadius.circular(30),
@@ -397,7 +420,7 @@ class GalleryScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(isDark ? 0.9 : 0.8),
+                color: colorScheme.onSurface.withOpacity(isDark ? 0.9 : 0.85),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -406,13 +429,17 @@ class GalleryScreen extends StatelessWidget {
                 children: [
                   Icon(icon, color: colorScheme.surface, size: 20),
                   const SizedBox(width: 12),
-                  Text(
-                    message,
-                    style: TextStyle(
-                      color: colorScheme.surface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      letterSpacing: -0.2,
+                  Flexible(
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        color: colorScheme.surface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -428,7 +455,7 @@ class GalleryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final colorScheme = Theme.of(context).colorScheme;
-    final double safeAreaTop = MediaQuery.of(context).padding.top;
+    final double safeAreaTop = MediaQuery.paddingOf(context).top;
 
     final selectedList = app.selectedImages.toList();
     final bool isSelection = app.isImageSelectionMode;
@@ -467,8 +494,10 @@ class GalleryScreen extends StatelessWidget {
                         final isSelected = selectionIndex != -1;
 
                         return ProFluidBounce(
-                          onLongPress: () =>
-                              app.toggleImageSelection(file.path),
+                          onLongPress: () {
+                            HapticFeedback.heavyImpact();
+                            app.toggleImageSelection(file.path);
+                          },
                           onTap: () {
                             if (isSelection) {
                               HapticFeedback.selectionClick();
@@ -478,10 +507,10 @@ class GalleryScreen extends StatelessWidget {
                                 context,
                                 PageRouteBuilder(
                                   transitionDuration: const Duration(
-                                    milliseconds: 400,
+                                    milliseconds: 350,
                                   ),
                                   reverseTransitionDuration: const Duration(
-                                    milliseconds: 400,
+                                    milliseconds: 350,
                                   ),
                                   pageBuilder: (context, anim, secAnim) {
                                     return FadeTransition(
@@ -501,7 +530,6 @@ class GalleryScreen extends StatelessWidget {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOut,
-                              // Apple Photos style shrink when selected
                               transform: Matrix4.identity()
                                 ..scale(isSelected ? 0.92 : 1.0),
                               transformAlignment: Alignment.center,
@@ -514,7 +542,6 @@ class GalleryScreen extends StatelessWidget {
                                   fit: StackFit.expand,
                                   children: [
                                     Image.file(file, fit: BoxFit.cover),
-
                                     // Dimmer overlay for selected
                                     AnimatedOpacity(
                                       opacity: isSelected ? 0.4 : 0.0,
@@ -523,7 +550,6 @@ class GalleryScreen extends StatelessWidget {
                                       ),
                                       child: Container(color: Colors.black),
                                     ),
-
                                     // Pro Selection Badge
                                     if (isSelection)
                                       Positioned(
@@ -599,9 +625,9 @@ class GalleryScreen extends StatelessWidget {
 
           // 2. DYNAMIC ISLAND HEADER
           Positioned(
-            top: safeAreaTop + 16,
-            left: 24,
-            right: 24,
+            top: safeAreaTop > 0 ? safeAreaTop + 12 : 24,
+            left: 20,
+            right: 20,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               switchInCurve: Curves.easeOutCubic,
@@ -639,9 +665,9 @@ class GalleryScreen extends StatelessWidget {
 
     return Container(
       key: const ValueKey('normal_header'),
-      height: 60,
+      height: 56,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08),
@@ -651,11 +677,11 @@ class GalleryScreen extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: colorScheme.surface.withOpacity(isDark ? 0.5 : 0.7),
+            color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
@@ -665,7 +691,7 @@ class GalleryScreen extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.5,
-                      fontSize: 20,
+                      fontSize: 18,
                       color: colorScheme.onSurface,
                     ),
                   ),
@@ -692,7 +718,10 @@ class GalleryScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 ProFluidBounce(
-                  onTap: () => showSettingsModal(context, app),
+                  onTap: () => showSettingsModal(
+                    context,
+                    app,
+                  ), // Using the cohesive settings modal
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -722,9 +751,9 @@ class GalleryScreen extends StatelessWidget {
   ) {
     return Container(
       key: const ValueKey('selection_header'),
-      height: 60,
+      height: 56,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: colorScheme.onSurface.withOpacity(0.3),
@@ -734,12 +763,14 @@ class GalleryScreen extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: colorScheme.onSurface.withOpacity(0.9), // Stark contrast
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: colorScheme.onSurface.withOpacity(
+              0.95,
+            ), // Stark contrast for active state
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
                 IconButton(
@@ -755,7 +786,7 @@ class GalleryScreen extends StatelessWidget {
                     style: TextStyle(
                       color: colorScheme.surface,
                       fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                      fontSize: 15,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -766,6 +797,7 @@ class GalleryScreen extends StatelessWidget {
                         ? Icons.deselect_rounded
                         : Icons.select_all_rounded,
                     color: colorScheme.surface,
+                    size: 22,
                   ),
                   onPressed: () {
                     HapticFeedback.selectionClick();
@@ -778,13 +810,15 @@ class GalleryScreen extends StatelessWidget {
                   icon: Icon(
                     Icons.picture_as_pdf_rounded,
                     color: colorScheme.surface,
+                    size: 22,
                   ),
-                  onPressed: () => _showSavePdfDialog(context, app),
+                  onPressed: () => _showSavePdfSheet(context, app),
                 ),
                 IconButton(
                   icon: const Icon(
                     Icons.delete_outline_rounded,
                     color: Colors.redAccent,
+                    size: 22,
                   ),
                   onPressed: () => _showDeleteConfirm(context, app),
                 ),
@@ -808,13 +842,13 @@ class GalleryScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.05),
+              color: colorScheme.onSurface.withOpacity(0.04),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.photo_library_rounded,
               size: 48,
-              color: colorScheme.onSurface.withOpacity(0.4),
+              color: colorScheme.onSurface.withOpacity(0.3),
             ),
           ),
           const SizedBox(height: 24),
@@ -829,7 +863,7 @@ class GalleryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            app.t('tap_to_add') ?? 'Import or capture to begin.',
+            app.t('tap_to_add') ?? 'Import or capture media to begin.',
             style: TextStyle(
               color: colorScheme.onSurface.withOpacity(0.5),
               fontSize: 14,
@@ -916,7 +950,9 @@ class _FullScreenImageState extends State<FullScreenImage>
       );
       extractedText = recognizedText.text;
       await textRecognizer.close();
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(
+        const Duration(milliseconds: 800),
+      ); // Ensure user sees the cool animation
     } catch (e) {
       extractedText = 'Error analyzing image.\n\nDetails: $e';
     }
@@ -938,48 +974,49 @@ class _FullScreenImageState extends State<FullScreenImage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.65,
         minChildSize: 0.4,
         maxChildSize: 0.9,
-        builder: (_, controller) => Container(
-          margin: const EdgeInsets.only(top: 16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface.withOpacity(isDark ? 0.8 : 0.95),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 40,
-                offset: const Offset(0, -10),
+        builder: (_, controller) => ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.onSurface.withOpacity(0.08),
+                    width: 0.5,
+                  ),
+                ),
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 20, left: 24, right: 24),
-                child: Column(
-                  children: [
-                    Container(
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
                       width: 40,
                       height: 4,
-                      margin: const EdgeInsets.only(bottom: 24),
+                      margin: const EdgeInsets.only(top: 12, bottom: 20),
                       decoration: BoxDecoration(
                         color: colorScheme.onSurface.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    Row(
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
                       children: [
                         Icon(
                           Icons.document_scanner_rounded,
                           color: colorScheme.onSurface,
-                          size: 28,
+                          size: 24,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             app.t('extracted_text') ?? 'Extracted Text',
@@ -993,49 +1030,54 @@ class _FullScreenImageState extends State<FullScreenImage>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: colorScheme.onSurface.withOpacity(0.1),
-                          ),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: colorScheme.onSurface.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: colorScheme.onSurface.withOpacity(0.08),
                         ),
-                        child: isEmpty
-                            ? Center(
-                                child: Text(
-                                  app.t('no_text_found') ?? "No text found.",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSurface.withOpacity(
-                                      0.5,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : SingleChildScrollView(
-                                controller: controller,
-                                physics: const BouncingScrollPhysics(),
-                                child: SelectableText(
-                                  text,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    height: 1.6,
-                                    fontWeight: FontWeight.w500,
-                                    color: colorScheme.onSurface,
-                                  ),
+                      ),
+                      child: isEmpty
+                          ? Center(
+                              child: Text(
+                                app.t('no_text_found') ?? "No text found.",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface.withOpacity(0.5),
                                 ),
                               ),
-                      ),
+                            )
+                          : SingleChildScrollView(
+                              controller: controller,
+                              physics: const BouncingScrollPhysics(),
+                              child: SelectableText(
+                                text,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 1.6,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
                     ),
-                    const SizedBox(height: 24),
-                    if (!isEmpty)
-                      SafeArea(
-                        top: false,
+                  ),
+                  const SizedBox(height: 24),
+                  if (!isEmpty)
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
                         child: Row(
                           children: [
                             Expanded(
@@ -1052,16 +1094,16 @@ class _FullScreenImageState extends State<FullScreenImage>
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: colorScheme.onSurface.withOpacity(
-                                      0.08,
+                                      0.05,
                                     ),
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.copy_rounded,
-                                        size: 20,
+                                        size: 18,
                                         color: colorScheme.onSurface,
                                       ),
                                       const SizedBox(width: 8),
@@ -1091,14 +1133,14 @@ class _FullScreenImageState extends State<FullScreenImage>
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: colorScheme.onSurface,
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.ios_share_rounded,
-                                        size: 20,
+                                        size: 18,
                                         color: colorScheme.surface,
                                       ),
                                       const SizedBox(width: 8),
@@ -1117,9 +1159,9 @@ class _FullScreenImageState extends State<FullScreenImage>
                           ],
                         ),
                       ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                    ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
           ),
@@ -1145,57 +1187,71 @@ class _FullScreenImageState extends State<FullScreenImage>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(
-          16,
-        ).copyWith(bottom: MediaQuery.of(context).padding.bottom + 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 40,
-              offset: const Offset(0, 20),
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 32,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    app.t('image_details') ?? 'Info',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: colorScheme.onSurface,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  _buildDetailCard(
-                    Icons.insert_drive_file_rounded,
-                    app.t('name') ?? 'Name',
-                    p.basename(currentFile.path),
+                ),
+                Text(
+                  app.t('image_details') ?? 'Info',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
                   ),
-                  _buildDetailCard(
-                    Icons.sd_storage_rounded,
-                    app.t('size') ?? 'Size',
-                    '$fileSize MB',
-                  ),
-                  _buildDetailCard(
-                    Icons.access_time_rounded,
-                    app.t('modified') ?? 'Date Modified',
-                    formattedDate,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
+                _buildBentoDetailCard(
+                  Icons.insert_drive_file_rounded,
+                  app.t('name') ?? 'Name',
+                  p.basename(currentFile.path),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildBentoDetailCard(
+                        Icons.sd_storage_rounded,
+                        app.t('size') ?? 'Size',
+                        '$fileSize MB',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildBentoDetailCard(
+                        Icons.access_time_rounded,
+                        app.t('modified') ?? 'Date',
+                        formattedDate,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -1203,45 +1259,47 @@ class _FullScreenImageState extends State<FullScreenImage>
     );
   }
 
-  Widget _buildDetailCard(IconData icon, String label, String value) {
+  Widget _buildBentoDetailCard(IconData icon, String label, String value) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.onSurface.withOpacity(0.05),
+        color: colorScheme.onSurface.withOpacity(0.04),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.onSurface.withOpacity(0.05)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: colorScheme.onSurface.withOpacity(0.6), size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface.withOpacity(0.4),
-                    letterSpacing: 1.1,
-                  ),
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: colorScheme.onSurface.withOpacity(0.5),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface.withOpacity(0.5),
+                  letterSpacing: 1.1,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1270,116 +1328,14 @@ class _FullScreenImageState extends State<FullScreenImage>
     );
   }
 
-  void _showDeleteCurrentConfirm(BuildContext context) {
-    final app = context.read<AppState>();
-    final colorScheme = Theme.of(context).colorScheme;
-    HapticFeedback.mediumImpact();
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: colorScheme.surface.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: colorScheme.onSurface.withOpacity(0.08),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    app.t('delete_photo') ?? 'Delete Photo?',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: colorScheme.onSurface.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('cancel') ?? 'Cancel',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () async {
-                            final file = widget.images[_currentIndex];
-                            if (await file.exists()) await file.delete();
-                            await app.loadData();
-                            if (mounted) {
-                              Navigator.pop(context);
-                              Navigator.pop(context);
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('delete') ?? 'Delete',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final double safeAreaTop = MediaQuery.of(context).padding.top;
+    final double safeAreaTop = MediaQuery.paddingOf(context).top;
+    final double safeAreaBottom = MediaQuery.paddingOf(context).bottom;
     final app = context.watch<AppState>();
 
     // Seamless Apple Photos drag fade
-    final bgOpacity = (1 - (_dragOffset.abs() / 500)).clamp(0.0, 1.0);
+    final bgOpacity = (1 - (_dragOffset.abs() / 400)).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(bgOpacity),
@@ -1394,7 +1350,6 @@ class _FullScreenImageState extends State<FullScreenImage>
           if (_isExtractingText) return;
           setState(() {
             _dragOffset += details.delta.dy;
-            // Native Apple photos scaling math
             _dragScale = (1 - (_dragOffset.abs() / 1500)).clamp(0.5, 1.0);
             _showUI = false;
             _physics = const NeverScrollableScrollPhysics();
@@ -1403,7 +1358,7 @@ class _FullScreenImageState extends State<FullScreenImage>
         onVerticalDragEnd: (details) {
           if (_isExtractingText) return;
           if (_dragOffset.abs() > 150 ||
-              details.velocity.pixelsPerSecond.dy.abs() > 1000) {
+              details.velocity.pixelsPerSecond.dy.abs() > 800) {
             Navigator.pop(context);
           } else {
             setState(() {
@@ -1452,7 +1407,7 @@ class _FullScreenImageState extends State<FullScreenImage>
               ),
             ),
 
-            // LIVE OCR SCANNER
+            // LIVE OCR SCANNER (Apple Vision Style)
             if (_isExtractingText)
               Positioned.fill(
                 child: AnimatedBuilder(
@@ -1461,20 +1416,28 @@ class _FullScreenImageState extends State<FullScreenImage>
                     final scanPos = _scannerController.value;
                     return Stack(
                       children: [
-                        Container(color: Colors.black.withOpacity(0.5)),
+                        Container(color: Colors.black.withOpacity(0.6)),
                         Positioned(
-                          top: MediaQuery.of(context).size.height * scanPos,
+                          top: MediaQuery.sizeOf(context).height * scanPos,
                           left: 0,
                           right: 0,
                           child: Container(
-                            height: 2,
+                            height: 4,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.blueAccent.withOpacity(0.0),
+                                  Colors.blueAccent,
+                                  Colors.white,
+                                  Colors.blueAccent,
+                                  Colors.blueAccent.withOpacity(0.0),
+                                ],
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.white,
-                                  blurRadius: 15,
-                                  spreadRadius: 3,
+                                  color: Colors.blueAccent.withOpacity(0.5),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
                                 ),
                               ],
                             ),
@@ -1498,7 +1461,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                                   ),
                                 ),
                                 child: Text(
-                                  app.t('analyzing_ai') ?? "Scanning...",
+                                  app.t('analyzing_ai') ?? "Scanning Text...",
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -1517,20 +1480,20 @@ class _FullScreenImageState extends State<FullScreenImage>
 
             // FLOATING HEADER
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
+              duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
-              top: _showUI && !_isExtractingText ? safeAreaTop + 16 : -100,
-              left: 24,
-              right: 24,
+              top: _showUI && !_isExtractingText ? safeAreaTop + 12 : -100,
+              left: 20,
+              right: 20,
               child: _buildGlassIsland(
-                height: 56,
+                height: 52,
                 child: Row(
                   children: [
                     IconButton(
                       icon: const Icon(
                         Icons.close_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 22,
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -1541,7 +1504,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -1549,7 +1512,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                       icon: const Icon(
                         Icons.info_outline_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 22,
                       ),
                       onPressed: () => _showImageDetails(context),
                     ),
@@ -1560,13 +1523,15 @@ class _FullScreenImageState extends State<FullScreenImage>
 
             // FLOATING BOTTOM DOCK
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
+              duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
-              bottom: _showUI && !_isExtractingText ? 36 : -120,
+              bottom: _showUI && !_isExtractingText
+                  ? safeAreaBottom + 20
+                  : -120,
               left: 32,
               right: 32,
               child: _buildGlassIsland(
-                height: 72,
+                height: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -1590,7 +1555,24 @@ class _FullScreenImageState extends State<FullScreenImage>
                     _buildDockAction(
                       Icons.delete_outline_rounded,
                       app.t('delete') ?? 'Delete',
-                      () => _showDeleteCurrentConfirm(context),
+                      () {
+                        // Reusing our beautiful Delete Modal from Gallery for coherence
+                        final galleryState = context.read<AppState>();
+                        _showDeleteConfirm(
+                          context,
+                          galleryState,
+                          isSingle: true,
+                          onConfirm: () async {
+                            final file = widget.images[_currentIndex];
+                            if (await file.exists()) await file.delete();
+                            await galleryState.loadData();
+                            if (context.mounted) {
+                              Navigator.pop(context); // close sheet
+                              Navigator.pop(context); // close full screen
+                            }
+                          },
+                        );
+                      },
                       color: Colors.redAccent,
                     ),
                   ],
@@ -1603,18 +1585,154 @@ class _FullScreenImageState extends State<FullScreenImage>
     );
   }
 
+  // Same component used for Deletion in Gallery for absolute consistency
+  void _showDeleteConfirm(
+    BuildContext context,
+    AppState app, {
+    bool isSingle = false,
+    VoidCallback? onConfirm,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    HapticFeedback.mediumImpact();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  app.t('delete_confirm') ??
+                      (isSingle ? 'Delete Photo?' : 'Delete Photos?'),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  app.t('delete_confirm_msg') ??
+                      'This action cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurface.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('cancel') ?? 'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () {
+                          HapticFeedback.heavyImpact();
+                          if (onConfirm != null) {
+                            onConfirm();
+                          } else {
+                            app.deleteSelectedImages();
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('delete') ?? 'Delete',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildGlassIsland({required double height, required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(height / 2),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: Container(
           height: height,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withOpacity(0.55),
             borderRadius: BorderRadius.circular(height / 2),
             border: Border.all(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withOpacity(0.1),
               width: 0.5,
             ),
           ),
@@ -1636,12 +1754,12 @@ class _FullScreenImageState extends State<FullScreenImage>
         onTap();
       },
       child: Container(
-        color: Colors.transparent,
+        color: Colors.transparent, // Required for hit testing
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 22),
+            Icon(icon, color: color, size: 20),
             const SizedBox(height: 4),
             Text(
               label,

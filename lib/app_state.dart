@@ -1,14 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
-// A simple model to cache metadata so we don't hit the disk during sorting
+// A simple model to cache metadata so we don't hit the disk heavily during sorting
 class FileEntry {
   final File file;
   final DateTime modified;
@@ -23,7 +23,7 @@ class AppState extends ChangeNotifier {
   bool isFilesGrid = false;
   bool useExternalStorage = false;
 
-  // We store the actual Files for the UI
+  // Actual Files for the UI
   List<File> images = [];
   List<File> pdfs = [];
 
@@ -68,10 +68,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Safely handles Android external storage gracefully falling back if unavailable
   Future<String> get activeDirectory async {
     if (useExternalStorage && Platform.isAndroid) {
       final dir = await getExternalStorageDirectory();
-      return dir!.path;
+      if (dir != null) return dir.path;
     }
     final dir = await getApplicationDocumentsDirectory();
     return dir.path;
@@ -87,70 +88,100 @@ class AppState extends ChangeNotifier {
     pdfs.clear();
     _currentImageEntries.clear();
     _currentPdfEntries.clear();
-    notifyListeners();
 
+    // Clear selections that belong to the old directory
+    clearImageSelection();
+    clearPdfSelection();
+
+    notifyListeners();
     await loadData();
   }
 
   // --- OPTIMIZED CORE LOAD ENGINE ---
 
-  /// Reads directory, maps metadata, and performs Smart Diffing
+  /// Reads directory, maps metadata, cleans up orphans, and performs Smart Diffing
   Future<void> loadData() async {
     if (isLoading) return;
+
     isLoading = true;
+    notifyListeners(); // Ensure UI knows we are loading
 
-    final dirPath = await activeDirectory;
-    final dir = Directory(dirPath);
-    if (!await dir.exists()) await dir.create(recursive: true);
+    try {
+      final dirPath = await activeDirectory;
+      final dir = Directory(dirPath);
+      if (!await dir.exists()) await dir.create(recursive: true);
 
-    // 1. Get the list of files asynchronously
-    final List<FileSystemEntity> entities = await dir.list().toList();
+      final List<FileEntry> newImageEntries = [];
+      final List<FileEntry> newPdfEntries = [];
 
-    // 2. Process metadata in parallel for maximum speed
-    final List<FileEntry> newImageEntries = [];
-    final List<FileEntry> newPdfEntries = [];
-
-    await Future.wait(
-      entities.whereType<File>().map((file) async {
-        final ext = p.extension(file.path).toLowerCase();
-        if (ext == '.jpg' || ext == '.pdf') {
-          final stat = await file.stat();
-          final entry = FileEntry(file, stat.modified);
-          if (ext == '.jpg') newImageEntries.add(entry);
-          if (ext == '.pdf') newPdfEntries.add(entry);
+      // Safe Stream processing avoids memory spikes and race conditions
+      await for (final entity in dir.list()) {
+        if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          if (ext == '.jpg' ||
+              ext == '.jpeg' ||
+              ext == '.png' ||
+              ext == '.pdf') {
+            try {
+              final stat = await entity.stat();
+              final entry = FileEntry(entity, stat.modified);
+              if (ext == '.pdf') {
+                newPdfEntries.add(entry);
+              } else {
+                newImageEntries.add(entry);
+              }
+            } catch (_) {
+              // Gracefully ignore files that get deleted mid-read
+            }
+          }
         }
-      }),
-    );
+      }
 
-    // 3. Sort by last modified
-    newImageEntries.sort((a, b) => b.modified.compareTo(a.modified));
-    newPdfEntries.sort((a, b) => b.modified.compareTo(a.modified));
+      // Sort by last modified (Chronological descending)
+      newImageEntries.sort((a, b) => b.modified.compareTo(a.modified));
+      newPdfEntries.sort((a, b) => b.modified.compareTo(a.modified));
 
-    // 4. SMART DIFFING: Only update UI if files actually changed
-    final bool imagesChanged = _hasChanges(
-      _currentImageEntries,
-      newImageEntries,
-    );
-    final bool pdfsChanged = _hasChanges(_currentPdfEntries, newPdfEntries);
+      // SMART CLEANUP: Remove orphaned selections (e.g. files deleted externally)
+      final imagePaths = newImageEntries.map((e) => e.file.path).toSet();
+      final pdfPaths = newPdfEntries.map((e) => e.file.path).toSet();
 
-    if (imagesChanged || pdfsChanged) {
+      selectedImages.retainWhere((path) => imagePaths.contains(path));
+      selectedPdfs.retainWhere((path) => pdfPaths.contains(path));
+
+      // Update pins if a pinned file was deleted
+      final validPins = pinnedPdfs
+          .where((path) => pdfPaths.contains(path))
+          .toList();
+      if (validPins.length != pinnedPdfs.length) {
+        pinnedPdfs = validPins;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('pinnedPdfs', pinnedPdfs);
+      }
+
+      // SMART DIFFING: Only update memory/rebuild UI if files actually changed
+      final bool imagesChanged = _hasChanges(
+        _currentImageEntries,
+        newImageEntries,
+      );
+      final bool pdfsChanged = _hasChanges(_currentPdfEntries, newPdfEntries);
+
       if (imagesChanged) {
         _currentImageEntries = newImageEntries;
         images = newImageEntries.map((e) => e.file).toList();
       }
+
       if (pdfsChanged) {
         _currentPdfEntries = newPdfEntries;
         pdfs = newPdfEntries.map((e) => e.file).toList();
       }
-
-      // Only rebuild the UI if a structural change occurred
+    } finally {
+      // Guarantee loading state completes
+      isLoading = false;
       notifyListeners();
     }
-
-    isLoading = false;
   }
 
-  /// Helper: Checks if two FileEntry lists differ in content or modification dates
+  /// Checks if two FileEntry lists differ in content, order, or modification dates
   bool _hasChanges(List<FileEntry> oldList, List<FileEntry> newList) {
     if (oldList.length != newList.length) return true;
     for (int i = 0; i < oldList.length; i++) {
@@ -181,11 +212,8 @@ class AppState extends ChangeNotifier {
       // Retain chronological order
       await file.setLastModified(originalTimestamp);
 
-      // IMPORTANT: Evict the old image from Flutter's cache so the edit shows immediately
+      // CRITICAL FIX: Evict the old image from Flutter's cache so the UI updates instantly
       await FileImage(file).evict();
-
-      // Force a manual UI update because the smart-differ will ignore it
-      // (since the path and timestamp didn't technically change)
       notifyListeners();
     }
 
@@ -197,14 +225,21 @@ class AppState extends ChangeNotifier {
 
     final pdf = pw.Document();
 
-    for (var imagePath in selectedImages) {
+    // CRITICAL FIX: Sets do not guarantee order. This ensures PDF pages
+    // are generated in the exact visual chronological order shown in the UI.
+    final sortedSelectedPaths = images
+        .map((f) => f.path)
+        .where((path) => selectedImages.contains(path))
+        .toList();
+
+    for (var imagePath in sortedSelectedPaths) {
       final file = File(imagePath);
       if (await file.exists()) {
         final imageBytes = await file.readAsBytes();
         final image = pw.MemoryImage(imageBytes);
         pdf.addPage(
           pw.Page(
-            margin: const pw.EdgeInsets.all(10),
+            margin: const pw.EdgeInsets.all(0), // Pro borderless presentation
             build: (pw.Context context) => pw.Center(child: pw.Image(image)),
           ),
         );
@@ -297,16 +332,30 @@ class AppState extends ChangeNotifier {
     try {
       final dir = file.parent.path;
       final newPath = p.join(dir, '$newName.pdf');
-      if (await File(newPath).exists()) return false;
+
+      if (file.path == newPath) return true; // No change made
+      if (await File(newPath).exists()) return false; // Collision check
 
       await file.rename(newPath);
 
+      bool needsPrefUpdate = false;
+
+      // Smart Path Updates: Keep pins and selections alive across renames
       if (pinnedPdfs.contains(file.path)) {
         pinnedPdfs.remove(file.path);
         pinnedPdfs.add(newPath);
+        needsPrefUpdate = true;
+      }
+      if (selectedPdfs.contains(file.path)) {
+        selectedPdfs.remove(file.path);
+        selectedPdfs.add(newPath);
+      }
+
+      if (needsPrefUpdate) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setStringList('pinnedPdfs', pinnedPdfs);
       }
+
       await loadData();
       return true;
     } catch (e) {
@@ -333,17 +382,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleGalleryGrid() {
+  Future<void> toggleGalleryGrid() async {
     gridColumns = gridColumns == 4 ? 2 : gridColumns + 1;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('gridColumns', gridColumns); // FIX: Now persists layout
     notifyListeners();
   }
 
-  void toggleFilesLayout() {
+  Future<void> toggleFilesLayout() async {
     isFilesGrid = !isFilesGrid;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isFilesGrid', isFilesGrid); // FIX: Now persists layout
     notifyListeners();
   }
 
-  void togglePdfPin(String path) async {
+  Future<void> togglePdfPin(String path) async {
     pinnedPdfs.contains(path) ? pinnedPdfs.remove(path) : pinnedPdfs.add(path);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pinnedPdfs', pinnedPdfs);
@@ -363,6 +416,13 @@ class AppState extends ChangeNotifier {
   }
 
   String t(String key) {
-    return _localizedStrings[language]?[key] ?? key;
+    try {
+      // Safe Cast implementation prevents crashes on faulty JSON parsing
+      final langMap = _localizedStrings[language] as Map<String, dynamic>?;
+      if (langMap != null && langMap.containsKey(key)) {
+        return langMap[key].toString();
+      }
+    } catch (_) {}
+    return key; // Fallback to raw key string
   }
 }

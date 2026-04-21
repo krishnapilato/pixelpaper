@@ -10,7 +10,7 @@ import 'package:intl/intl.dart';
 import 'app_state.dart';
 import 'settings_modal.dart';
 import 'pdf_preview_screen.dart';
-import 'pdf_editor_screen.dart';
+import 'pdf_editor_screen.dart'; // Assume this is your existing editor
 
 // -----------------------------------------------------------------------------
 // PRO FLUID BOUNCE (Apple-style spring physics)
@@ -83,6 +83,11 @@ class _ProFluidBounceState extends State<ProFluidBounce>
 }
 
 // -----------------------------------------------------------------------------
+// SORTING ENUM (New Pro Feature)
+// -----------------------------------------------------------------------------
+enum FileSortType { dateDesc, dateAsc, nameAsc, nameDesc, sizeDesc, sizeAsc }
+
+// -----------------------------------------------------------------------------
 // FILES SCREEN
 // -----------------------------------------------------------------------------
 class FilesScreen extends StatefulWidget {
@@ -97,6 +102,7 @@ class _FilesScreenState extends State<FilesScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearchActive = false;
   String _searchQuery = '';
+  FileSortType _sortType = FileSortType.dateDesc;
 
   @override
   void initState() {
@@ -128,7 +134,7 @@ class _FilesScreenState extends State<FilesScreen> {
 
   // --- PREMIUM APPLE-STYLE MODALS ---
 
-  void _showRenameDialog(BuildContext context, AppState app, File file) {
+  void _showRenameSheet(BuildContext context, AppState app, File file) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameController = TextEditingController(
@@ -136,155 +142,162 @@ class _FilesScreenState extends State<FilesScreen> {
     );
 
     HapticFeedback.mediumImpact();
-    showGeneralDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.4),
-      transitionDuration: const Duration(milliseconds: 350),
-      pageBuilder: (context, anim1, anim2) => const SizedBox(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: FadeTransition(
-            opacity: anim1,
-            child: Dialog(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(40),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                  child: Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withOpacity(
-                        isDark ? 0.6 : 0.8,
-                      ),
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(
-                        color: colorScheme.onSurface.withOpacity(0.08),
-                        width: 0.5,
-                      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) {
+        final viewInsets = MediaQuery.viewInsetsOf(context);
+        return Padding(
+          padding: EdgeInsets.only(bottom: viewInsets.bottom),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.onSurface.withOpacity(0.08),
+                      width: 0.5,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.drive_file_rename_outline_rounded,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Icon(
+                        Icons.drive_file_rename_outline_rounded,
+                        color: colorScheme.onSurface,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        app.t('rename') ?? 'Rename File',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
                           color: colorScheme.onSurface,
-                          size: 48,
                         ),
-                        const SizedBox(height: 20),
-                        Text(
-                          app.t('rename') ?? 'Rename File',
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: colorScheme.onSurface.withOpacity(0.08),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: nameController,
+                          autofocus: true,
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
+                            fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
+                            fontSize: 16,
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.onSurface.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.onSurface.withOpacity(0.1),
-                            ),
-                          ),
-                          child: TextField(
-                            controller: nameController,
-                            autofocus: true,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
+                          decoration: InputDecoration(
+                            suffixText: '.pdf',
+                            suffixStyle: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.4),
                               fontWeight: FontWeight.w600,
-                              color: colorScheme.onSurface,
                             ),
-                            decoration: InputDecoration(
-                              suffixText: '.pdf',
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ProFluidBounce(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                      ),
+                      const SizedBox(height: 28),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ProFluidBounce(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.onSurface.withOpacity(
+                                    0.05,
                                   ),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.onSurface.withOpacity(
-                                      0.08,
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    app.t('cancel') ?? 'Cancel',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: colorScheme.onSurface,
-                                    ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  app.t('cancel') ?? 'Cancel',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ProFluidBounce(
-                                onTap: () async {
-                                  if (nameController.text.trim().isNotEmpty) {
-                                    final success = await app.renamePdf(
-                                      file,
-                                      nameController.text.trim(),
-                                    );
-                                    if (context.mounted) {
-                                      Navigator.pop(context);
-                                      if (!success) {
-                                        _showProToast(
-                                          context,
-                                          'Name already exists!',
-                                          Icons.error_outline_rounded,
-                                          isError: true,
-                                        );
-                                      }
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ProFluidBounce(
+                              onTap: () async {
+                                if (nameController.text.trim().isNotEmpty) {
+                                  final success = await app.renamePdf(
+                                    file,
+                                    nameController.text.trim(),
+                                  );
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    if (!success) {
+                                      _showProToast(
+                                        context,
+                                        'Name already exists!',
+                                        Icons.error_outline_rounded,
+                                        isError: true,
+                                      );
                                     }
                                   }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.onSurface,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    app.t('save') ?? 'Save',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: colorScheme.surface,
-                                    ),
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.onSurface,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  app.t('save') ?? 'Save',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.surface,
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -292,6 +305,171 @@ class _FilesScreenState extends State<FilesScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showSortOptions(BuildContext context) {
+    HapticFeedback.lightImpact();
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  "Sort Files By",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withOpacity(0.08),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildSortOption(
+                        context,
+                        "Date Modified (Newest)",
+                        Icons.access_time_rounded,
+                        FileSortType.dateDesc,
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildSortOption(
+                        context,
+                        "Date Modified (Oldest)",
+                        Icons.history_rounded,
+                        FileSortType.dateAsc,
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildSortOption(
+                        context,
+                        "Name (A-Z)",
+                        Icons.sort_by_alpha_rounded,
+                        FileSortType.nameAsc,
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildSortOption(
+                        context,
+                        "Name (Z-A)",
+                        Icons.sort_by_alpha_rounded,
+                        FileSortType.nameDesc,
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildSortOption(
+                        context,
+                        "Size (Largest)",
+                        Icons.folder_open_rounded,
+                        FileSortType.sizeDesc,
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildSortOption(
+                        context,
+                        "Size (Smallest)",
+                        Icons.folder_zip_rounded,
+                        FileSortType.sizeAsc,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortOption(
+    BuildContext context,
+    String label,
+    IconData icon,
+    FileSortType type,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSelected = _sortType == type;
+
+    return ProFluidBounce(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _sortType = type);
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurface.withOpacity(0.5),
+              size: 22,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurface.withOpacity(0.7),
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 16,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_rounded, color: colorScheme.onSurface, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(ColorScheme colorScheme) {
+    return Divider(
+      height: 1,
+      indent: 58,
+      color: colorScheme.onSurface.withOpacity(0.05),
     );
   }
 
@@ -304,117 +482,121 @@ class _FilesScreenState extends State<FilesScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(
-          16,
-        ).copyWith(bottom: MediaQuery.of(context).padding.bottom + 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 40,
-              spreadRadius: -10,
-              offset: const Offset(0, 20),
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 24,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.red,
-                      size: 36,
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    app.t('delete_confirm') ?? 'Delete PDF?',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: colorScheme.onSurface,
-                    ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.12),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    app.t('delete_confirm_msg') ??
-                        'This document will be removed permanently.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface.withOpacity(0.5),
-                    ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                    size: 36,
                   ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: colorScheme.onSurface.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('cancel') ?? 'Cancel',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  app.t('delete_confirm') ??
+                      (file != null ? 'Delete Document?' : 'Delete Selected?'),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  app.t('delete_confirm_msg') ??
+                      'This action cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurface.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('cancel') ?? 'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ProFluidBounce(
-                          onTap: () {
-                            HapticFeedback.heavyImpact();
-                            if (file != null) app.togglePdfSelection(file.path);
-                            app.deleteSelectedPdfs();
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              app.t('delete') ?? 'Delete',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ProFluidBounce(
+                        onTap: () {
+                          HapticFeedback.heavyImpact();
+                          if (file != null) {
+                            if (!app.selectedPdfs.contains(file.path)) {
+                              app.togglePdfSelection(file.path);
+                            }
+                          }
+                          app.deleteSelectedPdfs();
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            app.t('delete') ?? 'Delete',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -438,163 +620,151 @@ class _FilesScreenState extends State<FilesScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       elevation: 0,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(
-          16,
-        ).copyWith(bottom: MediaQuery.of(context).padding.bottom + 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 40,
-              spreadRadius: -10,
-              offset: const Offset(0, 20),
+      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              12,
+              24,
+              MediaQuery.paddingOf(context).bottom + 24,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-            child: Container(
-              color: colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: Colors.redAccent,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            fileName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
+                              color: colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$fileSize MB • $formattedDate',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Action Group 1 (iOS Style Grouping)
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withOpacity(0.08),
                     ),
                   ),
-                  Row(
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: Colors.red,
-                          size: 28,
-                        ),
+                      _buildBottomSheetItem(
+                        context,
+                        icon: Icons.edit_note_rounded,
+                        title: app.t('edit') ?? 'Edit Pages',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VisualPdfEditorScreen(
+                                file: file,
+                                onSaved: () => app.loadData(),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              fileName,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.3,
-                                color: colorScheme.onSurface,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$fileSize MB • $formattedDate',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurface.withOpacity(0.5),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _buildDivider(colorScheme),
+                      _buildBottomSheetItem(
+                        context,
+                        icon: Icons.drive_file_rename_outline_rounded,
+                        title: app.t('rename') ?? 'Rename',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showRenameSheet(context, app, file);
+                        },
+                      ),
+                      _buildDivider(colorScheme),
+                      _buildBottomSheetItem(
+                        context,
+                        icon: Icons.ios_share_rounded,
+                        title: app.t('share') ?? 'Share',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Share.shareXFiles([XFile(file.path)]);
+                        },
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 12),
 
-                  // Action Group 1 (iOS Style Grouping)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildBottomSheetItem(
-                          context,
-                          icon: Icons.edit_note_rounded,
-                          title: app.t('edit') ?? 'Edit Pages',
-                          onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => VisualPdfEditorScreen(
-                                  file: file,
-                                  onSaved: () => app.loadData(),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 56,
-                          color: colorScheme.onSurface.withOpacity(0.05),
-                        ),
-                        _buildBottomSheetItem(
-                          context,
-                          icon: Icons.drive_file_rename_outline_rounded,
-                          title: app.t('rename') ?? 'Rename',
-                          onTap: () {
-                            Navigator.pop(context);
-                            _showRenameDialog(context, app, file);
-                          },
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 56,
-                          color: colorScheme.onSurface.withOpacity(0.05),
-                        ),
-                        _buildBottomSheetItem(
-                          context,
-                          icon: Icons.ios_share_rounded,
-                          title: app.t('share') ?? 'Share',
-                          onTap: () {
-                            Navigator.pop(context);
-                            Share.shareXFiles([XFile(file.path)]);
-                          },
-                        ),
-                      ],
+                // Action Group 2 (Destructive)
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withOpacity(0.08),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Action Group 2 (Destructive)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: _buildBottomSheetItem(
-                      context,
-                      icon: Icons.delete_outline_rounded,
-                      title: app.t('delete') ?? 'Delete',
-                      isDestructive: true,
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showDeleteConfirm(context, app, file: file);
-                      },
-                    ),
+                  child: _buildBottomSheetItem(
+                    context,
+                    icon: Icons.delete_outline_rounded,
+                    title: app.t('delete') ?? 'Delete',
+                    isDestructive: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showDeleteConfirm(context, app, file: file);
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -615,10 +785,10 @@ class _FilesScreenState extends State<FilesScreen> {
     return ProFluidBounce(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: color, size: 22),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
@@ -656,7 +826,7 @@ class _FilesScreenState extends State<FilesScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(top: 50, left: 24, right: 24),
+        margin: const EdgeInsets.only(bottom: 100, left: 24, right: 24),
         padding: EdgeInsets.zero,
         content: ClipRRect(
           borderRadius: BorderRadius.circular(30),
@@ -666,8 +836,8 @@ class _FilesScreenState extends State<FilesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 color: isError
-                    ? Colors.redAccent.withOpacity(0.9)
-                    : colorScheme.onSurface.withOpacity(isDark ? 0.9 : 0.8),
+                    ? Colors.redAccent.withOpacity(0.95)
+                    : colorScheme.onSurface.withOpacity(isDark ? 0.9 : 0.85),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -676,13 +846,17 @@ class _FilesScreenState extends State<FilesScreen> {
                 children: [
                   Icon(icon, color: colorScheme.surface, size: 20),
                   const SizedBox(width: 12),
-                  Text(
-                    message,
-                    style: TextStyle(
-                      color: colorScheme.surface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      letterSpacing: -0.2,
+                  Flexible(
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        color: colorScheme.surface,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -700,15 +874,38 @@ class _FilesScreenState extends State<FilesScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final colorScheme = Theme.of(context).colorScheme;
-    final double safeAreaTop = MediaQuery.of(context).padding.top;
+    final double safeAreaTop = MediaQuery.paddingOf(context).top;
     final selectedList = app.selectedPdfs.toList();
 
     List<File> sortedPdfs = List<File>.from(app.pdfs);
+
+    // Sort Logic Implementation
     sortedPdfs.sort((a, b) {
       final aPinned = app.pinnedPdfs.contains(a.path) ? 1 : 0;
       final bPinned = app.pinnedPdfs.contains(b.path) ? 1 : 0;
-      if (aPinned != bPinned) return bPinned.compareTo(aPinned);
-      return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+      if (aPinned != bPinned)
+        return bPinned.compareTo(aPinned); // Pinned always wins
+
+      switch (_sortType) {
+        case FileSortType.dateDesc:
+          return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+        case FileSortType.dateAsc:
+          return a.lastModifiedSync().compareTo(b.lastModifiedSync());
+        case FileSortType.nameAsc:
+          return p
+              .basename(a.path)
+              .toLowerCase()
+              .compareTo(p.basename(b.path).toLowerCase());
+        case FileSortType.nameDesc:
+          return p
+              .basename(b.path)
+              .toLowerCase()
+              .compareTo(p.basename(a.path).toLowerCase());
+        case FileSortType.sizeDesc:
+          return b.lengthSync().compareTo(a.lengthSync());
+        case FileSortType.sizeAsc:
+          return a.lengthSync().compareTo(b.lengthSync());
+      }
     });
 
     if (_searchQuery.isNotEmpty) {
@@ -757,9 +954,9 @@ class _FilesScreenState extends State<FilesScreen> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            top: safeAreaTop + 16,
-            left: 24,
-            right: 24,
+            top: safeAreaTop > 0 ? safeAreaTop + 12 : 24,
+            left: 20,
+            right: 20,
             child: _buildDynamicHeaderIsland(
               context,
               app,
@@ -785,8 +982,8 @@ class _FilesScreenState extends State<FilesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final bgColor = isSelection
-        ? colorScheme.onSurface.withOpacity(0.9)
-        : colorScheme.surface.withOpacity(isDark ? 0.5 : 0.7);
+        ? colorScheme.onSurface.withOpacity(0.95)
+        : colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8);
 
     final shadowColor = isSelection
         ? colorScheme.onSurface.withOpacity(0.3)
@@ -795,9 +992,9 @@ class _FilesScreenState extends State<FilesScreen> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.fastOutSlowIn,
-      height: 60,
+      height: 56,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
@@ -807,12 +1004,11 @@ class _FilesScreenState extends State<FilesScreen> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 350),
-            // FIX: Color moved INSIDE the BoxDecoration
             decoration: BoxDecoration(
               color: bgColor,
               border: isSelection
@@ -868,7 +1064,7 @@ class _FilesScreenState extends State<FilesScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
-                fontSize: 20,
+                fontSize: 18,
                 color: colorScheme.onSurface,
               ),
             ),
@@ -883,6 +1079,22 @@ class _FilesScreenState extends State<FilesScreen> {
               ),
               child: Icon(
                 Icons.search_rounded,
+                size: 20,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ProFluidBounce(
+            onTap: () => _showSortOptions(context),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurface.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.sort_rounded,
                 size: 20,
                 color: colorScheme.onSurface,
               ),
@@ -909,22 +1121,6 @@ class _FilesScreenState extends State<FilesScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          ProFluidBounce(
-            onTap: () => showSettingsModal(context, app),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(0.05),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.tune_rounded,
-                size: 20,
-                color: colorScheme.onSurface,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -939,9 +1135,9 @@ class _FilesScreenState extends State<FilesScreen> {
           Icon(
             Icons.search_rounded,
             color: colorScheme.onSurface.withOpacity(0.5),
-            size: 22,
+            size: 20,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: TextField(
               controller: _searchController,
@@ -966,7 +1162,7 @@ class _FilesScreenState extends State<FilesScreen> {
             IconButton(
               icon: Icon(
                 Icons.cancel_rounded,
-                size: 20,
+                size: 18,
                 color: colorScheme.onSurface.withOpacity(0.5),
               ),
               onPressed: () {
@@ -975,7 +1171,11 @@ class _FilesScreenState extends State<FilesScreen> {
               },
             ),
           IconButton(
-            icon: Icon(Icons.close_rounded, color: colorScheme.onSurface),
+            icon: Icon(
+              Icons.close_rounded,
+              color: colorScheme.onSurface,
+              size: 22,
+            ),
             onPressed: _toggleSearch,
           ),
         ],
@@ -990,11 +1190,15 @@ class _FilesScreenState extends State<FilesScreen> {
   ) {
     return Padding(
       key: const ValueKey('selection_mode'),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.close_rounded, color: colorScheme.surface),
+            icon: Icon(
+              Icons.close_rounded,
+              color: colorScheme.surface,
+              size: 22,
+            ),
             onPressed: () {
               HapticFeedback.lightImpact();
               app.clearPdfSelection();
@@ -1006,7 +1210,7 @@ class _FilesScreenState extends State<FilesScreen> {
               style: TextStyle(
                 color: colorScheme.surface,
                 fontWeight: FontWeight.w600,
-                fontSize: 16,
+                fontSize: 15,
                 letterSpacing: -0.5,
               ),
             ),
@@ -1015,6 +1219,7 @@ class _FilesScreenState extends State<FilesScreen> {
             icon: Icon(
               isAllSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
               color: colorScheme.surface,
+              size: 22,
             ),
             onPressed: () {
               HapticFeedback.selectionClick();
@@ -1022,7 +1227,11 @@ class _FilesScreenState extends State<FilesScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.ios_share_rounded, color: colorScheme.surface),
+            icon: Icon(
+              Icons.ios_share_rounded,
+              color: colorScheme.surface,
+              size: 22,
+            ),
             onPressed: () {
               Share.shareXFiles(app.selectedPdfs.map((p) => XFile(p)).toList());
               app.clearPdfSelection();
@@ -1032,6 +1241,7 @@ class _FilesScreenState extends State<FilesScreen> {
             icon: const Icon(
               Icons.delete_outline_rounded,
               color: Colors.redAccent,
+              size: 22,
             ),
             onPressed: () => _showDeleteConfirm(context, app),
           ),
@@ -1058,7 +1268,10 @@ class _FilesScreenState extends State<FilesScreen> {
     ).format(file.lastModifiedSync());
 
     return ProFluidBounce(
-      onLongPress: () => app.togglePdfSelection(file.path),
+      onLongPress: () {
+        HapticFeedback.heavyImpact();
+        app.togglePdfSelection(file.path);
+      },
       onTap: () {
         if (app.isPdfSelectionMode) {
           HapticFeedback.selectionClick();
@@ -1078,8 +1291,8 @@ class _FilesScreenState extends State<FilesScreen> {
         margin: isGrid ? EdgeInsets.zero : const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.onSurface.withOpacity(0.05)
-              : colorScheme.onSurface.withOpacity(0.02),
+              ? colorScheme.onSurface.withOpacity(0.06)
+              : colorScheme.onSurface.withOpacity(0.03),
           borderRadius: BorderRadius.circular(isGrid ? 28 : 24),
           border: Border.all(
             color: isSelected
@@ -1164,8 +1377,15 @@ class _FilesScreenState extends State<FilesScreen> {
             HapticFeedback.lightImpact();
             app.togglePdfPin(file.path);
           },
-          child: Padding(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: isPinned
+                  ? Colors.amber.withOpacity(0.15)
+                  : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
             child: Icon(
               isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
               color: isPinned
@@ -1245,8 +1465,15 @@ class _FilesScreenState extends State<FilesScreen> {
               HapticFeedback.lightImpact();
               app.togglePdfPin(file.path);
             },
-            child: Padding(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: isPinned
+                    ? Colors.amber.withOpacity(0.15)
+                    : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
               child: Icon(
                 isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                 color: isPinned
@@ -1315,12 +1542,12 @@ class _FilesScreenState extends State<FilesScreen> {
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(large ? 16 : 12),
+                color: Colors.redAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(large ? 18 : 14),
               ),
               child: Icon(
                 Icons.picture_as_pdf_rounded,
-                color: Colors.red,
+                color: Colors.redAccent,
                 size: large ? 28 : 22,
               ),
             ),
@@ -1339,7 +1566,7 @@ class _FilesScreenState extends State<FilesScreen> {
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.05),
+              color: colorScheme.onSurface.withOpacity(0.04),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1347,7 +1574,7 @@ class _FilesScreenState extends State<FilesScreen> {
                   ? Icons.search_off_rounded
                   : Icons.folder_open_rounded,
               size: 48,
-              color: colorScheme.onSurface.withOpacity(0.4),
+              color: colorScheme.onSurface.withOpacity(0.3),
             ),
           ),
           const SizedBox(height: 24),
