@@ -363,6 +363,25 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
                                 );
                                 app.loadData();
                                 Navigator.pop(context);
+
+                                // Show success toast
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('File renamed'),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      margin: const EdgeInsets.fromLTRB(
+                                        24,
+                                        0,
+                                        24,
+                                        120,
+                                      ),
+                                    ),
+                                  );
+                                }
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(

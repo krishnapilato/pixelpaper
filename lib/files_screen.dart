@@ -8,79 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:intl/intl.dart';
 
 import 'app_state.dart';
-import 'settings_modal.dart';
 import 'pdf_preview_screen.dart';
-import 'pdf_editor_screen.dart'; // Assume this is your existing editor
-
-// -----------------------------------------------------------------------------
-// PRO FLUID BOUNCE (Apple-style spring physics)
-// -----------------------------------------------------------------------------
-class ProFluidBounce extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-  final VoidCallback? onLongPress;
-  final double scaleEnd;
-
-  const ProFluidBounce({
-    super.key,
-    required this.child,
-    required this.onTap,
-    this.onLongPress,
-    this.scaleEnd = 0.95,
-  });
-
-  @override
-  State<ProFluidBounce> createState() => _ProFluidBounceState();
-}
-
-class _ProFluidBounceState extends State<ProFluidBounce>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-      reverseDuration: const Duration(milliseconds: 300),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleEnd).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeOutBack,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      onLongPress: widget.onLongPress != null
-          ? () {
-              HapticFeedback.heavyImpact();
-              widget.onLongPress!();
-            }
-          : null,
-      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
-    );
-  }
-}
+import 'pdf_editor_screen.dart';
+import 'widgets/fluid_bounce.dart';
 
 // -----------------------------------------------------------------------------
 // SORTING ENUM (New Pro Feature)
@@ -147,7 +77,7 @@ class _FilesScreenState extends State<FilesScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      barrierColor: colorScheme.shadow.withValues(alpha: isDark ? 0.5 : 0.3),
       builder: (context) {
         final viewInsets = MediaQuery.viewInsetsOf(context);
         return Padding(
@@ -158,10 +88,10 @@ class _FilesScreenState extends State<FilesScreen> {
               filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
               child: Container(
                 decoration: BoxDecoration(
-                  color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+                  color: colorScheme.surface.withValues(alpha: isDark ? 0.7 : 0.9),
                   border: Border(
                     top: BorderSide(
-                      color: colorScheme.onSurface.withOpacity(0.08),
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
                       width: 0.5,
                     ),
                   ),
@@ -176,7 +106,7 @@ class _FilesScreenState extends State<FilesScreen> {
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 24),
                         decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.2),
+                          color: colorScheme.onSurface.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -187,7 +117,7 @@ class _FilesScreenState extends State<FilesScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        app.t('rename') ?? 'Rename File',
+                        app.t('rename'),
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -198,10 +128,10 @@ class _FilesScreenState extends State<FilesScreen> {
                       const SizedBox(height: 24),
                       Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.04),
+                          color: colorScheme.onSurface.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: colorScheme.onSurface.withOpacity(0.08),
+                            color: colorScheme.onSurface.withValues(alpha: 0.08),
                           ),
                         ),
                         child: TextField(
@@ -216,7 +146,7 @@ class _FilesScreenState extends State<FilesScreen> {
                           decoration: InputDecoration(
                             suffixText: '.pdf',
                             suffixStyle: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.4),
+                              color: colorScheme.onSurface.withValues(alpha: 0.4),
                               fontWeight: FontWeight.w600,
                             ),
                             border: InputBorder.none,
@@ -239,13 +169,13 @@ class _FilesScreenState extends State<FilesScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: colorScheme.onSurface.withOpacity(
+                                  color: colorScheme.onSurface.withValues(alpha: 
                                     0.05,
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
-                                  app.t('cancel') ?? 'Cancel',
+                                  app.t('cancel'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     color: colorScheme.onSurface,
@@ -286,7 +216,7 @@ class _FilesScreenState extends State<FilesScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
-                                  app.t('save') ?? 'Save',
+                                  app.t('save'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     color: colorScheme.surface,
@@ -317,13 +247,13 @@ class _FilesScreenState extends State<FilesScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      barrierColor: colorScheme.shadow.withValues(alpha: isDark ? 0.5 : 0.3),
       builder: (context) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
           child: Container(
-            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            color: colorScheme.surface.withValues(alpha: isDark ? 0.7 : 0.9),
             padding: EdgeInsets.fromLTRB(
               24,
               12,
@@ -340,7 +270,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.2),
+                      color: colorScheme.onSurface.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -357,10 +287,10 @@ class _FilesScreenState extends State<FilesScreen> {
                 const SizedBox(height: 20),
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withOpacity(0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: colorScheme.onSurface.withOpacity(0.08),
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Column(
@@ -440,7 +370,7 @@ class _FilesScreenState extends State<FilesScreen> {
               icon,
               color: isSelected
                   ? colorScheme.onSurface
-                  : colorScheme.onSurface.withOpacity(0.5),
+                  : colorScheme.onSurface.withValues(alpha: 0.5),
               size: 22,
             ),
             const SizedBox(width: 16),
@@ -450,7 +380,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 style: TextStyle(
                   color: isSelected
                       ? colorScheme.onSurface
-                      : colorScheme.onSurface.withOpacity(0.7),
+                      : colorScheme.onSurface.withValues(alpha: 0.7),
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 16,
                   letterSpacing: -0.2,
@@ -469,7 +399,7 @@ class _FilesScreenState extends State<FilesScreen> {
     return Divider(
       height: 1,
       indent: 58,
-      color: colorScheme.onSurface.withOpacity(0.05),
+      color: colorScheme.onSurface.withValues(alpha: 0.05),
     );
   }
 
@@ -482,13 +412,13 @@ class _FilesScreenState extends State<FilesScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      barrierColor: colorScheme.shadow.withValues(alpha: isDark ? 0.5 : 0.3),
       builder: (context) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
           child: Container(
-            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            color: colorScheme.surface.withValues(alpha: isDark ? 0.7 : 0.9),
             padding: EdgeInsets.fromLTRB(
               24,
               12,
@@ -503,14 +433,14 @@ class _FilesScreenState extends State<FilesScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withOpacity(0.2),
+                    color: colorScheme.onSurface.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.12),
+                    color: Colors.redAccent.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -532,13 +462,12 @@ class _FilesScreenState extends State<FilesScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  app.t('delete_confirm_msg') ??
-                      'This action cannot be undone.',
+                  app.t('delete_confirm_msg'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurface.withOpacity(0.5),
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -551,11 +480,11 @@ class _FilesScreenState extends State<FilesScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: colorScheme.onSurface.withOpacity(0.05),
+                            color: colorScheme.onSurface.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            app.t('cancel') ?? 'Cancel',
+                            app.t('cancel'),
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: colorScheme.onSurface,
@@ -585,7 +514,7 @@ class _FilesScreenState extends State<FilesScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            app.t('delete') ?? 'Delete',
+                            app.t('delete'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -620,13 +549,13 @@ class _FilesScreenState extends State<FilesScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       elevation: 0,
-      barrierColor: colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+      barrierColor: colorScheme.shadow.withValues(alpha: isDark ? 0.5 : 0.3),
       builder: (context) => ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
           child: Container(
-            color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
+            color: colorScheme.surface.withValues(alpha: isDark ? 0.7 : 0.9),
             padding: EdgeInsets.fromLTRB(
               24,
               12,
@@ -641,7 +570,7 @@ class _FilesScreenState extends State<FilesScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withOpacity(0.2),
+                    color: colorScheme.onSurface.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -650,7 +579,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.1),
+                        color: Colors.redAccent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(
@@ -681,7 +610,7 @@ class _FilesScreenState extends State<FilesScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: colorScheme.onSurface.withOpacity(0.5),
+                              color: colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ],
@@ -694,10 +623,10 @@ class _FilesScreenState extends State<FilesScreen> {
                 // Action Group 1 (iOS Style Grouping)
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withOpacity(0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: colorScheme.onSurface.withOpacity(0.08),
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Column(
@@ -705,7 +634,7 @@ class _FilesScreenState extends State<FilesScreen> {
                       _buildBottomSheetItem(
                         context,
                         icon: Icons.edit_note_rounded,
-                        title: app.t('edit') ?? 'Edit Pages',
+                        title: app.t('edit'),
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -723,7 +652,7 @@ class _FilesScreenState extends State<FilesScreen> {
                       _buildBottomSheetItem(
                         context,
                         icon: Icons.drive_file_rename_outline_rounded,
-                        title: app.t('rename') ?? 'Rename',
+                        title: app.t('rename'),
                         onTap: () {
                           Navigator.pop(context);
                           _showRenameSheet(context, app, file);
@@ -733,10 +662,10 @@ class _FilesScreenState extends State<FilesScreen> {
                       _buildBottomSheetItem(
                         context,
                         icon: Icons.ios_share_rounded,
-                        title: app.t('share') ?? 'Share',
+                        title: app.t('share'),
                         onTap: () {
                           Navigator.pop(context);
-                          Share.shareXFiles([XFile(file.path)]);
+                          SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
                         },
                       ),
                     ],
@@ -747,16 +676,16 @@ class _FilesScreenState extends State<FilesScreen> {
                 // Action Group 2 (Destructive)
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withOpacity(0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: colorScheme.onSurface.withOpacity(0.08),
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   child: _buildBottomSheetItem(
                     context,
                     icon: Icons.delete_outline_rounded,
-                    title: app.t('delete') ?? 'Delete',
+                    title: app.t('delete'),
                     isDestructive: true,
                     onTap: () {
                       Navigator.pop(context);
@@ -804,7 +733,7 @@ class _FilesScreenState extends State<FilesScreen> {
             Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: colorScheme.onSurface.withOpacity(0.3),
+              color: colorScheme.onSurface.withValues(alpha: 0.3),
             ),
           ],
         ),
@@ -836,8 +765,8 @@ class _FilesScreenState extends State<FilesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 color: isError
-                    ? Colors.redAccent.withOpacity(0.95)
-                    : colorScheme.onSurface.withOpacity(isDark ? 0.9 : 0.85),
+                    ? Colors.redAccent.withValues(alpha: 0.95)
+                    : colorScheme.onSurface.withValues(alpha: isDark ? 0.9 : 0.85),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -883,8 +812,9 @@ class _FilesScreenState extends State<FilesScreen> {
     sortedPdfs.sort((a, b) {
       final aPinned = app.pinnedPdfs.contains(a.path) ? 1 : 0;
       final bPinned = app.pinnedPdfs.contains(b.path) ? 1 : 0;
-      if (aPinned != bPinned)
+      if (aPinned != bPinned) {
         return bPinned.compareTo(aPinned); // Pinned always wins
+      }
 
       switch (_sortType) {
         case FileSortType.dateDesc:
@@ -982,12 +912,12 @@ class _FilesScreenState extends State<FilesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final bgColor = isSelection
-        ? colorScheme.onSurface.withOpacity(0.95)
-        : colorScheme.surface.withOpacity(isDark ? 0.6 : 0.8);
+        ? colorScheme.onSurface.withValues(alpha: 0.95)
+        : colorScheme.surface.withValues(alpha: isDark ? 0.6 : 0.8);
 
     final shadowColor = isSelection
-        ? colorScheme.onSurface.withOpacity(0.3)
-        : colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.08);
+        ? colorScheme.onSurface.withValues(alpha: 0.3)
+        : colorScheme.shadow.withValues(alpha: isDark ? 0.3 : 0.08);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
@@ -1014,7 +944,7 @@ class _FilesScreenState extends State<FilesScreen> {
               border: isSelection
                   ? null
                   : Border.all(
-                      color: colorScheme.onSurface.withOpacity(0.08),
+                      color: colorScheme.onSurface.withValues(alpha: 0.08),
                       width: 0.5,
                     ),
             ),
@@ -1060,7 +990,7 @@ class _FilesScreenState extends State<FilesScreen> {
         children: [
           Expanded(
             child: Text(
-              app.t('files') ?? 'Files',
+              app.t('files'),
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
@@ -1074,7 +1004,7 @@ class _FilesScreenState extends State<FilesScreen> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(0.05),
+                color: colorScheme.onSurface.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1090,7 +1020,7 @@ class _FilesScreenState extends State<FilesScreen> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(0.05),
+                color: colorScheme.onSurface.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1109,7 +1039,7 @@ class _FilesScreenState extends State<FilesScreen> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(0.05),
+                color: colorScheme.onSurface.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1134,7 +1064,7 @@ class _FilesScreenState extends State<FilesScreen> {
         children: [
           Icon(
             Icons.search_rounded,
-            color: colorScheme.onSurface.withOpacity(0.5),
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -1150,7 +1080,7 @@ class _FilesScreenState extends State<FilesScreen> {
               decoration: InputDecoration(
                 hintText: 'Search files...',
                 hintStyle: TextStyle(
-                  color: colorScheme.onSurface.withOpacity(0.4),
+                  color: colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -1163,7 +1093,7 @@ class _FilesScreenState extends State<FilesScreen> {
               icon: Icon(
                 Icons.cancel_rounded,
                 size: 18,
-                color: colorScheme.onSurface.withOpacity(0.5),
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               onPressed: () {
                 HapticFeedback.lightImpact();
@@ -1233,7 +1163,7 @@ class _FilesScreenState extends State<FilesScreen> {
               size: 22,
             ),
             onPressed: () {
-              Share.shareXFiles(app.selectedPdfs.map((p) => XFile(p)).toList());
+              SharePlus.instance.share(ShareParams(files: app.selectedPdfs.map((p) => XFile(p)).toList()));
               app.clearPdfSelection();
             },
           ),
@@ -1286,18 +1216,18 @@ class _FilesScreenState extends State<FilesScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()..scale(isSelected ? 0.95 : 1.0),
+        transform: Matrix4.identity()..scaleByDouble(isSelected ? 0.95 : 1.0),
         transformAlignment: Alignment.center,
         margin: isGrid ? EdgeInsets.zero : const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.onSurface.withOpacity(0.06)
-              : colorScheme.onSurface.withOpacity(0.03),
+              ? colorScheme.onSurface.withValues(alpha: 0.06)
+              : colorScheme.onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(isGrid ? 28 : 24),
           border: Border.all(
             color: isSelected
-                ? colorScheme.onSurface.withOpacity(0.2)
-                : colorScheme.onSurface.withOpacity(0.05),
+                ? colorScheme.onSurface.withValues(alpha: 0.2)
+                : colorScheme.onSurface.withValues(alpha: 0.05),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -1366,7 +1296,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurface.withOpacity(0.5),
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
             ],
@@ -1382,7 +1312,7 @@ class _FilesScreenState extends State<FilesScreen> {
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               color: isPinned
-                  ? Colors.amber.withOpacity(0.15)
+                  ? Colors.amber.withValues(alpha: 0.15)
                   : Colors.transparent,
               shape: BoxShape.circle,
             ),
@@ -1390,7 +1320,7 @@ class _FilesScreenState extends State<FilesScreen> {
               isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
               color: isPinned
                   ? Colors.amber
-                  : colorScheme.onSurface.withOpacity(0.3),
+                  : colorScheme.onSurface.withValues(alpha: 0.3),
               size: 20,
             ),
           ),
@@ -1401,7 +1331,7 @@ class _FilesScreenState extends State<FilesScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Icon(
               Icons.more_horiz_rounded,
-              color: colorScheme.onSurface.withOpacity(0.5),
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
               size: 22,
             ),
           ),
@@ -1451,7 +1381,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurface.withOpacity(0.5),
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
             ],
@@ -1470,7 +1400,7 @@ class _FilesScreenState extends State<FilesScreen> {
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
                 color: isPinned
-                    ? Colors.amber.withOpacity(0.15)
+                    ? Colors.amber.withValues(alpha: 0.15)
                     : Colors.transparent,
                 shape: BoxShape.circle,
               ),
@@ -1478,7 +1408,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                 color: isPinned
                     ? Colors.amber
-                    : colorScheme.onSurface.withOpacity(0.3),
+                    : colorScheme.onSurface.withValues(alpha: 0.3),
                 size: 20,
               ),
             ),
@@ -1493,7 +1423,7 @@ class _FilesScreenState extends State<FilesScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Icon(
                 Icons.more_horiz_rounded,
-                color: colorScheme.onSurface.withOpacity(0.5),
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
                 size: 22,
               ),
             ),
@@ -1542,7 +1472,7 @@ class _FilesScreenState extends State<FilesScreen> {
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.1),
+                color: Colors.redAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(large ? 18 : 14),
               ),
               child: Icon(
@@ -1566,7 +1496,7 @@ class _FilesScreenState extends State<FilesScreen> {
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.04),
+              color: colorScheme.onSurface.withValues(alpha: 0.04),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1574,14 +1504,14 @@ class _FilesScreenState extends State<FilesScreen> {
                   ? Icons.search_off_rounded
                   : Icons.folder_open_rounded,
               size: 48,
-              color: colorScheme.onSurface.withOpacity(0.3),
+              color: colorScheme.onSurface.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 24),
           Text(
             _searchQuery.isNotEmpty
                 ? 'No matches found'
-                : (app.t('empty_files') ?? 'No Scanned PDFs'),
+                : (app.t('empty_files')),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -1593,10 +1523,9 @@ class _FilesScreenState extends State<FilesScreen> {
           Text(
             _searchQuery.isNotEmpty
                 ? 'Try a different search term.'
-                : (app.t('tap_gallery_to_create') ??
-                      'Create PDFs from the gallery tab.'),
+                : (app.t('tap_gallery_to_create')),
             style: TextStyle(
-              color: colorScheme.onSurface.withOpacity(0.5),
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
