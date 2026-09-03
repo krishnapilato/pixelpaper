@@ -12,16 +12,15 @@ import 'widgets/fluid_bounce.dart';
 // -----------------------------------------------------------------------------
 void showSettingsModal(BuildContext context, AppState app) {
   HapticFeedback.mediumImpact();
-  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
 
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     elevation: 0,
-    barrierColor: Theme.of(
-      context,
-    ).colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
+    barrierColor: theme.colorScheme.shadow.withOpacity(isDark ? 0.5 : 0.3),
     useSafeArea: false,
     builder: (context) => const _StudioSettingsSheet(),
   );
@@ -37,9 +36,10 @@ class _StudioSettingsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, app, child) {
-        final colorScheme = Theme.of(context).colorScheme;
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
         final size = MediaQuery.sizeOf(context);
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isDark = theme.brightness == Brightness.dark;
         final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
         return ClipRRect(
@@ -47,7 +47,7 @@ class _StudioSettingsSheet extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
             child: Container(
-              height: size.height * 0.85, // Standard Pro 85% Height
+              height: size.height * 0.85,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: colorScheme.surface.withOpacity(isDark ? 0.7 : 0.9),
@@ -79,7 +79,7 @@ class _StudioSettingsSheet extends StatelessWidget {
                     ),
                   ),
 
-                  // Sticky Pro Header (Clean, No X Button)
+                  // Sticky Pro Header
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -161,27 +161,31 @@ class _StudioSettingsSheet extends StatelessWidget {
                         const SizedBox(height: 12),
 
                         // --- STORAGE TILE ---
-                        ProFluidBounce(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            app.toggleStorageDirectory();
-                          },
-                          child: _SettingsBentoCard(
-                            icon: Icons.sd_storage_rounded,
-                            label: app.t('save_loc') ?? 'Save Location',
-                            subtitle: app.useExternalStorage
-                                ? (app.t('ext_store') ?? 'External Storage')
-                                : (app.t('int_store') ?? 'Internal Storage'),
-                            trailing: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: colorScheme.onSurface.withOpacity(0.05),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.swap_horiz_rounded,
-                                size: 18,
-                                color: colorScheme.onSurface,
+                        Semantics(
+                          button: true,
+                          label: 'Toggle Save Location',
+                          child: ProFluidBounce(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              app.toggleStorageDirectory();
+                            },
+                            child: _SettingsBentoCard(
+                              icon: Icons.sd_storage_rounded,
+                              label: app.t('save_loc') ?? 'Save Location',
+                              subtitle: app.useExternalStorage
+                                  ? (app.t('ext_store') ?? 'External Storage')
+                                  : (app.t('int_store') ?? 'Internal Storage'),
+                              trailing: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.onSurface.withOpacity(0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 18,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
                             ),
                           ),
@@ -229,8 +233,7 @@ class _StudioSettingsSheet extends StatelessWidget {
                               _buildListTile(
                                 context,
                                 icon: Icons.verified_user_rounded,
-                                label:
-                                    app.t('licenses') ?? 'Open Source Licenses',
+                                label: app.t('licenses') ?? 'Open Source Licenses',
                                 onTap: () {
                                   showLicensePage(
                                     context: context,
@@ -278,44 +281,48 @@ class _StudioSettingsSheet extends StatelessWidget {
   }
 
   Widget _buildListTile(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String label,
+        required VoidCallback onTap,
+      }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return ProFluidBounce(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: colorScheme.onSurface.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
+    return Semantics(
+      button: true,
+      label: label,
+      child: ProFluidBounce(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurface.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: colorScheme.onSurface, size: 20),
               ),
-              child: Icon(icon, color: colorScheme.onSurface, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  letterSpacing: -0.2,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: colorScheme.onSurface.withOpacity(0.3),
-            ),
-          ],
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: colorScheme.onSurface.withOpacity(0.3),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -393,7 +400,7 @@ class _SettingsBentoCard extends StatelessWidget {
                 child: Icon(icon, color: colorScheme.onSurface, size: 18),
               ),
               const Spacer(),
-              ?trailing,
+              if (trailing != null) trailing!,
             ],
           ),
           const SizedBox(height: 14),
@@ -436,9 +443,10 @@ class _PremiumSegmentedControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isEn = app.language == 'en';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = theme.brightness == Brightness.dark;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -491,24 +499,29 @@ class _PremiumSegmentedControl extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (!isSelected) {
-            HapticFeedback.selectionClick();
-            app.updateSettings(lang: code);
-          }
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 12,
-              letterSpacing: 0.5,
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: 'Select $code language',
+        child: GestureDetector(
+          onTap: () {
+            if (!isSelected) {
+              HapticFeedback.selectionClick();
+              app.updateSettings(lang: code);
+            }
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 12,
+                letterSpacing: 0.5,
+              ),
+              child: Text(code.toUpperCase()),
             ),
-            child: Text(code.toUpperCase()),
           ),
         ),
       ),
@@ -523,9 +536,10 @@ class _ThemeSegmentedControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isDarkTarget = app.themeMode == ThemeMode.dark;
-    final isDarkModeActive = Theme.of(context).brightness == Brightness.dark;
+    final isDarkModeActive = theme.brightness == Brightness.dark;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -570,12 +584,14 @@ class _ThemeSegmentedControl extends StatelessWidget {
                     Icons.light_mode_rounded,
                     !isDarkTarget,
                     ThemeMode.light,
+                    'Light Mode',
                   ),
                   _buildOption(
                     context,
                     Icons.dark_mode_rounded,
                     isDarkTarget,
                     ThemeMode.dark,
+                    'Dark Mode',
                   ),
                 ],
               ),
@@ -587,31 +603,37 @@ class _ThemeSegmentedControl extends StatelessWidget {
   }
 
   Widget _buildOption(
-    BuildContext context,
-    IconData icon,
-    bool isSelected,
-    ThemeMode mode,
-  ) {
+      BuildContext context,
+      IconData icon,
+      bool isSelected,
+      ThemeMode mode,
+      String label,
+      ) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (!isSelected) {
-            HapticFeedback.selectionClick();
-            app.updateSettings(theme: mode);
-          }
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              icon,
-              size: 18,
-              color: isSelected
-                  ? colorScheme.onSurface
-                  : colorScheme.onSurface.withOpacity(0.4),
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: label,
+        child: GestureDetector(
+          onTap: () {
+            if (!isSelected) {
+              HapticFeedback.selectionClick();
+              app.updateSettings(theme: mode);
+            }
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isSelected
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurface.withOpacity(0.4),
+              ),
             ),
           ),
         ),
@@ -655,13 +677,14 @@ class _ProFeedbackSheetState extends State<_ProFeedbackSheet> {
   }
 
   void _showProToast(
-    BuildContext context,
-    ScaffoldMessengerState messenger,
-    String message,
-    IconData icon,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+      BuildContext context,
+      ScaffoldMessengerState messenger,
+      String message,
+      IconData icon,
+      ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     messenger.showSnackBar(
@@ -719,36 +742,53 @@ class _ProFeedbackSheetState extends State<_ProFeedbackSheet> {
     HapticFeedback.mediumImpact();
     setState(() => _isSending = true);
 
+    bool success = false;
+
     try {
-      await http.post(
+      // Added a timeout to prevent the UI from hanging forever on bad connections
+      final response = await http.post(
         Uri.parse('https://formspree.io/f/xdalwboq'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'type': _isBugReport ? 'Bug Report' : 'Feedback',
           'message': _controller.text,
         }),
-      );
+      ).timeout(const Duration(seconds: 8));
+
+      success = response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      // Handle network errors silently for smooth UX flow
+      success = false;
     }
 
     if (mounted) {
-      HapticFeedback.heavyImpact();
-      final messenger = ScaffoldMessenger.of(context);
-      Navigator.pop(context);
-      _showProToast(
-        context,
-        messenger,
-        widget.app.t('feedback_sent') ?? 'Feedback sent successfully!',
-        Icons.check_circle_rounded,
-      );
+      if (success) {
+        HapticFeedback.heavyImpact();
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context);
+        _showProToast(
+          context,
+          messenger,
+          widget.app.t('feedback_sent') ?? 'Feedback sent successfully!',
+          Icons.check_circle_rounded,
+        );
+      } else {
+        // Reset state so the user can try again or close the sheet manually
+        setState(() => _isSending = false);
+        _showProToast(
+          context,
+          ScaffoldMessenger.of(context),
+          'Failed to send. Please check your connection.',
+          Icons.error_outline_rounded,
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final viewInsets = MediaQuery.viewInsetsOf(context);
     final size = MediaQuery.sizeOf(context);
 
@@ -789,7 +829,7 @@ class _ProFeedbackSheetState extends State<_ProFeedbackSheet> {
                     ),
                   ),
 
-                  // Header (No X button, aligned like Settings)
+                  // Header
                   Text(
                     widget.app.t('feedback') ?? 'Submit Feedback',
                     style: TextStyle(
@@ -840,65 +880,71 @@ class _ProFeedbackSheetState extends State<_ProFeedbackSheet> {
                         color: colorScheme.onSurface.withOpacity(0.08),
                       ),
                     ),
-                    child: TextField(
-                      controller: _controller,
-                      maxLines: 4,
-                      minLines: 3,
-                      textInputAction: TextInputAction.newline,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurface,
-                        fontSize: 15,
-                      ),
-                      decoration: InputDecoration(
-                        hintText:
-                            widget.app.t('feedback_hint') ??
-                            'Describe what happened or what you\'d like to see...',
-                        hintStyle: TextStyle(
-                          color: colorScheme.onSurface.withOpacity(0.4),
-                          fontSize: 14,
+                    child: Semantics(
+                      textField: true,
+                      label: 'Feedback text input',
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: 4,
+                        minLines: 3,
+                        textInputAction: TextInputAction.newline,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface,
+                          fontSize: 15,
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(16),
+                        decoration: InputDecoration(
+                          hintText: widget.app.t('feedback_hint') ??
+                              'Describe what happened or what you\'d like to see...',
+                          hintStyle: TextStyle(
+                            color: colorScheme.onSurface.withOpacity(0.4),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 28),
 
                   // Send Button
-                  ProFluidBounce(
-                    onTap: (_isSending || !_hasText) ? () {} : _send,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: _hasText
-                            ? colorScheme.onSurface
-                            : colorScheme.onSurface.withOpacity(
-                                0.15,
-                              ), // Disabled visually
-                        borderRadius: BorderRadius.circular(16),
+                  Semantics(
+                    button: true,
+                    label: 'Send Feedback',
+                    enabled: _hasText && !_isSending,
+                    child: ProFluidBounce(
+                      onTap: (_isSending || !_hasText) ? () {} : _send,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: _hasText
+                              ? colorScheme.onSurface
+                              : colorScheme.onSurface.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        alignment: Alignment.center,
+                        child: _isSending
+                            ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            color: colorScheme.surface,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                            : Text(
+                          widget.app.t('send') ?? 'Send to Developer',
+                          style: TextStyle(
+                            color: _hasText
+                                ? colorScheme.surface
+                                : colorScheme.onSurface.withOpacity(0.4),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
-                      alignment: Alignment.center,
-                      child: _isSending
-                          ? SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                color: colorScheme.surface,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              widget.app.t('send') ?? 'Send to Developer',
-                              style: TextStyle(
-                                color: _hasText
-                                    ? colorScheme.surface
-                                    : colorScheme.onSurface.withOpacity(0.4),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
                     ),
                   ),
                 ],
@@ -929,45 +975,50 @@ class _FeedbackTypeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return ProFluidBounce(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.onSurface
-              : colorScheme.onSurface.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'Set feedback type to $label',
+      child: ProFluidBounce(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
             color: isSelected
-                ? Colors.transparent
-                : colorScheme.onSurface.withOpacity(0.08),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
+                ? colorScheme.onSurface
+                : colorScheme.onSurface.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
               color: isSelected
-                  ? colorScheme.surface
-                  : colorScheme.onSurface.withOpacity(0.5),
+                  ? Colors.transparent
+                  : colorScheme.onSurface.withOpacity(0.08),
             ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
                 color: isSelected
                     ? colorScheme.surface
-                    : colorScheme.onSurface.withOpacity(0.6),
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                fontSize: 13,
+                    : colorScheme.onSurface.withOpacity(0.5),
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? colorScheme.surface
+                      : colorScheme.onSurface.withOpacity(0.6),
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

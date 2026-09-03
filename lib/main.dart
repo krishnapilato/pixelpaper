@@ -25,13 +25,13 @@ class DocScannerApp extends StatelessWidget {
       title: 'PixelPaper Pro',
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
+        colorSchemeSeed: app.seedColor,
         brightness: Brightness.light,
         fontFamily: 'Roboto',
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
+        colorSchemeSeed: app.seedColor,
         brightness: Brightness.dark,
       ),
       themeMode: app.themeMode,

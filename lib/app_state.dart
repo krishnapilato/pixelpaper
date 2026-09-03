@@ -47,39 +47,51 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _initPrefsAndData() async {
-    await loadLanguageJson();
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      await loadLanguageJson();
+      final prefs = await SharedPreferences.getInstance();
 
-    language = prefs.getString('lang') ?? 'en';
+      language = prefs.getString('lang') ?? 'en';
 
-    final isDark = prefs.getBool('isDark');
-    if (isDark != null) themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+      final isDark = prefs.getBool('isDark');
+      if (isDark != null) themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
 
-    final colorVal = prefs.getInt('color');
-    if (colorVal != null) seedColor = Color(colorVal);
+      final colorVal = prefs.getInt('color');
+      if (colorVal != null) seedColor = Color(colorVal);
 
-    gridColumns = prefs.getInt('gridColumns') ?? 3;
-    isFilesGrid = prefs.getBool('isFilesGrid') ?? false;
-    useExternalStorage = prefs.getBool('useExtStorage') ?? false;
-    pinnedPdfs = prefs.getStringList('pinnedPdfs') ?? [];
+      gridColumns = prefs.getInt('gridColumns') ?? 3;
+      isFilesGrid = prefs.getBool('isFilesGrid') ?? false;
+      useExternalStorage = prefs.getBool('useExtStorage') ?? false;
+      pinnedPdfs = prefs.getStringList('pinnedPdfs') ?? [];
 
-    await loadData();
-    isInitialLoading = false;
-    notifyListeners();
+      await loadData();
+    } finally {
+      isInitialLoading = false;
+      notifyListeners();
+    }
   }
+
+  String? _activeDirPath;
 
   // Safely handles Android external storage gracefully falling back if unavailable
   Future<String> get activeDirectory async {
+    if (_activeDirPath != null) return _activeDirPath!;
+
     if (useExternalStorage && Platform.isAndroid) {
       final dir = await getExternalStorageDirectory();
-      if (dir != null) return dir.path;
+      if (dir != null) {
+        _activeDirPath = dir.path;
+        return _activeDirPath!;
+      }
     }
     final dir = await getApplicationDocumentsDirectory();
-    return dir.path;
+    _activeDirPath = dir.path;
+    return _activeDirPath!;
   }
 
   Future<void> toggleStorageDirectory() async {
     useExternalStorage = !useExternalStorage;
+    _activeDirPath = null; // Invalidate cache
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('useExtStorage', useExternalStorage);
 
@@ -99,11 +111,17 @@ class AppState extends ChangeNotifier {
 
   // --- OPTIMIZED CORE LOAD ENGINE ---
 
+  bool _needsReload = false;
+
   /// Reads directory, maps metadata, cleans up orphans, and performs Smart Diffing
   Future<void> loadData() async {
-    if (isLoading) return;
+    if (isLoading) {
+      _needsReload = true;
+      return;
+    }
 
     isLoading = true;
+    _needsReload = false;
     notifyListeners(); // Ensure UI knows we are loading
 
     try {
@@ -178,6 +196,10 @@ class AppState extends ChangeNotifier {
       // Guarantee loading state completes
       isLoading = false;
       notifyListeners();
+
+      if (_needsReload) {
+        loadData();
+      }
     }
   }
 
@@ -205,7 +227,7 @@ class AppState extends ChangeNotifier {
 
     final file =
         existingFile ??
-        File(p.join(path, 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg'));
+        File(p.join(path, 'IMG_${DateTime.now().microsecondsSinceEpoch}.jpg'));
     await file.writeAsBytes(bytes);
 
     if (originalTimestamp != null) {
@@ -214,7 +236,6 @@ class AppState extends ChangeNotifier {
 
       // CRITICAL FIX: Evict the old image from Flutter's cache so the UI updates instantly
       await FileImage(file).evict();
-      notifyListeners();
     }
 
     await loadData();
@@ -341,14 +362,23 @@ class AppState extends ChangeNotifier {
       bool needsPrefUpdate = false;
 
       // Smart Path Updates: Keep pins and selections alive across renames
-      if (pinnedPdfs.contains(file.path)) {
-        pinnedPdfs.remove(file.path);
-        pinnedPdfs.add(newPath);
+      final pinIndex = pinnedPdfs.indexOf(file.path);
+      if (pinIndex != -1) {
+        pinnedPdfs[pinIndex] = newPath;
         needsPrefUpdate = true;
       }
+
       if (selectedPdfs.contains(file.path)) {
-        selectedPdfs.remove(file.path);
-        selectedPdfs.add(newPath);
+        // Since we want to preserve selection order, we handle it as a replacement if we can
+        final selectedList = selectedPdfs.toList();
+        final selectedIndex = selectedList.indexOf(file.path);
+        if (selectedIndex != -1) {
+          selectedList[selectedIndex] = newPath;
+          selectedPdfs = selectedList.toSet();
+        } else {
+          selectedPdfs.remove(file.path);
+          selectedPdfs.add(newPath);
+        }
       }
 
       if (needsPrefUpdate) {
@@ -373,7 +403,7 @@ class AppState extends ChangeNotifier {
     }
     if (color != null) {
       seedColor = color;
-      await prefs.setInt('color', color.value);
+      await prefs.setInt('color', color.toARGB32());
     }
     if (lang != null) {
       language = lang;

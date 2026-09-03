@@ -10,77 +10,8 @@ import 'package:path/path.dart' as p;
 import 'package:intl/intl.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'app_state.dart';
-import 'settings_modal.dart'; // Assuming this holds your settings functions
-
-// -----------------------------------------------------------------------------
-// PRO FLUID BOUNCE (Apple-style spring physics)
-// -----------------------------------------------------------------------------
-class ProFluidBounce extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-  final VoidCallback? onLongPress;
-  final double scaleEnd;
-
-  const ProFluidBounce({
-    super.key,
-    required this.child,
-    required this.onTap,
-    this.onLongPress,
-    this.scaleEnd = 0.95,
-  });
-
-  @override
-  State<ProFluidBounce> createState() => _ProFluidBounceState();
-}
-
-class _ProFluidBounceState extends State<ProFluidBounce>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-      reverseDuration: const Duration(milliseconds: 300),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.scaleEnd).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeOutBack,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
-      onLongPress: widget.onLongPress != null
-          ? () {
-              HapticFeedback.heavyImpact();
-              widget.onLongPress!();
-            }
-          : null,
-      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
-    );
-  }
-}
+import 'settings_modal.dart';
+import 'widgets/fluid_bounce.dart';
 
 // -----------------------------------------------------------------------------
 // GALLERY SCREEN
@@ -142,7 +73,7 @@ class GalleryScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        app.t('create_pdf') ?? 'Export PDF',
+                        app.t('create_pdf'),
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -324,8 +255,7 @@ class GalleryScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  app.t('delete_confirm_msg') ??
-                      'This action cannot be undone.',
+                  app.t('delete_confirm_msg'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -531,7 +461,7 @@ class GalleryScreen extends StatelessWidget {
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOut,
                               transform: Matrix4.identity()
-                                ..scale(isSelected ? 0.92 : 1.0),
+                                ..scaleByDouble(isSelected ? 0.92 : 1.0),
                               transformAlignment: Alignment.center,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
@@ -687,7 +617,7 @@ class GalleryScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    app.t('gallery') ?? 'Gallery',
+                    app.t('gallery'),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.5,
@@ -782,7 +712,7 @@ class GalleryScreen extends StatelessWidget {
                 ),
                 Expanded(
                   child: Text(
-                    "${app.selectedImages.length} ${app.t('selected_count') ?? 'Selected'}",
+                    "${app.selectedImages.length} ${app.t('selected_count')}",
                     style: TextStyle(
                       color: colorScheme.surface,
                       fontWeight: FontWeight.w600,
@@ -853,7 +783,7 @@ class GalleryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            app.t('empty_gallery') ?? 'No Photos Yet',
+            app.t('empty_gallery'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -863,7 +793,7 @@ class GalleryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            app.t('tap_to_add') ?? 'Import or capture media to begin.',
+            app.t('tap_to_add'),
             style: TextStyle(
               color: colorScheme.onSurface.withOpacity(0.5),
               fontSize: 14,
@@ -917,10 +847,11 @@ class _FullScreenImageState extends State<FullScreenImage>
     _scannerController =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..addStatusListener((status) {
-            if (status == AnimationStatus.completed)
-              _scannerController.reverse();
-            else if (status == AnimationStatus.dismissed)
-              _scannerController.forward();
+    if (status == AnimationStatus.completed) {
+      _scannerController.reverse();
+    } else if (status == AnimationStatus.dismissed) {
+      _scannerController.forward();
+    }
           });
   }
 
@@ -1019,7 +950,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            app.t('extracted_text') ?? 'Extracted Text',
+                            app.t('extracted_text'),
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
@@ -1047,7 +978,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                       child: isEmpty
                           ? Center(
                               child: Text(
-                                app.t('no_text_found') ?? "No text found.",
+                                app.t('no_text_found'),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: colorScheme.onSurface.withOpacity(0.5),
@@ -1108,7 +1039,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        app.t('copy') ?? 'Copy',
+                                        app.t('copy'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: colorScheme.onSurface,
@@ -1145,7 +1076,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        app.t('share') ?? 'Share',
+                                        app.t('share'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: colorScheme.surface,
@@ -1217,7 +1148,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                   ),
                 ),
                 Text(
-                  app.t('image_details') ?? 'Info',
+                  app.t('image_details'),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -1228,7 +1159,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                 const SizedBox(height: 20),
                 _buildBentoDetailCard(
                   Icons.insert_drive_file_rounded,
-                  app.t('name') ?? 'Name',
+                  app.t('name'),
                   p.basename(currentFile.path),
                 ),
                 const SizedBox(height: 12),
@@ -1237,7 +1168,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                     Expanded(
                       child: _buildBentoDetailCard(
                         Icons.sd_storage_rounded,
-                        app.t('size') ?? 'Size',
+                        app.t('size'),
                         '$fileSize MB',
                       ),
                     ),
@@ -1245,7 +1176,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                     Expanded(
                       child: _buildBentoDetailCard(
                         Icons.access_time_rounded,
-                        app.t('modified') ?? 'Date',
+                        app.t('modified'),
                         formattedDate,
                       ),
                     ),
@@ -1461,7 +1392,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                                   ),
                                 ),
                                 child: Text(
-                                  app.t('analyzing_ai') ?? "Scanning Text...",
+                                  app.t('analyzing_ai'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -1537,24 +1468,22 @@ class _FullScreenImageState extends State<FullScreenImage>
                   children: [
                     _buildDockAction(
                       Icons.ios_share_rounded,
-                      app.t('share') ?? 'Share',
-                      () => Share.shareXFiles([
-                        XFile(widget.images[_currentIndex].path),
-                      ]),
+                      app.t('share'),
+                      () => SharePlus.instance.share(ShareParams(files: [XFile(widget.images[_currentIndex].path)])),
                     ),
                     _buildDockAction(
                       Icons.document_scanner_rounded,
-                      app.t('extracted_text') ?? 'Text',
+                      app.t('extracted_text'),
                       _extractText,
                     ),
                     _buildDockAction(
                       Icons.tune_rounded,
-                      app.t('edit') ?? 'Edit',
+                      app.t('edit'),
                       _openEditor,
                     ),
                     _buildDockAction(
                       Icons.delete_outline_rounded,
-                      app.t('delete') ?? 'Delete',
+                      app.t('delete'),
                       () {
                         // Reusing our beautiful Delete Modal from Gallery for coherence
                         final galleryState = context.read<AppState>();
@@ -1650,8 +1579,7 @@ class _FullScreenImageState extends State<FullScreenImage>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  app.t('delete_confirm_msg') ??
-                      'This action cannot be undone.',
+                  app.t('delete_confirm_msg'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
