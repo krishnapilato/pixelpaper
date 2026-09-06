@@ -17,6 +17,50 @@ The interface is **Italian only** — a product decision, not an oversight; see
 
 ---
 
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="web/screenshots/01-avvio.jpg" width="190" alt="Launch screen"><br>
+      <sub><b>Launch</b><br>The beam writes the name</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="web/screenshots/02-archivio.jpg" width="190" alt="PDF archive"><br>
+      <sub><b>Archive</b><br>Pages, size, date, folders</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="web/screenshots/03-nome-pdf.jpg" width="190" alt="Naming the PDF"><br>
+      <sub><b>Naming</b><br>Asked after the scan</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="web/screenshots/04-visualizzatore.jpg" width="190" alt="Document viewer"><br>
+      <sub><b>Viewer</b><br>One page at a time</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="web/screenshots/05-editor.jpg" width="190" alt="Page editor"><br>
+      <sub><b>Page editor</b><br>Drag the filmstrip to reorder</sub>
+    </td>
+    <td align="center">
+      <img src="web/screenshots/06-galleria.jpg" width="190" alt="Gallery"><br>
+      <sub><b>Gallery</b><br>Full-resolution shots</sub>
+    </td>
+    <td align="center">
+      <img src="web/screenshots/07-schermo-intero.jpg" width="190" alt="Full-screen photo"><br>
+      <sub><b>Full screen</b><br>Details, text, edit, share</sub>
+    </td>
+    <td align="center">
+      <img src="web/screenshots/08-impostazioni.jpg" width="190" alt="Settings"><br>
+      <sub><b>Settings</b><br>Storage, bin, licences, author</sub>
+    </td>
+  </tr>
+</table>
+
+<sub>Screenshots taken on an Android 16 emulator, release build. The camera and
+scanner ones show the emulator's virtual scene.</sub>
+
+---
+
 ## What it does
 
 | Module | What you get |

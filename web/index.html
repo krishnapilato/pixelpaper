@@ -55,6 +55,53 @@
   </div>
 </div>
 
+<section class="shots" aria-label="Schermate dell'app">
+  <div class="shots-head">
+    <h2>L'app in otto schermate</h2>
+    <div class="shots-nav">
+      <button type="button" id="shot-prev" aria-label="Schermata precedente">&#8249;</button>
+      <button type="button" id="shot-next" aria-label="Schermata successiva">&#8250;</button>
+    </div>
+  </div>
+
+  <div class="shots-track" id="shots-track" tabindex="0" aria-label="Galleria delle schermate, scorri o usa le frecce">
+    <figure>
+      <img src="screenshots/01-avvio.jpg" alt="Schermata di avvio con il nome PixelPaper" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Avvio</strong>Il raggio scrive il nome mentre archivio e galleria si caricano.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/02-archivio.jpg" alt="Archivio con tre documenti PDF" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Archivio</strong>Anteprima, pagine, dimensione e data. Ricerca, ordinamento e cartelle in alto.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/03-nome-pdf.jpg" alt="Richiesta del nome dopo la scansione" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Nome del PDF</strong>Si sceglie alla fine, quando hai gia visto cosa hai acquisito.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/04-visualizzatore.jpg" alt="Visualizzatore con una pagina del documento" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Visualizzatore</strong>Una pagina alla volta, con zoom. Modifica, condividi, stampa, elimina.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/05-editor.jpg" alt="Editor delle pagine con la striscia delle miniature" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Editor</strong>La pagina intera a schermo e la striscia da cui si trascina per riordinare.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/06-galleria.jpg" alt="Galleria con quattro scatti" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Galleria</strong>Scatti a piena risoluzione, da due a quattro colonne.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/07-schermo-intero.jpg" alt="Foto a schermo intero con le quattro azioni" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Schermo intero</strong>Informazioni, testo, modifica e condivisione. Si esce con uno swipe.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/08-impostazioni.jpg" alt="Impostazioni con spazio occupato e dati autore" width="420" height="935" loading="lazy" decoding="async">
+      <figcaption><strong>Impostazioni</strong>Cestino, spazio occupato, cache, guida, licenze e autore.</figcaption>
+    </figure>
+  </div>
+
+  <div class="shots-dots" id="shots-dots" role="tablist" aria-label="Vai alla schermata"></div>
+</section>
+
 <div class="layout">
 
   <nav class="toc" id="toc" aria-label="Indice della guida">
@@ -623,6 +670,44 @@
     }
   });
   sync();
+
+  // Slideshow delle schermate. Nessun avanzamento automatico: si muove solo
+  // quando lo chiedi tu — col dito, coi pulsanti, con le frecce o coi punti.
+  const track = document.getElementById('shots-track');
+  const shots = [...track.children];
+  const dots = document.getElementById('shots-dots');
+  const prev = document.getElementById('shot-prev');
+  const next = document.getElementById('shot-next');
+
+  shots.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.setAttribute('role', 'tab');
+    dot.setAttribute('aria-label', `Schermata ${i + 1} di ${shots.length}`);
+    dot.addEventListener('click', () => go(i));
+    dots.append(dot);
+  });
+
+  const step = () => shots[0].getBoundingClientRect().width + 16;
+  const current = () => Math.round(track.scrollLeft / step());
+  const go = (i) => track.scrollTo({ left: Math.max(0, i) * step() });
+
+  prev.addEventListener('click', () => go(current() - 1));
+  next.addEventListener('click', () => go(current() + 1));
+  track.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(current() + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(current() - 1); }
+  });
+
+  const syncShots = () => {
+    const i = Math.min(current(), shots.length - 1);
+    [...dots.children].forEach((d, n) => d.setAttribute('aria-selected', n === i));
+    prev.disabled = track.scrollLeft < 4;
+    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+  };
+  track.addEventListener('scroll', () => requestAnimationFrame(syncShots), { passive: true });
+  window.addEventListener('resize', syncShots);
+  syncShots();
 
   // Evidenzia nell'indice la sezione che si sta leggendo.
   const links = new Map([...toc.querySelectorAll('a')].map((a) => [a.getAttribute('href').slice(1), a]));
