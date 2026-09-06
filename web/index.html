@@ -1,46 +1,639 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
-
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="pixel_paper">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>pixel_paper</title>
-  <link rel="manifest" href="manifest.json">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PixelPaper — Guida completa</title>
+<meta name="description" content="Guida completa a PixelPaper: scanner di documenti e archivio PDF per Android. Scansione, fotocamera, editor delle pagine, cartelle, cestino, estrazione del testo. Tutto sul dispositivo.">
+<meta name="theme-color" content="#111318">
+<meta property="og:title" content="PixelPaper — Guida completa">
+<meta property="og:description" content="Scanner di documenti e archivio PDF per Android. I tuoi dati restano con te.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+<header class="bar">
+  <div class="bar-inner">
+    <svg class="mark" viewBox="0 0 108 108" aria-hidden="true">
+      <rect width="108" height="108" rx="24" fill="#4C8DFF"/>
+      <rect x="31" y="32" width="28" height="40" rx="3" fill="#fff"/>
+      <rect x="62" y="52" width="10" height="10" rx="1.5" fill="#fff"/>
+      <rect x="74" y="65" width="7" height="7" rx="1" fill="#fff"/>
+    </svg>
+    <span class="name">PixelPaper</span>
+    <span class="spacer"></span>
+    <button id="toc-toggle" aria-expanded="false" aria-controls="toc">Indice</button>
+    <a class="ghost" href="https://github.com/krishnapilato/pixelpaper">GitHub</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div>
+    <h1>Guida a PixelPaper</h1>
+    <p class="motto">I tuoi dati restano con te.</p>
+    <p class="lead">
+      Scanner di documenti e archivio PDF per Android. Questa guida percorre
+      l'app schermata per schermata: cosa fa ogni pulsante, quale gesto serve,
+      e perché in certi casi conviene una strada invece di un'altra.
+    </p>
+    <div class="chips">
+      <span class="chip">Android 7.0 e successivi</span>
+      <span class="chip">Interfaccia in italiano</span>
+      <span class="chip">Funziona offline</span>
+      <span class="chip">Un solo permesso: fotocamera</span>
+    </div>
+  </div>
+  <div class="hero-art">
+    <svg viewBox="0 0 108 108" aria-hidden="true">
+      <rect width="108" height="108" rx="24" fill="#4C8DFF"/>
+      <rect x="31" y="32" width="28" height="40" rx="3" fill="#fff"/>
+      <rect x="62" y="52" width="10" height="10" rx="1.5" fill="#fff"/>
+      <rect x="74" y="65" width="7" height="7" rx="1" fill="#fff"/>
+    </svg>
+  </div>
+</div>
+
+<div class="layout">
+
+  <nav class="toc" id="toc" aria-label="Indice della guida">
+    <ol>
+      <li><a href="#panoramica">Panoramica</a></li>
+      <li><a href="#scansione">Scansionare un documento</a></li>
+      <li><a href="#fotocamera">Fotocamera e importazione</a></li>
+      <li><a href="#galleria">Galleria e PDF da immagini</a></li>
+      <li><a href="#schermo-intero">Foto a schermo intero</a></li>
+      <li><a href="#testo">Estrarre il testo</a></li>
+      <li><a href="#archivio">Archivio</a></li>
+      <li><a href="#editor">Editor delle pagine</a></li>
+      <li><a href="#cartelle">Cartelle</a></li>
+      <li><a href="#cestino">Cestino</a></li>
+      <li><a href="#impostazioni">Impostazioni e spazio</a></li>
+      <li><a href="#privacy">Privacy e permessi</a></li>
+      <li><a href="#domande">Domande frequenti</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- 1 -->
+    <section class="step" id="panoramica">
+      <p class="eyebrow">Panoramica</p>
+      <h2>Due schede, un pulsante che cambia significato</h2>
+      <p>
+        L'app ha due sole schede, in fondo allo schermo, e non ne avrà mai una
+        terza: <strong>Archivio</strong> conserva i PDF, <strong>Galleria</strong>
+        conserva le foto grezze. Sono due materiali diversi, non due filtri
+        della stessa lista.
+      </p>
+
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span> Archivio</div>
+        <div class="rail">
+          <span class="fchip sel">Tutti</span>
+          <span class="fchip">Fatture 12</span>
+          <span class="fchip">Università 4</span>
+          <span class="fchip dashed">Nuova cartella</span>
+        </div>
+        <div class="dock">
+          <span>Archivio</span><span>Galleria</span>
+        </div>
+      </div>
+
+      <p>
+        Il pulsante rotondo in basso a destra è uno solo e non ha etichetta,
+        perché il suo significato lo dice la scheda in cui ti trovi:
+      </p>
+      <table>
+        <thead><tr><th>Scheda</th><th>Il pulsante fa</th></tr></thead>
+        <tbody>
+          <tr><td>Archivio</td><td>Apre lo <strong>scanner</strong>: rileva i bordi del foglio e produce un PDF.</td></tr>
+          <tr><td>Galleria</td><td>Apre la <strong>fotocamera manuale</strong>, da cui si può anche importare dalle foto del telefono.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tip">
+        <strong>Come scegliere.</strong> Se il risultato che vuoi è un documento
+        da archiviare o mandare a qualcuno, parti dall'Archivio. Se vuoi prima
+        di tutto <em>conservare l'immagine com'è</em> — una pagina fragile, un
+        inchiostro sbiadito, una foto da rivedere con calma — parti dalla
+        Galleria e il PDF lo costruisci dopo.
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="step" id="scansione">
+      <p class="eyebrow">Passo 1</p>
+      <h2>Scansionare un documento</h2>
+      <p>
+        Lo scanner è quello di Google (ML Kit): trova i bordi del foglio,
+        raddrizza la prospettiva e pulisce ombre e dominanti di colore. È il
+        percorso più veloce e nella maggior parte dei casi è anche il migliore.
+      </p>
+
+      <ol class="howto">
+        <li>Nella scheda <strong>Archivio</strong>, tocca il pulsante blu in basso a destra.</li>
+        <li>Inquadra il foglio: la cornice si aggancia da sola ai bordi. Scatta.</li>
+        <li>Se serve, correggi il ritaglio trascinando gli angoli, poi conferma.</li>
+        <li>Per un documento di più pagine, aggiungi le pagine successive prima di uscire: finiranno tutte nello stesso PDF, nell'ordine in cui le acquisisci.</li>
+        <li>Alla fine l'app chiede il <strong>nome del documento</strong>. Confermi, e il PDF è nell'Archivio.</li>
+      </ol>
+
+      <div class="tip">
+        <strong>Perché il nome si sceglie alla fine.</strong> Prima di
+        scansionare non sai ancora cosa stai salvando, né quante pagine
+        verranno. Chiedere il nome all'inizio significa quasi sempre
+        rinominare dopo.
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Per una scansione pulita</h3>
+          <ul class="plain">
+            <li>Appoggia il foglio su una superficie di colore diverso: il bordo si stacca e viene trovato subito.</li>
+            <li>Evita l'ombra del telefono sulla pagina: sposta la luce, non il foglio.</li>
+            <li>Tieni il telefono parallelo al foglio; la correzione prospettica lavora meglio se parte da poco.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Se lo scanner non si apre</h3>
+          <p>
+            Lo scanner richiede i servizi Google Play. Su un dispositivo che non
+            li ha, l'app te lo dice e ti propone la fotocamera manuale: il
+            risultato si ottiene lo stesso, con un passaggio in più.
+          </p>
+        </div>
+      </div>
+
+      <div class="tip warn">
+        <strong>Quando <em>non</em> usarlo.</strong> Il ritaglio automatico e la
+        pulizia sono pensati per fogli stampati moderni. Su un manoscritto, una
+        pagina ingiallita o un libro antico possono tagliare un margine
+        decorato o "sbiancare" un inchiostro tenue. In quei casi usa la
+        fotocamera manuale, che non tocca nulla.
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="step" id="fotocamera">
+      <p class="eyebrow">Passo 2</p>
+      <h2>Fotocamera manuale e importazione</h2>
+      <p>
+        La fotocamera della Galleria scatta alla <strong>massima risoluzione del
+        sensore</strong>, senza ritaglio automatico e senza correzioni: il file
+        resta come l'ha visto la fotocamera. È la scelta giusta quando il
+        dettaglio è il contenuto — carte antiche, testi latini, timbri,
+        firme, pagine rovinate.
+      </p>
+
+      <ol class="howto">
+        <li>Vai nella scheda <strong>Galleria</strong> e tocca il pulsante in basso a destra.</li>
+        <li>Usa i comandi in alto per il <strong>flash</strong> e per passare tra fotocamera posteriore e frontale.</li>
+        <li>Scatta quante foto vuoi: ognuna entra subito nella Galleria.</li>
+        <li>Con l'icona della galleria, nella stessa schermata, <strong>importi foto già sul telefono</strong> senza passare dalla fotocamera.</li>
+      </ol>
+
+      <div class="tip">
+        <strong>L'importazione non chiede permessi di archiviazione.</strong>
+        L'app usa il selettore foto di sistema: scegli tu quali immagini
+        passarle, una per una. PixelPaper non vede il resto della tua galleria.
+      </div>
+
+      <p>
+        Le foto importate o scattate vengono <strong>copiate</strong> nello
+        spazio privato dell'app. Cancellare l'originale dal telefono non tocca
+        la copia in PixelPaper, e viceversa.
+      </p>
+    </section>
+
+    <!-- 4 -->
+    <section class="step" id="galleria">
+      <p class="eyebrow">Passo 3</p>
+      <h2>Galleria e PDF da immagini</h2>
+      <p>
+        La Galleria è una griglia di miniature. Il pulsante in alto cambia il
+        numero di colonne (da 2 a 4): due colonne per riconoscere una pagina
+        scritta, quattro per scorrere in fretta un rullino lungo.
+      </p>
+
+      <ol class="howto">
+        <li><strong>Tieni premuta</strong> una foto per entrare in selezione.</li>
+        <li>Tocca le altre per aggiungerle. In alto compare il conteggio: <em>3 selezionate</em>.</li>
+        <li>Dalla barra in alto: <strong>condividi</strong> le immagini, oppure tocca l'icona <strong>PDF</strong> per unirle in un unico documento.</li>
+        <li>Il menu <span class="kbd">⋮</span> aggiunge <em>Seleziona tutto</em>, <em>Sposta in</em> (una cartella) ed <em>Elimina</em>.</li>
+      </ol>
+
+      <div class="tip">
+        <strong>L'ordine del PDF è l'ordine della Galleria</strong>, cioè dalla
+        più recente alla più vecchia. Se l'ordine conta, crea il PDF e poi
+        sistemalo nell'<a href="#editor">editor delle pagine</a>, dove si
+        trascina una miniatura e si molla dove serve.
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="step" id="schermo-intero">
+      <p class="eyebrow">Passo 4</p>
+      <h2>Foto a schermo intero</h2>
+      <p>
+        Tocca una foto e si apre da sola su tutto lo schermo. Niente barra di
+        navigazione, niente pulsante flottante: sopra la foto non c'è nulla che
+        non serva a guardarla.
+      </p>
+
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span> 3 / 12</div>
+        <div class="dock">
+          <span>Informazioni</span><span>Testo</span><span>Modifica</span><span>Condividi</span>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>Gesto</th><th>Effetto</th></tr></thead>
+        <tbody>
+          <tr><td>Scorri a destra o sinistra</td><td>Passa alla foto precedente o successiva.</td></tr>
+          <tr><td>Pizzica</td><td>Ingrandisce fino a 6×; da ingrandita, trascinando ti sposti dentro l'immagine.</td></tr>
+          <tr><td>Scorri in alto o in basso</td><td>Chiude e torna alla griglia. La foto segue il dito e rimpicciolisce: se ti fermi a metà, torna al suo posto.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Informazioni</h3>
+          <p>Risoluzione in pixel, dimensione del file, data di acquisizione e provenienza (fotocamera o galleria).</p>
+        </div>
+        <div class="card">
+          <h3>Testo</h3>
+          <p>Estrae le parole dalla foto. Vedi <a href="#testo">Estrarre il testo</a>.</p>
+        </div>
+        <div class="card">
+          <h3>Modifica</h3>
+          <p>Ritaglia, ruota, disegna, scrivi, sfoca, applica filtri. Il risultato <strong>sostituisce</strong> la foto: non nasce un doppione a ogni ritocco.</p>
+        </div>
+        <div class="card">
+          <h3>Condividi</h3>
+          <p>Manda la foto a un'altra app. Funziona anche su una selezione multipla dalla griglia.</p>
+        </div>
+      </div>
+
+      <div class="tip warn">
+        <strong>La modifica non è annullabile dall'app.</strong> Salvando,
+        l'immagine originale viene sovrascritta. Se ti serve tenere anche la
+        versione di partenza, duplicala prima condividendola con te stesso, o
+        lavora su una copia importata.
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="step" id="testo">
+      <p class="eyebrow">Passo 5</p>
+      <h2>Estrarre il testo da una foto</h2>
+      <p>
+        A schermo intero, <strong>Testo</strong> legge le parole nell'immagine e
+        te le restituisce come testo da copiare o condividere. Il
+        riconoscimento avviene <strong>sul dispositivo</strong>: nessuna
+        immagine viene inviata da nessuna parte, e funziona in aereo.
+      </p>
+
+      <table>
+        <thead><tr><th>Cosa</th><th>Riconosciuto</th></tr></thead>
+        <tbody>
+          <tr><td>Alfabeto latino</td><td>Sì — italiano, inglese, francese, tedesco, e anche il <strong>latino</strong>. Il modello riconosce una <em>scrittura</em>, non una lingua: non rifiuta le parole che non conosce.</td></tr>
+          <tr><td>Greco antico o moderno</td><td>No.</td></tr>
+          <tr><td>Cirillico, ebraico, arabo</td><td>No.</td></tr>
+          <tr><td>Gotico, Fraktur, incunaboli</td><td>Risultati parziali: legature, s lunga (ſ) e abbreviazioni vengono lette male.</td></tr>
+          <tr><td>Scrittura a mano</td><td>Molto incerta, soprattutto in corsivo.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tip">
+        <strong>Per un risultato migliore.</strong> Fotografa la pagina dritta e
+        ben illuminata, il più vicino possibile senza tagliare il testo. Se una
+        riga esce sbagliata, prova a rifare lo scatto: quasi sempre il problema
+        è la nitidezza, non la lingua. I macron (ā, ē) di solito si perdono
+        anche quando la parola viene letta giusta.
+      </div>
+
+      <p>
+        È anche il motivo per cui la Galleria conserva gli scatti a piena
+        risoluzione e senza ritaglio: l'estrazione lavora sempre sull'originale
+        più nitido che hai.
+      </p>
+    </section>
+
+    <!-- 7 -->
+    <section class="step" id="archivio">
+      <p class="eyebrow">Passo 6</p>
+      <h2>Archivio: trovare e gestire i PDF</h2>
+      <p>
+        Ogni documento mostra anteprima della prima pagina, titolo, numero di
+        pagine, dimensione e data. In alto trovi ricerca, cambio vista
+        (elenco o griglia), ordinamento e impostazioni.
+      </p>
+
+      <table>
+        <thead><tr><th>Comando</th><th>A cosa serve</th></tr></thead>
+        <tbody>
+          <tr><td>Ricerca</td><td>Filtra per nome mentre scrivi.</td></tr>
+          <tr><td>Vista</td><td>Elenco (più informazioni) o griglia (anteprime grandi).</td></tr>
+          <tr><td>Ordinamento</td><td>Recenti, meno recenti, nome A-Z e Z-A, dimensione.</td></tr>
+          <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Stampa, Dettagli, Elimina.</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Toccando un documento si apre il <strong>visualizzatore</strong>: una
+        pagina alla volta, si scorre in orizzontale, ogni pagina ha il suo
+        zoom. In basso: <em>Modifica</em>, <em>Condividi</em>,
+        <em>Stampa</em>, <em>Elimina</em>.
+      </p>
+
+      <div class="tip">
+        <strong>Stampa</strong> passa dal sistema Android: da lì puoi anche
+        salvare una copia come PDF su Drive o sul telefono, se ti serve una
+        copia fuori dall'app.
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="step" id="editor">
+      <p class="eyebrow">Passo 7</p>
+      <h2>Editor delle pagine</h2>
+      <p>
+        Da un documento, <strong>Modifica</strong> apre l'editor. La pagina su
+        cui stai lavorando occupa tutto lo schermo e si cambia scorrendo in
+        orizzontale; la striscia sopra la barra dei comandi è la mappa del
+        documento.
+      </p>
+
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span> Modifica pagine · Pagina 2 di 5</div>
+        <div class="rail">
+          <span class="fchip">1</span>
+          <span class="fchip sel">2</span>
+          <span class="fchip">3</span>
+          <span class="fchip">4</span>
+          <span class="fchip">5</span>
+        </div>
+        <div class="dock">
+          <span>Aggiungi</span><span>Modifica</span><span>Duplica</span><span>Elimina</span>
+        </div>
+      </div>
+
+      <ul class="plain">
+        <li><strong>Riordinare:</strong> tieni premuta una miniatura della striscia e trascinala nella posizione nuova.</li>
+        <li><strong>Saltare a una pagina:</strong> toccala nella striscia.</li>
+        <li><strong>Aggiungi</strong> inserisce una pagina da fotocamera, dalla galleria, oppure un foglio bianco.</li>
+        <li><strong>Duplica</strong> copia la pagina corrente subito dopo di sé.</li>
+        <li><strong>Elimina</strong> toglie la pagina corrente; l'ultima pagina rimasta non si può eliminare.</li>
+      </ul>
+
+      <p>
+        Niente viene scritto sul file finché non tocchi <strong>Salva</strong>.
+        Se esci con modifiche in sospeso, l'app chiede conferma prima di
+        buttarle via.
+      </p>
+
+      <div class="card">
+        <h3>"Modifica": la pagina come immagine</h3>
+        <p>
+          Un PDF non si riscrive come si riscrive un testo. Per intervenire su
+          una pagina, PixelPaper la <strong>rasterizza</strong> a circa 190 dpi,
+          la apre nell'editor di immagini — dove puoi ritagliare, ruotare,
+          disegnare, oscurare una firma o un numero di conto — e la rimette al
+          suo posto. Le altre pagine non vengono toccate.
+        </p>
+        <p>
+          Il prezzo è dichiarato: quella pagina <strong>diventa un'immagine</strong>.
+          Il file cresce e il testo non è più selezionabile né ricercabile. Per
+          questo è un'azione esplicita, che non scatta mai da sola.
+        </p>
+      </div>
+
+      <div class="tip">
+        <strong>Oscurare davvero.</strong> Se copri un dato sensibile con il
+        pennello e salvi, il dato sparisce sul serio: sotto non resta un livello
+        nascosto, perché la pagina viene ridisegnata da zero.
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="step" id="cartelle">
+      <p class="eyebrow">Organizzare</p>
+      <h2>Cartelle</h2>
+      <p>
+        Le cartelle sono un <strong>livello solo</strong>, come delle etichette:
+        Fatture, Università, Ricette. Non ci sono sottocartelle, e non è una
+        dimenticanza: un archivio di scansioni ha bisogno di pochi contenitori
+        chiari, non di un albero in cui perdersi. Archivio e Galleria hanno
+        cartelle proprie e indipendenti.
+      </p>
+
+      <ol class="howto">
+        <li><strong>Crearne una:</strong> tocca <em>Nuova cartella</em> nella barra in alto e dalle un nome.</li>
+        <li><strong>Spostare trascinando:</strong> tieni premuto un documento o una foto e trascinalo su una cartella della barra.</li>
+        <li><strong>Spostare dal menu:</strong> seleziona uno o più elementi, poi <span class="kbd">⋮</span> → <em>Sposta in</em>.</li>
+        <li><strong>Rinominare o eliminare:</strong> tieni premuta la cartella nella barra.</li>
+      </ol>
+
+      <div class="tip">
+        <strong>La barra delle cartelle resta ancorata in alto</strong> mentre
+        scorri: un filtro che sparisce è un filtro che ci si dimentica di aver
+        attivato. Ed è anche il bersaglio del trascinamento, così non devi
+        risalire la lista per spostare qualcosa.
+      </div>
+
+      <div class="tip">
+        <strong>Eliminare una cartella non elimina i file.</strong> I documenti
+        che conteneva tornano semplicemente fuori, sotto <em>Tutti</em>.
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="step" id="cestino">
+      <p class="eyebrow">Organizzare</p>
+      <h2>Cestino</h2>
+      <p>
+        Eliminare non fa domande, perché non è definitivo: l'elemento va nel
+        cestino e per qualche secondo compare <strong>Annulla</strong> in fondo
+        allo schermo. Nel cestino resta <strong>30 giorni</strong>.
+      </p>
+
+      <ul class="plain">
+        <li>Durante un trascinamento, la barra di navigazione diventa il cestino: trascina lì per eliminare.</li>
+        <li>Il cestino si apre da <em>Impostazioni → Cestino</em> e mostra quanti giorni mancano a ogni elemento.</li>
+        <li>Da lì: <strong>Ripristina</strong> rimette l'elemento al suo posto, <strong>Elimina definitivamente</strong> lo cancella dalla memoria.</li>
+        <li><strong>Svuota cestino</strong> chiede conferma, perché quel passo non torna indietro.</li>
+      </ul>
+
+      <div class="tip warn">
+        <strong>Definitivo vuol dire definitivo.</strong> L'eliminazione dal
+        cestino rimuove anche il file dallo spazio dell'app: non esiste un
+        secondo cestino di sistema da cui recuperarlo.
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="step" id="impostazioni">
+      <p class="eyebrow">Manutenzione</p>
+      <h2>Impostazioni e spazio</h2>
+      <table>
+        <thead><tr><th>Voce</th><th>Cosa mostra o fa</th></tr></thead>
+        <tbody>
+          <tr><td>Come si usa</td><td>La guida in sette passi dentro l'app.</td></tr>
+          <tr><td>Cestino</td><td>Gli elementi eliminati, con i giorni rimasti.</td></tr>
+          <tr><td>Documenti / Immagini</td><td>Quanti ne hai.</td></tr>
+          <tr><td>Documenti e immagini</td><td>Lo spazio occupato dai tuoi file.</td></tr>
+          <tr><td>Svuota la cache</td><td>Elimina le anteprime, che si rigenerano da sole.</td></tr>
+          <tr><td>Licenze open source</td><td>Tutte le tecnologie usate e le rispettive licenze.</td></tr>
+          <tr><td>Versione</td><td>La versione installata.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tip">
+        <strong>La riga della cache si accende da sola.</strong> Sotto una certa
+        soglia resta grigia e silenziosa; quando le anteprime superano i 20 MB
+        diventa colorata e ti dice che c'è spazio da liberare. Svuotarla non
+        tocca nessun documento: le anteprime si ricreano alla prossima
+        apertura, solo un attimo più lentamente.
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section class="step" id="privacy">
+      <p class="eyebrow">Privacy</p>
+      <h2>Permessi, rete e dove finiscono i file</h2>
+      <p>
+        Il motto non è uno slogan, è la descrizione di come è fatta l'app:
+        non c'è registrazione, non c'è account, non c'è un server a cui
+        mandare qualcosa.
+      </p>
+
+      <ul class="plain">
+        <li><strong>Un solo permesso da concedere: la fotocamera</strong>, e serve solo per gli scatti manuali.</li>
+        <li>Lo scanner ML Kit usa la fotocamera dei servizi Google Play: non chiede permessi all'app.</li>
+        <li>L'importazione passa dal selettore foto di sistema: nessun accesso all'intera galleria.</li>
+        <li>Il riconoscimento del testo gira sul dispositivo, senza rete.</li>
+        <li>Documenti e foto stanno nello <strong>spazio privato dell'app</strong>: nessun'altra app li vede.</li>
+      </ul>
+
+      <div class="tip warn">
+        <strong>Disinstallando l'app, i file spariscono con lei.</strong> È il
+        rovescio della medaglia dello spazio privato. Se un documento ti serve
+        a lungo termine, condividilo o stampalo in PDF da qualche altra parte:
+        una copia fuori dall'app è l'unico vero backup.
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section class="step" id="domande">
+      <p class="eyebrow">Aiuto</p>
+      <h2>Domande frequenti</h2>
+
+      <div class="card">
+        <h3>Lo scanner dice che non è disponibile</h3>
+        <p>
+          Manca il supporto dei servizi Google Play su quel dispositivo. Usa la
+          fotocamera manuale dalla Galleria: scatti le pagine e le unisci in un
+          PDF con l'icona PDF dopo averle selezionate.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Il testo estratto è pieno di errori</h3>
+        <p>
+          Nell'ordine: la foto è mossa o poco illuminata; la scrittura non è in
+          alfabeto latino (greco e cirillico non sono supportati); è una stampa
+          antica o una scrittura a mano. Rifare lo scatto risolve il primo caso,
+          che è anche il più frequente.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Dopo aver usato "Modifica" su una pagina, il PDF è molto più grande</h3>
+        <p>
+          È previsto: quella pagina è diventata un'immagine. Se ti serve il file
+          leggero, tieni la modifica per le pagine che devono davvero cambiare.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Ho eliminato per sbaglio</h3>
+        <p>
+          Se lo snackbar <em>Annulla</em> è ancora a schermo, toccalo. Altrimenti
+          vai in <em>Impostazioni → Cestino</em>: hai 30 giorni per ripristinare.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>L'app occupa troppo spazio</h3>
+        <p>
+          Guarda <em>Impostazioni</em>: <em>Documenti e immagini</em> è ciò che
+          hai creato tu, <em>Svuota la cache</em> è tutto il resto e si può
+          cancellare senza pensarci. Se lo spazio serve davvero, svuota anche
+          il cestino.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Posso usarla in un'altra lingua?</h3>
+        <p>
+          No: l'app è solo in italiano, per scelta. Il riconoscimento del testo
+          però legge qualsiasi lingua scritta in alfabeto latino.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <strong>PixelPaper</strong> — I tuoi dati restano con te.
+      <div class="credit">Di Khova Krishna Pilato, con un'idea di Stefano Pilato.</div>
+    </div>
+    <div class="links">
+      <a href="https://github.com/krishnapilato/pixelpaper">GitHub</a>
+      <a href="https://www.linkedin.com/in/khovakrishnapilato/">LinkedIn</a>
+      <a href="mailto:krishnak.pilato@gmail.com">Scrivimi</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Indice richiudibile sui telefoni.
+  const toggle = document.getElementById('toc-toggle');
+  const toc = document.getElementById('toc');
+  const isNarrow = () => window.matchMedia('(max-width: 900px)').matches;
+
+  const sync = () => { if (isNarrow()) toc.hidden = toggle.getAttribute('aria-expanded') !== 'true'; else toc.hidden = false; };
+  toggle.addEventListener('click', () => {
+    toggle.setAttribute('aria-expanded', toggle.getAttribute('aria-expanded') !== 'true');
+    sync();
+  });
+  window.addEventListener('resize', sync);
+  toc.addEventListener('click', (e) => { if (e.target.tagName === 'A' && isNarrow()) { toggle.setAttribute('aria-expanded', 'false'); sync(); } });
+  // Esc chiude il pannello: aperto copre lo schermo, e deve bastare un tasto.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isNarrow() && toggle.getAttribute('aria-expanded') === 'true') {
+      toggle.setAttribute('aria-expanded', 'false');
+      sync();
+    }
+  });
+  sync();
+
+  // Evidenzia nell'indice la sezione che si sta leggendo.
+  const links = new Map([...toc.querySelectorAll('a')].map((a) => [a.getAttribute('href').slice(1), a]));
+  const seen = new Set();
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => entry.isIntersecting ? seen.add(entry.target.id) : seen.delete(entry.target.id));
+    const first = [...links.keys()].find((id) => seen.has(id));
+    links.forEach((a, id) => a.classList.toggle('active', id === first));
+  }, { rootMargin: '-80px 0px -70% 0px' });
+  document.querySelectorAll('section.step').forEach((s) => spy.observe(s));
+</script>
+
 </body>
 </html>
