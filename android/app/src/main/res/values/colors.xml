@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches ColorScheme.fromSeed(#4C8DFF, dark).surface so the launch
+         window and the first Flutter frame are the same colour. -->
+    <color name="surface_dark">#FF111318</color>
+    <!-- Il seed del tema, usato come sfondo dell'icona adattiva. -->
+    <color name="brand_blue">#FF4C8DFF</color>
+</resources>

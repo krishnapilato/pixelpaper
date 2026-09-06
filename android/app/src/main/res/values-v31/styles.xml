@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Da Android 12 la schermata di avvio la disegna il sistema: senza
+         questi attributi mostrerebbe l'icona su un cerchio chiaro, un lampo
+         bianco prima di un'app tutta scura. Qui parte già scura e prosegue
+         nell'animazione in-app senza stacco. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/surface_dark</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/surface_dark</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/surface_dark</item>
+    </style>
+</resources>
