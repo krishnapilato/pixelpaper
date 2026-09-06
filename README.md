@@ -260,6 +260,36 @@ every ABI: the actual per-device download is a fraction of its size.
 
 ---
 
+## Editing the guide
+
+The user guide at
+[krishnapilato.github.io/pixelpaper](https://krishnapilato.github.io/pixelpaper/)
+lives in `web/`: `index.html`, `styles.css`, `favicon.svg`. Plain HTML and CSS,
+no framework, no build step — which is the point: a page you can fix in thirty
+seconds is a page that stays accurate.
+
+Editing it is a commit. `.github/workflows/deploy.yml` watches `web/**` on
+`main` and publishes the folder as it is, so a change is live about half a
+minute after it lands — from your editor or straight from GitHub's web editor,
+without touching anything else in the repository. `workflow_dispatch` re-runs
+the deploy by hand when you need it.
+
+```bash
+# preview before pushing: open the file, or serve the folder
+start web/index.html
+```
+
+Two things worth keeping true: paths inside the page stay **relative**
+(`styles.css`, not `/styles.css`), because the site is served from
+`/pixelpaper/` and an absolute path would 404; and the CSS carries the
+breakpoints, so check a change at both a phone width and a desktop one before
+committing.
+
+Pages must be set to **Settings → Pages → Source: GitHub Actions** for any of
+this to publish.
+
+---
+
 ## Text recognition
 
 Text extraction uses ML Kit's **Latin** model: it recognises a *script*, not a
