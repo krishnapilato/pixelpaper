@@ -1,0 +1,375 @@
+/* PixelPaper — guida.
+   Stessa tavolozza dell'app: Material 3 scuro, seed #4C8DFF. Nessuna
+   dipendenza esterna: la pagina si apre anche senza rete, come l'app. */
+
+:root {
+  --surface: #111318;
+  --surface-1: #191c20;
+  --surface-2: #1e2126;
+  --surface-3: #282a2f;
+  --outline: #2f3238;
+  --on-surface: #e2e2e9;
+  --on-surface-variant: #a9adb8;
+  --primary: #4c8dff;
+  --primary-dim: #1b3358;
+  --on-primary: #00315c;
+  --danger: #ffb4ab;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --page: min(1180px, 100% - 3rem);
+  --font: "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 5.5rem; }
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: clamp(1.6rem, 3.4vw, 2.1rem); }
+h3 { font-size: 1.15rem; margin-bottom: 0.35rem; }
+p { margin: 0 0 1rem; }
+
+/* ---------- Barra superiore ---------- */
+
+header.bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(17, 19, 24, 0.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--outline);
+}
+
+.bar-inner {
+  width: var(--page);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  height: 60px;
+}
+
+.bar .mark { width: 26px; height: 26px; flex: none; }
+.bar .name { font-weight: 700; letter-spacing: -0.01em; }
+.bar .spacer { flex: 1; }
+.bar a.ghost {
+  color: var(--on-surface-variant);
+  font-size: 0.92rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+}
+.bar a.ghost:hover { background: var(--surface-2); text-decoration: none; }
+
+#toc-toggle {
+  display: none;
+  background: var(--surface-2);
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ---------- Copertina ---------- */
+
+.hero {
+  width: var(--page);
+  margin: 0 auto;
+  padding: clamp(3rem, 9vw, 6rem) 0 clamp(2rem, 5vw, 3.5rem);
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.hero h1 {
+  font-size: clamp(2.4rem, 6.5vw, 4rem);
+  margin-bottom: 0.6rem;
+}
+
+.hero .motto {
+  color: var(--primary);
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-weight: 600;
+  margin-bottom: 1.2rem;
+}
+
+.hero p.lead {
+  color: var(--on-surface-variant);
+  font-size: 1.1rem;
+  max-width: 46ch;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.6rem; }
+.chip {
+  border: 1px solid var(--outline);
+  background: var(--surface-1);
+  color: var(--on-surface-variant);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.86rem;
+}
+
+.hero-art { display: flex; justify-content: center; }
+.hero-art svg { width: min(260px, 100%); height: auto; }
+
+/* ---------- Impianto a due colonne ---------- */
+
+.layout {
+  width: var(--page);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: 3.2rem;
+  padding-bottom: 5rem;
+}
+
+nav.toc {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  font-size: 0.93rem;
+}
+
+nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+nav.toc li { counter-increment: toc; }
+nav.toc a {
+  display: block;
+  color: var(--on-surface-variant);
+  padding: 0.4rem 0.7rem 0.4rem 2rem;
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+nav.toc a::before {
+  content: counter(toc);
+  position: absolute;
+  left: 0.7rem;
+  color: var(--outline);
+  font-variant-numeric: tabular-nums;
+}
+nav.toc a:hover { background: var(--surface-1); color: var(--on-surface); text-decoration: none; }
+nav.toc a.active { background: var(--primary-dim); color: #dbe6ff; }
+nav.toc a.active::before { color: var(--primary); }
+
+main { min-width: 0; }
+
+section.step { padding: 2.6rem 0; border-top: 1px solid var(--outline); }
+section.step:first-child { border-top: none; padding-top: 1rem; }
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+/* ---------- Blocchi ---------- */
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius);
+  padding: 1.3rem 1.5rem;
+  margin: 1.4rem 0;
+}
+
+.card h3 { margin-top: 0; }
+.card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+
+.tip {
+  border-left: 3px solid var(--primary);
+  background: var(--surface-1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.9rem 1.2rem;
+  margin: 1.2rem 0;
+  color: var(--on-surface-variant);
+}
+.tip strong { color: var(--on-surface); }
+
+.warn { border-left-color: var(--danger); }
+.warn strong { color: var(--danger); }
+
+ol.howto { counter-reset: howto; list-style: none; padding: 0; margin: 1.2rem 0; }
+ol.howto > li {
+  counter-increment: howto;
+  position: relative;
+  padding: 0 0 1.1rem 3rem;
+  border-left: 1px solid var(--outline);
+  margin-left: 0.9rem;
+}
+ol.howto > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+ol.howto > li::before {
+  content: counter(howto);
+  position: absolute;
+  left: -0.95rem;
+  top: -0.15rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--on-surface);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+ul.plain { padding-left: 1.15rem; margin: 0 0 1rem; }
+ul.plain li { margin-bottom: 0.45rem; }
+
+.kbd {
+  background: var(--surface-3);
+  border: 1px solid var(--outline);
+  border-radius: 6px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.2rem 0;
+  font-size: 0.96rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--outline);
+  vertical-align: top;
+}
+th { color: var(--on-surface-variant); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+td:first-child { white-space: nowrap; font-weight: 600; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.4rem 0; }
+
+/* Riquadro che imita una schermata dell'app */
+.screen {
+  background: var(--surface-1);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  margin: 1.4rem 0;
+}
+.screen .screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--on-surface-variant);
+  font-size: 0.88rem;
+  padding: 0.2rem 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--outline);
+  margin-bottom: 0.8rem;
+}
+.screen .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-3); }
+.rail { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.rail .fchip {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.88rem;
+  background: var(--surface-2);
+  color: var(--on-surface-variant);
+  border: 1px solid transparent;
+}
+.rail .fchip.sel { background: var(--primary-dim); color: #dbe6ff; }
+.rail .fchip.dashed { border: 1px dashed var(--outline); background: transparent; }
+
+.dock {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 0.5rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.5rem;
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--on-surface-variant);
+  text-align: center;
+}
+
+/* ---------- Chiusura ---------- */
+
+footer {
+  border-top: 1px solid var(--outline);
+  background: var(--surface-1);
+}
+.footer-inner {
+  width: var(--page);
+  margin: 0 auto;
+  padding: 2.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--on-surface-variant);
+  font-size: 0.94rem;
+}
+.footer-inner .links { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.footer-inner .credit { font-size: 0.85rem; }
+
+/* ---------- Adattamento ---------- */
+
+@media (max-width: 900px) {
+  :root { --page: min(760px, 100% - 2.5rem); }
+  .hero { grid-template-columns: 1fr; gap: 2rem; padding-top: 3rem; }
+  .hero-art { order: -1; }
+  .hero-art svg { width: 150px; }
+  .layout { grid-template-columns: 1fr; gap: 1rem; }
+  #toc-toggle { display: block; }
+  /* Pannello ancorato sotto la barra, non un blocco in cima al documento:
+     se restasse nel flusso, aprendolo dopo aver scorso comparirebbe fuori
+     dallo schermo e il pulsante sembrerebbe rotto. */
+  nav.toc {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    margin: 0;
+    padding: 0.6rem max(1.25rem, calc((100% - var(--page)) / 2));
+    background: var(--surface-1);
+    border: none;
+    border-bottom: 1px solid var(--outline);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  }
+  nav.toc[hidden] { display: none; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  /* Nella barra resta l'essenziale: il link a GitHub e' anche in fondo. */
+  .bar a.ghost { display: none; }
+  .bar-inner { gap: 0.5rem; }
+  .card { padding: 1.1rem 1.15rem; }
+  table { font-size: 0.9rem; }
+  td:first-child { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
