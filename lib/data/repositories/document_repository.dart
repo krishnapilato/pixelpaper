@@ -128,12 +128,23 @@ class DocumentRepository {
     await target.writeAsBytes(bytes, flush: true);
 
     final stat = await target.stat();
+
+    // Page one is a photo we already have on disk: copy it. Rasterising the
+    // PDF instead — which is what this did — meant parsing a fifty-megabyte
+    // file and rendering a page out of it just to fill a 52-pixel tile, and on
+    // twelve full-resolution photos that took minutes with the progress
+    // spinner sitting there. [importScan] had this right all along.
+    final thumb = await _pdf.adoptThumbnail(
+      File(imagePaths.first),
+      '${target.path}|${stat.modified.millisecondsSinceEpoch}|thumb',
+    );
+
     return _persistNew(
       target: target,
       title: Fmt.stem(target.path),
       pageCount: imagePaths.length,
       stat: stat,
-      thumbnailPath: (await _pdf.thumbnail(target))?.path,
+      thumbnailPath: thumb?.path,
     );
   }
 

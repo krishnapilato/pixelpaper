@@ -44,14 +44,27 @@
       <span class="chip">Funziona offline</span>
       <span class="chip">Un solo permesso: fotocamera</span>
     </div>
+
+    <div class="get" id="get">
+      <a class="btn" id="link-play" href="#">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.6 2.3a1 1 0 0 0-.5.9v17.6a1 1 0 0 0 .5.9l9.4-9.7-9.4-9.7Zm10.8 8.6 2.9-3-9.1-5.2 6.2 8.2Zm0 2.2-6.2 8.2 9.1-5.2-2.9-3Zm4.3-1.1-2.5-2.6-3 3.1 3 3.1 2.5-2.6a1.1 1.1 0 0 0 0-1Z"/></svg>
+        Scarica dal Play Store
+      </a>
+      <a class="btn ghost-btn" id="link-testing" href="#">Entra nel programma di test</a>
+    </div>
+    <p class="get-note" id="get-note">
+      Il programma di test dà le versioni in anteprima: si entra e si esce
+      quando vuoi, e resta lo stesso Play Store a occuparsi degli aggiornamenti.
+    </p>
   </div>
+
+  <!-- Il logo stava già nella barra qui sopra: ripeterlo ingrandito non
+       aggiungeva niente. Qui serve mostrare l'app, non il suo marchio. -->
   <div class="hero-art">
-    <svg viewBox="0 0 108 108" aria-hidden="true">
-      <rect width="108" height="108" rx="24" fill="#4C8DFF"/>
-      <rect x="31" y="32" width="28" height="40" rx="3" fill="#fff"/>
-      <rect x="62" y="52" width="10" height="10" rx="1.5" fill="#fff"/>
-      <rect x="74" y="65" width="7" height="7" rx="1" fill="#fff"/>
-    </svg>
+    <div class="phone">
+      <img src="screenshots/02-archivio.jpg" width="420" height="935" decoding="async"
+           alt="L'archivio di PixelPaper con tre documenti PDF, ciascuno con anteprima, numero di pagine, dimensione e data.">
+    </div>
   </div>
 </div>
 
@@ -635,6 +648,40 @@
   </main>
 </div>
 
+<section class="signup" id="aggiornamenti" hidden>
+  <div class="signup-inner">
+    <div class="signup-copy">
+      <h2>Quando esce qualcosa di nuovo</h2>
+      <p>
+        Una mail ogni tanto, solo quando c'è una versione nuova o una funzione
+        che cambia il modo di lavorare. Niente altro: nessuna pubblicità,
+        nessun indirizzo ceduto a terzi, e la disiscrizione è in fondo a ogni
+        messaggio.
+      </p>
+    </div>
+
+    <form class="signup-form" id="signup-form" method="post" target="_blank" novalidate>
+      <label class="field">
+        <span>Indirizzo email</span>
+        <input type="email" name="EMAIL" id="signup-email" required autocomplete="email"
+               placeholder="nome@esempio.it" spellcheck="false">
+      </label>
+
+      <label class="consent">
+        <input type="checkbox" id="signup-consent" required>
+        <span>
+          Acconsento a ricevere gli aggiornamenti su PixelPaper. Il mio
+          indirizzo sarà usato solo per questo e posso ritirare il consenso
+          quando voglio.
+        </span>
+      </label>
+
+      <button type="submit" class="btn" id="signup-submit">Iscrivimi</button>
+      <p class="signup-note" id="signup-note" role="status"></p>
+    </form>
+  </div>
+</section>
+
 <footer>
   <div class="footer-inner">
     <div>
@@ -650,6 +697,60 @@
 </footer>
 
 <script>
+  /* ------------------------------------------------------------------
+     Le tre cose da configurare, tutte qui.
+
+     Ognuna si riempie una volta sola e la pagina si adatta: un link vuoto
+     sparisce invece di portare da nessuna parte, e il modulo di iscrizione
+     resta nascosto finché non c'è un endpoint che possa davvero riceverlo.
+     Una pagina che raccoglie indirizzi senza spedirli è peggio di una
+     pagina che non li chiede.
+
+     NEWSLETTER_ACTION: l'URL "action" del modulo che ti dà il provider
+     (Brevo: Contatti → Moduli → codice di incorporamento). Serve un
+     provider vero, non un inoltro via mail: doppio opt-in e link di
+     disiscrizione sono obblighi, non optional.
+     ------------------------------------------------------------------ */
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.khovakrishnapilato.pixelpaper';
+  const TESTING_URL = 'https://play.google.com/apps/testing/com.khovakrishnapilato.pixelpaper';
+  const NEWSLETTER_ACTION = '';
+
+  (() => {
+    const play = document.getElementById('link-play');
+    const testing = document.getElementById('link-testing');
+    if (PLAY_URL) { play.href = PLAY_URL; } else { play.hidden = true; }
+    if (TESTING_URL) {
+      testing.href = TESTING_URL;
+    } else {
+      testing.hidden = true;
+      document.getElementById('get-note').hidden = true;
+    }
+
+    const section = document.getElementById('aggiornamenti');
+    const form = document.getElementById('signup-form');
+    if (!NEWSLETTER_ACTION) return;
+
+    section.hidden = false;
+    form.action = NEWSLETTER_ACTION;
+    document.querySelector('.toc ol')?.insertAdjacentHTML(
+      'beforeend', '<li><a href="#aggiornamenti">Aggiornamenti via mail</a></li>');
+
+    const note = document.getElementById('signup-note');
+    const consent = document.getElementById('signup-consent');
+    form.addEventListener('submit', (event) => {
+      if (!consent.checked) {
+        event.preventDefault();
+        note.textContent = 'Serve la spunta del consenso per procedere.';
+        note.className = 'signup-note warn';
+        return;
+      }
+      // Il provider apre la propria pagina di conferma in una scheda nuova,
+      // quindi questa resta dov'era: l'utente stava leggendo una guida.
+      note.textContent = 'Controlla la posta: c’è una mail da confermare.';
+      note.className = 'signup-note ok';
+    });
+  })();
+
   // Indice richiudibile sui telefoni.
   const toggle = document.getElementById('toc-toggle');
   const toc = document.getElementById('toc');

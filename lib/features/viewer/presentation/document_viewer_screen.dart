@@ -83,27 +83,33 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
           const SizedBox(width: Space.xxs),
         ],
       ),
-      body: Hero(
-        tag: 'document-${document.id}',
-        // The card in the archive flies into the first page; once the reader
-        // is up, the Hero must not constrain the pager, so the flight target
-        // is the whole reader surface.
-        flightShuttleBuilder: (context, animation, direction, from, to) =>
-            FadeTransition(opacity: animation, child: to.widget),
-        child: PdfPager(
-          // Keyed on the signature, not on the id: coming back from the editor
-          // the path is unchanged but the bytes are not, and without a new key
-          // the reader would keep showing the pages it read on the way in.
-          key: ValueKey(document.signature),
-          file: document.file,
-          pageCount: pageCount,
-          padding: readerPadding(context),
-          onPageChanged: (index) => setState(() => _page = index),
-        ),
+      // No Hero here, deliberately.
+      //
+      // The card in the archive used to fly into this page, and the flight was
+      // what broke the reader: Hero builds its destination a second time
+      // inside the overlay, so two PdfPagers came up, each reading the file and
+      // each calling setState on the way back — and the one in the overlay was
+      // already unmounted by then. "SingleChildRenderObjectElement unmounted",
+      // over the whole document, reproducible on any scan large enough that
+      // the read outlived the animation.
+      //
+      // It was buying nothing anyway: at flight time page one has not been
+      // rasterised yet, so the thumbnail flew into a blank sheet. A Hero wants
+      // a subtree that holds still, which is the opposite of what a reader that
+      // loads its own content can offer.
+      body: PdfPager(
+        // Keyed on the signature, not on the id: coming back from the editor
+        // the path is unchanged but the bytes are not, and without a new key
+        // the reader would keep showing the pages it read on the way in.
+        key: ValueKey(document.signature),
+        file: document.file,
+        pageCount: pageCount,
+        padding: readerPadding(context),
+        onPageChanged: (index) => setState(() => _page = index),
       ),
       bottomNavigationBar: _ViewerBar(
         onEdit: () => context.push(Routes.editor(document.id)),
-        onShare: () => DocumentActions.share(context, [document]),
+        onShare: () => DocumentActions.share(context, ref, [document]),
         onPrint: () => DocumentActions.print(context, ref, document),
         onDelete: () async {
           final deleted = await DocumentActions.delete(context, ref, [

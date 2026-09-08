@@ -14,24 +14,49 @@ import 'documents_controller.dart';
 /// The verbs of the archive, in one place so the list, the grid, the viewer
 /// and the context sheet all behave identically.
 abstract final class DocumentActions {
+  /// Hands the files to the system share sheet.
+  ///
+  /// No `sharePositionOrigin`: it anchors the iPad popover and does nothing on
+  /// Android, but getting it meant `context.findRenderObject()` on whatever
+  /// context the caller happened to have — a list tile that had since been
+  /// recycled, or a sheet already on its way out. That threw
+  /// "SingleChildRenderObjectElement unmounted" and painted the red screen
+  /// over the document. An anchor no platform we ship on reads is not worth a
+  /// single crash.
+  ///
+  /// The catch matters just as much: Android copies every shared file into the
+  /// app's cache before passing the handle on, so a large scan is a large copy
+  /// that can fail. Silently, until now — no sheet, no message, nothing, which
+  /// is indistinguishable from a dead button.
   static Future<void> share(
     BuildContext context,
+    WidgetRef ref,
     List<ScannedDocument> documents,
   ) async {
     if (documents.isEmpty) return;
-    final box = context.findRenderObject() as RenderBox?;
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [
-          for (final document in documents)
-            XFile(document.path, mimeType: 'application/pdf'),
-        ],
-        subject: documents.length == 1 ? documents.first.title : null,
-        // Anchor for the iPad popover; harmless on Android.
-        sharePositionOrigin:
-            box == null ? null : box.localToGlobal(Offset.zero) & box.size,
-      ),
-    );
+    final strings = ref.read(stringsProvider);
+    try {
+      await withBusy(
+        context,
+        strings('share_preparing'),
+        () => SharePlus.instance.share(
+          ShareParams(
+            files: [
+              for (final document in documents)
+                XFile(document.path, mimeType: 'application/pdf'),
+            ],
+            subject: documents.length == 1 ? documents.first.title : null,
+          ),
+        ),
+      );
+    } on Object {
+      if (!context.mounted) return;
+      showSnack(
+        context,
+        strings('share_failed'),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   static Future<void> print(

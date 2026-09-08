@@ -126,8 +126,25 @@ header.bar {
   font-size: 0.86rem;
 }
 
-.hero-art { display: flex; justify-content: center; }
-.hero-art svg { width: min(260px, 100%); height: auto; }
+.hero-art { display: flex; justify-content: center; align-items: start; }
+
+/* Una cornice, non un rendering di telefono: bordo sottile, angoli larghi e
+   un alone tenue nel blu del marchio, così lo scatto si stacca dal fondo
+   senza mettersi in mostra piu' del contenuto che mostra. */
+.phone {
+  width: min(280px, 100%);
+  padding: 8px;
+  border: 1px solid var(--outline);
+  border-radius: 30px;
+  background: var(--surface-1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(76, 141, 255, 0.08);
+}
+.phone img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 22px;
+}
 
 /* ---------- Impianto a due colonne ---------- */
 
@@ -463,4 +480,93 @@ footer {
 @media (max-width: 560px) {
   .shots-track figure { width: 74vw; max-width: 260px; }
   .shots-nav { display: none; }
+}
+
+/* --- Prova l'app -------------------------------------------------------- */
+
+.get { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.8rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.btn:hover { text-decoration: none; filter: brightness(1.08); }
+.btn svg { width: 20px; height: 20px; flex: none; }
+
+.btn.ghost-btn {
+  background: transparent;
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+  font-weight: 550;
+}
+.btn.ghost-btn:hover { background: var(--surface-2); filter: none; }
+
+/* --- Iscrizione agli aggiornamenti -------------------------------------- */
+
+.signup { padding: 3.5rem 0 1rem; }
+
+.signup-inner {
+  width: var(--page);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+  padding: 2rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.signup-copy h2 { margin-top: 0; }
+.signup-copy p { color: var(--on-surface-variant); margin-bottom: 0; }
+
+.signup-form { display: flex; flex-direction: column; gap: 1rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.field span { font-size: 0.9rem; color: var(--on-surface-variant); }
+.field input {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--on-surface);
+  font: inherit;
+}
+.field input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.consent {
+  display: flex;
+  gap: 0.65rem;
+  align-items: start;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--on-surface-variant);
+}
+.consent input { margin-top: 0.25rem; accent-color: var(--primary); flex: none; }
+
+.signup-form .btn { align-self: start; }
+
+.signup-note { margin: 0; font-size: 0.88rem; min-height: 1.4em; }
+.signup-note.ok { color: var(--primary); }
+.signup-note.warn { color: var(--danger); }
+
+@media (max-width: 760px) {
+  .signup-inner { grid-template-columns: 1fr; gap: 1.6rem; padding: 1.5rem; }
+}
+
+.get-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.88rem;
+  color: var(--on-surface-variant);
+  max-width: 46ch;
 }

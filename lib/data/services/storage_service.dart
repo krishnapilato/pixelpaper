@@ -118,9 +118,34 @@ class StorageService {
     }
   }
 
-  /// Trims the preview cache to [previewCacheBudgetBytes], oldest first.
-  /// Called on start-up so the cache can never grow unbounded — the previous
-  /// build only ever shrank it when the user tapped "clear cache".
+  /// Records that a preview has just been used.
+  ///
+  /// This is what turns [prunePreviewCache] from oldest-first into genuinely
+  /// least-recently-*used*. Android mounts app storage `noatime`, so nothing
+  /// keeps a read timestamp for us; rewriting the modification stamp is the
+  /// only record available. Without it, paging back to page 1 of a long
+  /// document would find it evicted because it was rendered first.
+  ///
+  /// Skipped while the stamp is still fresh: otherwise reading a document
+  /// would write to disk once per frame, which is the opposite of the point.
+  Future<void> touchPreview(File file) async {
+    try {
+      final stat = await file.stat();
+      final age = DateTime.now().difference(stat.modified);
+      if (age < const Duration(minutes: 2)) return;
+      await file.setLastModified(DateTime.now());
+    } on FileSystemException {
+      // A preview deleted underneath us needs no bookkeeping.
+    }
+  }
+
+  /// Trims the preview cache to [previewCacheBudgetBytes], least recently used
+  /// first, and stops the moment it is back under budget.
+  ///
+  /// Called on start-up and again as renders accumulate, so a long reading
+  /// session cannot grow the cache without bound between launches. It deletes
+  /// only what it must: a sweep after a big document usually removes a handful
+  /// of previews and costs a few milliseconds.
   Future<void> prunePreviewCache() async {
     final dir = await previewsDir();
     if (!await dir.exists()) return;
