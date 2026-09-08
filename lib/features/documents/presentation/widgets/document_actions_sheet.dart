@@ -57,7 +57,7 @@ Future<void> showDocumentActions(
             label: strings('common_share'),
             onTap: () {
               Navigator.pop(context);
-              DocumentActions.share(context, [document]);
+              DocumentActions.share(context, ref, [document]);
             },
           ),
           SheetAction(

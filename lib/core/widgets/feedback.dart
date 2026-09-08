@@ -70,35 +70,76 @@ class BusyOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Positioned.fill(child: BusyScrim(label: label));
+  }
+}
+
+/// The scrim and card of [BusyOverlay], without the positioning, so the same
+/// thing can be dropped into an overlay as well as into a Stack.
+class BusyScrim extends StatelessWidget {
+  const BusyScrim({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Positioned.fill(
-      child: ColoredBox(
-        color: theme.colorScheme.scrim.withValues(alpha: 0.6),
-        child: Center(
-          child: Card(
-            color: theme.colorScheme.surfaceContainerHigh,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Space.xl,
-                vertical: Space.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    height: 28,
-                    width: 28,
-                    child: CircularProgressIndicator(strokeWidth: 3),
-                  ),
-                  const SizedBox(height: Space.md),
-                  Text(label, style: theme.textTheme.titleSmall),
-                ],
-              ),
+    return ColoredBox(
+      color: theme.colorScheme.scrim.withValues(alpha: 0.6),
+      child: Center(
+        child: Card(
+          color: theme.colorScheme.surfaceContainerHigh,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.xl,
+              vertical: Space.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                const SizedBox(height: Space.md),
+                Text(label, style: theme.textTheme.titleSmall),
+              ],
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Runs [work] behind a blocking spinner and hands back its result.
+///
+/// For the operations that genuinely take seconds and used to show nothing at
+/// all: composing a PDF out of a dozen full-resolution photos, or handing a
+/// large file to the share sheet, which Android copies into its cache first.
+/// The screen simply sat there, so people tapped a second time.
+///
+/// An overlay entry rather than a dialog: this is called from callbacks that
+/// may finish before a pushed route has even settled, and popping a navigator
+/// that has moved on takes the wrong route with it. An entry is removed by
+/// identity, so the race cannot happen.
+Future<T> withBusy<T>(
+  BuildContext context,
+  String label,
+  Future<T> Function() work,
+) async {
+  final overlay = Overlay.of(context, rootOverlay: true);
+  final entry = OverlayEntry(
+    // Absorbing pointers is the point: the work is not cancellable, so every
+    // tap that lands during it is a tap the user will be surprised by later.
+    builder: (context) => AbsorbPointer(child: BusyScrim(label: label)),
+  );
+  overlay.insert(entry);
+  try {
+    return await work();
+  } finally {
+    entry.remove();
   }
 }
 

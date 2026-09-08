@@ -170,7 +170,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         title: Text(strings.plural('documents_selected', selection.length)),
         actions: [
           IconButton(
-            onPressed: () => DocumentActions.share(context, selected),
+            onPressed: () => DocumentActions.share(context, ref, selected),
             icon: const Icon(Icons.ios_share_rounded),
             tooltip: strings('common_share'),
           ),
