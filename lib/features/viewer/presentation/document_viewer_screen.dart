@@ -9,6 +9,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../documents/application/document_actions.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../documents/presentation/widgets/document_actions_sheet.dart';
+import 'widgets/album_pager.dart';
 import 'widgets/pdf_page_view.dart';
 
 /// Module D, first half: read the document.
@@ -83,6 +84,10 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
           const SizedBox(width: Space.xxs),
         ],
       ),
+      // Two readers, one archive. An album's pages are already images, so it
+      // gets the image path; a PDF gets PDFium. The user is not supposed to be
+      // able to tell which one they are looking at.
+      //
       // No Hero here, deliberately.
       //
       // The card in the archive used to fly into this page, and the flight was
@@ -97,16 +102,38 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
       // rasterised yet, so the thumbnail flew into a blank sheet. A Hero wants
       // a subtree that holds still, which is the opposite of what a reader that
       // loads its own content can offer.
-      body: PdfPager(
-        // Keyed on the signature, not on the id: coming back from the editor
-        // the path is unchanged but the bytes are not, and without a new key
-        // the reader would keep showing the pages it read on the way in.
-        key: ValueKey(document.signature),
-        file: document.file,
-        pageCount: pageCount,
-        padding: readerPadding(context),
-        onPageChanged: (index) => setState(() => _page = index),
-      ),
+      body: document.isAlbum
+          ? switch (ref.watch(documentPagesProvider(document.id))) {
+              AsyncData(:final value) when value.isNotEmpty => AlbumPager(
+                  key: ValueKey(document.signature),
+                  document: document,
+                  pages: value,
+                  padding: readerPadding(context),
+                  onPageChanged: (index) => setState(() => _page = index),
+                ),
+              AsyncData() => EmptyState(
+                  icon: Icons.description_outlined,
+                  title: strings('viewer_open_failed'),
+                  body: strings('documents_empty_body'),
+                ),
+              AsyncError() => EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: strings('common_error'),
+                  body: strings('viewer_open_failed'),
+                ),
+              _ => const Center(child: CircularProgressIndicator()),
+            }
+          : PdfPager(
+              // Keyed on the signature, not on the id: coming back from the
+              // editor the path is unchanged but the bytes are not, and
+              // without a new key the reader would keep showing the pages it
+              // read on the way in.
+              key: ValueKey(document.signature),
+              file: document.path,
+              pageCount: pageCount,
+              padding: readerPadding(context),
+              onPageChanged: (index) => setState(() => _page = index),
+            ),
       bottomNavigationBar: _ViewerBar(
         onEdit: () => context.push(Routes.editor(document.id)),
         onShare: () => DocumentActions.share(context, ref, [document]),

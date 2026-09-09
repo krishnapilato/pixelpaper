@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -253,23 +254,51 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   }
 
   /// What the page looks like right now, as PNG bytes.
+  ///
+  /// Through PDFium, like everything else that reads a PDF here. This was the
+  /// last caller left on the old path — read the whole file, push it across
+  /// the platform channel, rasterise, encode a PNG, write it, read it back —
+  /// and on a fifty-megabyte scan "Preparazione della pagina…" simply never
+  /// finished. PDFium opens the file by path and hands back the pixels.
   Future<Uint8List?> _pageBitmap(File file, EditorPageItem page) async {
     if (page.imageBytes != null) return page.imageBytes;
     if (page.blank) return _whiteSheet();
 
     final index = page.sourceIndex;
     if (index == null) return null;
-    final rendered = await ref
-        .read(pdfServiceProvider)
-        .pageImage(
-          file,
-          index,
-          // ~190 dpi: the edited page still prints cleanly, and a single sheet
-          // stays a few megabytes instead of tens.
-          dpi: PdfService.dpiForWidth(PdfService.a4, 1600),
-        );
-    if (rendered == null) return null;
-    return rendered.readAsBytes();
+
+    PdfDocument? document;
+    try {
+      document = await PdfDocument.openFile(file.path);
+      if (index < 0 || index >= document.pages.length) return null;
+      final source = document.pages[index];
+
+      // ~190 dpi on A4: the edited page still prints cleanly, and one sheet
+      // stays a few megabytes instead of tens.
+      final scale = 1600 / source.width;
+      final rendered = await source.render(
+        fullWidth: source.width * scale,
+        fullHeight: source.height * scale,
+        backgroundColor: 0xFFFFFFFF,
+      );
+      if (rendered == null) return null;
+
+      try {
+        final image = await rendered.createImage();
+        try {
+          final png = await image.toByteData(format: ui.ImageByteFormat.png);
+          return png?.buffer.asUint8List();
+        } finally {
+          image.dispose();
+        }
+      } finally {
+        rendered.dispose();
+      }
+    } on Object {
+      return null;
+    } finally {
+      await document?.dispose();
+    }
   }
 
   /// A blank page has nothing to rasterise, so the editor gets a white sheet
@@ -392,6 +421,34 @@ class _Editor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The file is opened once, here, and the same handle serves the canvas and
+    // every frame of the strip. Opening it per page is what used to make this
+    // screen unusable on a large document.
+    return PdfDocumentViewBuilder.file(
+      state.document.path,
+      loadingBuilder: (context) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: Space.md),
+            Text(
+              strings('editor_loading_pages'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+      errorBuilder: (context, error, stackTrace) => EmptyState(
+        icon: Icons.error_outline_rounded,
+        title: strings('common_error'),
+        body: strings('viewer_open_failed'),
+      ),
+      builder: (context, document) => _body(context, document),
+    );
+  }
+
+  Widget _body(BuildContext context, PdfDocument? document) {
     final theme = Theme.of(context);
     final ratio = MediaQuery.devicePixelRatioOf(context);
     final width = MediaQuery.sizeOf(context).width;
@@ -412,7 +469,7 @@ class _Editor extends StatelessWidget {
             onPageChanged: onPageChanged,
             itemBuilder: (context, i) => EditorPageCanvas(
               key: ValueKey('canvas-${state.pages[i].id}'),
-              document: state.document,
+              document: document,
               page: state.pages[i],
               dpi: canvasDpi,
             ),
@@ -468,7 +525,7 @@ class _Editor extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(right: Space.xs),
                 child: EditorFilmstripThumb(
-                  document: state.document,
+                  document: document,
                   page: state.pages[i],
                   position: i + 1,
                   dpi: thumbDpi,
