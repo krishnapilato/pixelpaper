@@ -61,6 +61,15 @@ Future<void> showDocumentActions(
             },
           ),
           SheetAction(
+            icon: Icons.save_alt_rounded,
+            label: strings('common_export'),
+            detail: strings('common_export_detail'),
+            onTap: () {
+              Navigator.pop(context);
+              DocumentActions.export(context, ref, document);
+            },
+          ),
+          SheetAction(
             icon: Icons.print_outlined,
             label: strings('common_print'),
             onTap: () {

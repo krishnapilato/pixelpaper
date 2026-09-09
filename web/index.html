@@ -143,7 +143,7 @@
       <h2>Due schede, un pulsante che cambia significato</h2>
       <p>
         L'app ha due sole schede, in fondo allo schermo, e non ne avrà mai una
-        terza: <strong>Archivio</strong> conserva i PDF, <strong>Galleria</strong>
+        terza: <strong>Archivio</strong> conserva i documenti finiti, <strong>Galleria</strong>
         conserva le foto grezze. Sono due materiali diversi, non due filtri
         della stessa lista.
       </p>
@@ -285,10 +285,11 @@
       </ol>
 
       <div class="tip">
-        <strong>L'ordine del PDF è l'ordine della Galleria</strong>, cioè dalla
-        più recente alla più vecchia. Se l'ordine conta, crea il PDF e poi
-        sistemalo nell'<a href="#editor">editor delle pagine</a>, dove si
-        trascina una miniatura e si molla dove serve.
+        <strong>L’ordine iniziale è quello della Galleria</strong>, cioè dalla
+        più recente alla più vecchia. Se l’ordine conta, crea comunque il
+        documento e sistemalo nell’<a href="#editor">editor delle pagine</a>:
+        trascini una miniatura, la molli dove serve e salvi. Non viene
+        ricostruito nessun file, quindi è immediato anche su dodici pagine.
       </div>
     </section>
 
@@ -398,21 +399,29 @@
           <tr><td>Ricerca</td><td>Filtra per nome mentre scrivi.</td></tr>
           <tr><td>Vista</td><td>Elenco (più informazioni) o griglia (anteprime grandi).</td></tr>
           <tr><td>Ordinamento</td><td>Recenti, meno recenti, nome A-Z e Z-A, dimensione.</td></tr>
-          <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Stampa, Dettagli, Elimina.</td></tr>
+          <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Esporta, Stampa, Dettagli, Elimina.</td></tr>
         </tbody>
       </table>
 
       <p>
         Toccando un documento si apre il <strong>visualizzatore</strong>: una
-        pagina alla volta, si scorre in orizzontale, ogni pagina ha il suo
-        zoom. In basso: <em>Modifica</em>, <em>Condividi</em>,
+        pagina alla volta, si scorre dall’alto verso il basso, ogni pagina ha
+        il suo zoom. In basso: <em>Modifica</em>, <em>Condividi</em>,
         <em>Stampa</em>, <em>Elimina</em>.
       </p>
 
       <div class="tip">
+        <strong>Esporta</strong> è il modo di far uscire un documento dall’app
+        per sempre: si apre il selettore di sistema, scegli tu la cartella, e
+        quella copia PDF resta lì anche se disinstalli PixelPaper. La libreria
+        invece vive nello spazio privato dell’app — è il motivo per cui non
+        serve nessun permesso di archiviazione e per cui una scansione non
+        finisce mai in Google Foto.
+      </div>
+
+      <div class="tip">
         <strong>Stampa</strong> passa dal sistema Android: da lì puoi anche
-        salvare una copia come PDF su Drive o sul telefono, se ti serve una
-        copia fuori dall'app.
+        salvare una copia come PDF su Drive, se preferisci quella strada.
       </div>
     </section>
 
@@ -595,8 +604,8 @@
         <h3>Lo scanner dice che non è disponibile</h3>
         <p>
           Manca il supporto dei servizi Google Play su quel dispositivo. Usa la
-          fotocamera manuale dalla Galleria: scatti le pagine e le unisci in un
-          PDF con l'icona PDF dopo averle selezionate.
+          fotocamera manuale dalla Galleria: scatti le pagine, le selezioni e
+          l’icona PDF le raccoglie in un documento.
         </p>
       </div>
 
@@ -611,10 +620,13 @@
       </div>
 
       <div class="card">
-        <h3>Dopo aver usato "Modifica" su una pagina, il PDF è molto più grande</h3>
+        <h3>Quando viene creato il PDF?</h3>
         <p>
-          È previsto: quella pagina è diventata un'immagine. Se ti serve il file
-          leggero, tieni la modifica per le pagine che devono davvero cambiare.
+          Quando lo chiedi tu. Un documento fatto dalle tue foto conserva le
+          pagine come immagini, alla risoluzione dello scatto; il PDF viene
+          costruito nel momento in cui condividi, stampi o esporti. È per
+          questo che crearlo e riordinarlo sono immediati, e che l’app non
+          tiene sul telefono due copie delle stesse pagine.
         </p>
       </div>
 
