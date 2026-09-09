@@ -242,5 +242,10 @@
   "tutorial_7_caption": "Tutto resta sul tuo telefono",
   "tutorial_7_tip_1": "Eliminare è reversibile: per qualche secondo compare “Annulla”.",
   "tutorial_7_tip_2": "“Esporta” salva una copia PDF nella cartella che scegli tu: resta lì anche se disinstalli l’app.",
-  "tutorial_7_tip_3": "I tuoi dati restano con te."
+  "tutorial_7_tip_3": "I tuoi dati restano con te.",
+  "export_done_in": "PDF salvato in {folder}",
+  "settings_export_folder": "Cartella di esportazione",
+  "settings_export_folder_ask": "Chiede ogni volta dove salvare",
+  "settings_export_folder_change": "Tocca per cambiarla, tieni premuto per azzerarla",
+  "settings_export_folder_cleared": "Ora chiede ogni volta"
 }

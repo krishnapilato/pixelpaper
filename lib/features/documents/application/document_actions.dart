@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:saf_stream/saf_stream.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -74,28 +75,60 @@ abstract final class DocumentActions {
   /// "esporta" is the deliberate act of putting a copy somewhere the user
   /// chooses, that survives uninstalling the app.
   ///
-  /// The system dialog rather than a folder we remember: Android's picker
-  /// already reopens where it was last used, so the folder is remembered
-  /// anyway, by the part of the system that is allowed to remember it. Holding
-  /// a directory handle ourselves would mean a permission to keep alive and a
-  /// stale URI to handle the day the user moves that folder, in exchange for
-  /// one tap.
+  /// Two ways, and the user picks which in Impostazioni. With a folder set,
+  /// the file lands there and the only thing on screen is the confirmation —
+  /// which is what you want when you are exporting a stack of documents in a
+  /// row. With no folder set, the system save dialog opens and you choose the
+  /// place and the name each time.
+  ///
+  /// The permission on that folder is granted by the user and persisted by
+  /// Android, and it can go away: the folder can be deleted, moved, or its
+  /// access revoked from the system settings. When the write fails the folder
+  /// is forgotten and the dialog takes over, so the export still happens and
+  /// the user is told why they were asked.
   static Future<void> export(
     BuildContext context,
     WidgetRef ref,
     ScannedDocument document,
   ) async {
     final strings = ref.read(stringsProvider);
+    final store = ref.read(settingsStoreProvider);
     try {
       final file = await withBusy(
         context,
         strings('export_preparing'),
         () => ref.read(documentRepositoryProvider).exportPdf(document),
       );
+      final name = '${Fmt.safeFileName(document.title)}.pdf';
+      final folder = await store.exportFolder();
+
+      if (folder != null) {
+        try {
+          await SafStream().writeFileBytes(
+            folder.uri,
+            name,
+            'application/pdf',
+            await file.readAsBytes(),
+          );
+          if (!context.mounted) return;
+          showSnack(
+            context,
+            strings('export_done_in', {'folder': folder.name}),
+            icon: Icons.check_circle_outline_rounded,
+          );
+          return;
+        } on Object {
+          // The folder is no longer writable. Forget it rather than leaving a
+          // setting that fails every time, and fall through to the dialog.
+          await store.clearExportFolder();
+          ref.invalidate(exportFolderProvider);
+        }
+      }
+
       final saved = await FlutterFileDialog.saveFile(
         params: SaveFileDialogParams(
           sourceFilePath: file.path,
-          fileName: '${Fmt.safeFileName(document.title)}.pdf',
+          fileName: name,
         ),
       );
       if (!context.mounted) return;
