@@ -449,9 +449,12 @@ class _Body extends StatelessWidget {
             ),
           ),
         ),
+        // Centred, and lifted clear of the strip: it is an instruction about
+        // the strip, not a label stuck to it.
         Padding(
-          padding: const EdgeInsets.fromLTRB(Space.md, 0, Space.md, Space.xxs),
+          padding: const EdgeInsets.fromLTRB(Space.md, 0, Space.md, Space.md),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.drag_indicator_rounded,
@@ -459,7 +462,13 @@ class _Body extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: Space.xs),
-              Expanded(child: Text(hint, style: theme.textTheme.bodySmall)),
+              Flexible(
+                child: Text(
+                  hint,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
             ],
           ),
         ),
