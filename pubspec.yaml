@@ -40,6 +40,8 @@ dependencies:
   pro_image_editor: ^13.3.1
   pdfrx: ^2.6.1
   flutter_file_dialog: ^3.3.2
+  saf_util: ^3.1.0
+  saf_stream: ^4.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

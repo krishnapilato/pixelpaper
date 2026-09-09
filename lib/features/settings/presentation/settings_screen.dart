@@ -1,7 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:saf_util/saf_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -40,6 +41,7 @@ class SettingsScreen extends ConsumerWidget {
     final cache = ref.watch(_cacheSizeProvider);
     final info = ref.watch(_packageInfoProvider);
     final trashCount = ref.watch(trashCountProvider);
+    final exportFolder = ref.watch(exportFolderProvider);
     final library = ref.watch(_librarySizeProvider);
     final cacheIsLarge = (cache.value ?? 0) >= StorageService.cacheNudgeBytes;
 
@@ -102,6 +104,36 @@ class SettingsScreen extends ConsumerWidget {
                   leading: const Icon(Icons.sd_storage_outlined),
                   title: Text(strings('settings_space_library')),
                   trailing: Text(Fmt.bytes(library.value ?? 0)),
+                ),
+                const Divider(indent: Space.md, endIndent: Space.md),
+                // Where "Esporta" puts the PDF. Unset by default: the app
+                // should not hold a permission on a folder nobody asked it to
+                // remember, so the first export asks and only a choice made
+                // here makes it silent from then on.
+                ListTile(
+                  leading: const Icon(Icons.drive_folder_upload_outlined),
+                  title: Text(strings('settings_export_folder')),
+                  subtitle: Text(
+                    exportFolder.value == null
+                        ? strings('settings_export_folder_ask')
+                        : '${exportFolder.value!.name} · '
+                              '${strings('settings_export_folder_change')}',
+                  ),
+                  onTap: () => _pickExportFolder(context, ref, strings),
+                  onLongPress: exportFolder.value == null
+                      ? null
+                      : () async {
+                          await ref
+                              .read(settingsStoreProvider)
+                              .clearExportFolder();
+                          ref.invalidate(exportFolderProvider);
+                          if (!context.mounted) return;
+                          showSnack(
+                            context,
+                            strings('settings_export_folder_cleared'),
+                            icon: Icons.check_rounded,
+                          );
+                        },
                 ),
                 const Divider(indent: Space.md, endIndent: Space.md),
                 // The cache row starts quiet and turns tonal once it is worth
@@ -320,6 +352,42 @@ class _Section extends StatelessWidget {
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall,
       ),
+    );
+  }
+}
+
+/// Asks Android for a folder and remembers it.
+///
+/// `persistablePermission` is the whole point: without it the grant dies with
+/// the process and the setting would be a promise the app cannot keep past the
+/// next launch.
+Future<void> _pickExportFolder(
+  BuildContext context,
+  WidgetRef ref,
+  Strings strings,
+) async {
+  try {
+    final picked = await SafUtil().pickDirectory(
+      writePermission: true,
+      persistablePermission: true,
+    );
+    if (picked == null) return; // backed out of the picker
+    await ref
+        .read(settingsStoreProvider)
+        .setExportFolder(uri: picked.uri, name: picked.name);
+    ref.invalidate(exportFolderProvider);
+    if (!context.mounted) return;
+    showSnack(
+      context,
+      strings('export_done_in', {'folder': picked.name}),
+      icon: Icons.check_rounded,
+    );
+  } on Object {
+    if (!context.mounted) return;
+    showSnack(
+      context,
+      strings('common_error'),
+      icon: Icons.error_outline_rounded,
     );
   }
 }
