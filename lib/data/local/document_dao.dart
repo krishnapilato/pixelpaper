@@ -200,11 +200,27 @@ class DocumentDao {
             fileName: page.fileName,
             position: i,
             createdAt: page.createdAt,
+            sourcePath: page.sourcePath,
           ),
         );
       }
     });
     return written;
+  }
+
+  /// Every gallery file that is already a page of a live document.
+  ///
+  /// Trashed documents are left out on purpose: their pages still exist, but a
+  /// document in the bin is one the user may be about to lose, and calling its
+  /// source photo redundant would be a good way to lose both.
+  Future<Set<String>> pageSourcePaths() async {
+    final db = await _database.instance;
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT p.source_path AS source_path '
+      'FROM $pagesTable p JOIN $table d ON d.id = p.document_id '
+      'WHERE p.source_path IS NOT NULL AND d.deleted_at IS NULL',
+    );
+    return {for (final row in rows) row['source_path']! as String};
   }
 
   /// Page file names for a set of documents, so deleting albums for good can

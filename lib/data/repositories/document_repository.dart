@@ -205,6 +205,9 @@ class DocumentRepository {
           fileName: p.basename(target.path),
           position: pages.length,
           createdAt: now,
+          // Remembered so the gallery can later say that this photo is
+          // already safe inside a document.
+          sourcePath: source,
         ),
       );
     }
@@ -230,6 +233,9 @@ class DocumentRepository {
 
   Future<List<DocumentPage>> pagesOf(ScannedDocument document) =>
       _dao.pagesOf(document.id);
+
+  /// The gallery files that are already pages of a live document.
+  Future<Set<String>> pagedCapturePaths() => _dao.pageSourcePaths();
 
   /// The document as a PDF file, ready to be shared, printed or saved.
   ///
@@ -311,6 +317,7 @@ class DocumentRepository {
       fileName: p.basename(target.path),
       position: 0,
       createdAt: DateTime.now(),
+      sourcePath: source,
     );
   }
 

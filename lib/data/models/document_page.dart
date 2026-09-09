@@ -16,6 +16,7 @@ class DocumentPage {
     required this.fileName,
     required this.position,
     required this.createdAt,
+    this.sourcePath,
   });
 
   final int id;
@@ -30,6 +31,13 @@ class DocumentPage {
 
   final DateTime createdAt;
 
+  /// The file this page was copied from, when it came from the gallery.
+  ///
+  /// Kept so the app can tell the user which of their photos are already safe
+  /// inside a document, and therefore free to delete. Null for a page that was
+  /// drawn, edited or shot straight into the album.
+  final String? sourcePath;
+
   File fileIn(Directory albumDir) => File(p.join(albumDir.path, fileName));
 
   DocumentPage copyWith({int? position, String? fileName}) => DocumentPage(
@@ -38,6 +46,7 @@ class DocumentPage {
         fileName: fileName ?? this.fileName,
         position: position ?? this.position,
         createdAt: createdAt,
+        sourcePath: sourcePath,
       );
 
   Map<String, Object?> toRow() => {
@@ -45,6 +54,7 @@ class DocumentPage {
         'file_name': fileName,
         'position': position,
         'created_at': createdAt.millisecondsSinceEpoch,
+        'source_path': sourcePath,
       };
 
   static DocumentPage fromRow(Map<String, Object?> row) => DocumentPage(
@@ -55,5 +65,6 @@ class DocumentPage {
         createdAt: DateTime.fromMillisecondsSinceEpoch(
           row['created_at']! as int,
         ),
+        sourcePath: row['source_path'] as String?,
       );
 }

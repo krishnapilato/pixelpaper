@@ -117,3 +117,35 @@ final visibleCapturesProvider = Provider<AsyncValue<List<Capture>>>((ref) {
         : list.where((c) => c.folderId == folderId).toList(growable: false),
   );
 });
+
+/// Photos that are already pages of a document, and what they weigh.
+///
+/// An album owns a copy of every page, so a document built from the gallery
+/// leaves the same pixels on the phone twice. That is deliberate — it is what
+/// makes a document impossible to break by tidying the gallery — but it is
+/// also the one place where the app's storage grows for a reason the user
+/// cannot see. This is that reason, made visible and made actionable: these
+/// photos can go, and nothing is lost.
+///
+/// The bytes are the honest number, read from the capture rows rather than
+/// guessed.
+/// Recomputed every time the screen that shows it is opened: creating a
+/// document does not touch the gallery, so watching the gallery alone left
+/// the count stale until the next launch.
+final duplicatedCapturesProvider =
+    FutureProvider.autoDispose<({List<Capture> captures, int bytes})>((ref) async {
+  final captures = ref.watch(galleryControllerProvider).value;
+  if (captures == null || captures.isEmpty) {
+    return (captures: const <Capture>[], bytes: 0);
+  }
+  final paged = await ref.watch(documentRepositoryProvider).pagedCapturePaths();
+  if (paged.isEmpty) return (captures: const <Capture>[], bytes: 0);
+
+  final duplicated =
+      captures.where((c) => paged.contains(c.path)).toList(growable: false);
+  var bytes = 0;
+  for (final capture in duplicated) {
+    bytes += capture.sizeBytes;
+  }
+  return (captures: duplicated, bytes: bytes);
+});
