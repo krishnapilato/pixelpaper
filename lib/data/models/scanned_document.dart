@@ -2,11 +2,32 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// A generated PDF, as stored in the `documents` table.
+/// What a document is made of.
+enum DocumentKind {
+  /// An ordered set of page images the document owns. Created instantly,
+  /// reordered instantly, turned into a PDF only on export.
+  album,
+
+  /// A PDF file, opaque to us: everything made before albums existed, plus
+  /// anything imported from outside the app.
+  pdf;
+
+  static DocumentKind fromRow(Object? value) =>
+      value == 'album' ? DocumentKind.album : DocumentKind.pdf;
+
+  String get row => name;
+}
+
+/// A document in the archive, as stored in the `documents` table.
 ///
 /// The row is the source of truth for metadata the file system cannot answer
-/// cheaply (title, page count, thumbnail); the file itself is the source of
+/// cheaply (title, page count, thumbnail); the file system is the source of
 /// truth for existence and size.
+///
+/// [path] means different things per [kind], and this is the one place where
+/// that matters: for a PDF it is the file, for an album it is the directory
+/// holding its pages. Everything else goes through [file] or [directory],
+/// which are guarded.
 class ScannedDocument {
   const ScannedDocument({
     required this.id,
@@ -16,6 +37,7 @@ class ScannedDocument {
     required this.updatedAt,
     required this.pageCount,
     required this.sizeBytes,
+    this.kind = DocumentKind.pdf,
     this.thumbnailPath,
     this.folderId,
     this.deletedAt,
@@ -23,6 +45,7 @@ class ScannedDocument {
 
   final int id;
   final String path;
+  final DocumentKind kind;
   final String title;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -36,11 +59,21 @@ class ScannedDocument {
   final DateTime? deletedAt;
 
   bool get isTrashed => deletedAt != null;
+  bool get isAlbum => kind == DocumentKind.album;
 
+  /// The PDF file. Only meaningful for [DocumentKind.pdf]; an album has no
+  /// file until somebody exports it.
   File get file => File(path);
+
+  /// The album's directory, where its page images live.
+  Directory get directory => Directory(path);
+
   String get fileName => p.basename(path);
 
   /// Cheap identity for list diffing and cache keys.
+  ///
+  /// An album's bytes change without its path changing, so the page count and
+  /// the update stamp are what make this move.
   String get signature =>
       '$id|$path|$sizeBytes|${updatedAt.millisecondsSinceEpoch}|$pageCount';
 
@@ -51,6 +84,7 @@ class ScannedDocument {
     int? pageCount,
     int? sizeBytes,
     String? thumbnailPath,
+    bool clearThumbnail = false,
     int? folderId,
     bool clearFolder = false,
     DateTime? deletedAt,
@@ -59,12 +93,14 @@ class ScannedDocument {
     return ScannedDocument(
       id: id,
       path: path ?? this.path,
+      kind: kind,
       title: title ?? this.title,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       pageCount: pageCount ?? this.pageCount,
       sizeBytes: sizeBytes ?? this.sizeBytes,
-      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      thumbnailPath:
+          clearThumbnail ? null : (thumbnailPath ?? this.thumbnailPath),
       folderId: clearFolder ? null : (folderId ?? this.folderId),
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
     );
@@ -72,6 +108,7 @@ class ScannedDocument {
 
   Map<String, Object?> toRow() => {
         'path': path,
+        'kind': kind.row,
         'title': title,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -85,6 +122,7 @@ class ScannedDocument {
   static ScannedDocument fromRow(Map<String, Object?> row) => ScannedDocument(
         id: row['id']! as int,
         path: row['path']! as String,
+        kind: DocumentKind.fromRow(row['kind']),
         title: row['title']! as String,
         createdAt: DateTime.fromMillisecondsSinceEpoch(
           row['created_at']! as int,

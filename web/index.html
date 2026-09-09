@@ -44,14 +44,27 @@
       <span class="chip">Funziona offline</span>
       <span class="chip">Un solo permesso: fotocamera</span>
     </div>
+
+    <div class="get" id="get">
+      <a class="btn" id="link-play" href="#">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.6 2.3a1 1 0 0 0-.5.9v17.6a1 1 0 0 0 .5.9l9.4-9.7-9.4-9.7Zm10.8 8.6 2.9-3-9.1-5.2 6.2 8.2Zm0 2.2-6.2 8.2 9.1-5.2-2.9-3Zm4.3-1.1-2.5-2.6-3 3.1 3 3.1 2.5-2.6a1.1 1.1 0 0 0 0-1Z"/></svg>
+        Scarica dal Play Store
+      </a>
+      <a class="btn ghost-btn" id="link-testing" href="#">Entra nel programma di test</a>
+    </div>
+    <p class="get-note" id="get-note">
+      Il programma di test dà le versioni in anteprima: si entra e si esce
+      quando vuoi, e resta lo stesso Play Store a occuparsi degli aggiornamenti.
+    </p>
   </div>
+
+  <!-- Il logo stava già nella barra qui sopra: ripeterlo ingrandito non
+       aggiungeva niente. Qui serve mostrare l'app, non il suo marchio. -->
   <div class="hero-art">
-    <svg viewBox="0 0 108 108" aria-hidden="true">
-      <rect width="108" height="108" rx="24" fill="#4C8DFF"/>
-      <rect x="31" y="32" width="28" height="40" rx="3" fill="#fff"/>
-      <rect x="62" y="52" width="10" height="10" rx="1.5" fill="#fff"/>
-      <rect x="74" y="65" width="7" height="7" rx="1" fill="#fff"/>
-    </svg>
+    <div class="phone">
+      <img src="screenshots/02-archivio.jpg" width="420" height="935" decoding="async"
+           alt="L'archivio di PixelPaper con tre documenti PDF, ciascuno con anteprima, numero di pagine, dimensione e data.">
+    </div>
   </div>
 </div>
 
@@ -130,7 +143,7 @@
       <h2>Due schede, un pulsante che cambia significato</h2>
       <p>
         L'app ha due sole schede, in fondo allo schermo, e non ne avrà mai una
-        terza: <strong>Archivio</strong> conserva i PDF, <strong>Galleria</strong>
+        terza: <strong>Archivio</strong> conserva i documenti finiti, <strong>Galleria</strong>
         conserva le foto grezze. Sono due materiali diversi, non due filtri
         della stessa lista.
       </p>
@@ -272,10 +285,11 @@
       </ol>
 
       <div class="tip">
-        <strong>L'ordine del PDF è l'ordine della Galleria</strong>, cioè dalla
-        più recente alla più vecchia. Se l'ordine conta, crea il PDF e poi
-        sistemalo nell'<a href="#editor">editor delle pagine</a>, dove si
-        trascina una miniatura e si molla dove serve.
+        <strong>L’ordine iniziale è quello della Galleria</strong>, cioè dalla
+        più recente alla più vecchia. Se l’ordine conta, crea comunque il
+        documento e sistemalo nell’<a href="#editor">editor delle pagine</a>:
+        trascini una miniatura, la molli dove serve e salvi. Non viene
+        ricostruito nessun file, quindi è immediato anche su dodici pagine.
       </div>
     </section>
 
@@ -385,21 +399,29 @@
           <tr><td>Ricerca</td><td>Filtra per nome mentre scrivi.</td></tr>
           <tr><td>Vista</td><td>Elenco (più informazioni) o griglia (anteprime grandi).</td></tr>
           <tr><td>Ordinamento</td><td>Recenti, meno recenti, nome A-Z e Z-A, dimensione.</td></tr>
-          <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Stampa, Dettagli, Elimina.</td></tr>
+          <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Esporta, Stampa, Dettagli, Elimina.</td></tr>
         </tbody>
       </table>
 
       <p>
         Toccando un documento si apre il <strong>visualizzatore</strong>: una
-        pagina alla volta, si scorre in orizzontale, ogni pagina ha il suo
-        zoom. In basso: <em>Modifica</em>, <em>Condividi</em>,
+        pagina alla volta, si scorre dall’alto verso il basso, ogni pagina ha
+        il suo zoom. In basso: <em>Modifica</em>, <em>Condividi</em>,
         <em>Stampa</em>, <em>Elimina</em>.
       </p>
 
       <div class="tip">
+        <strong>Esporta</strong> è il modo di far uscire un documento dall’app
+        per sempre: si apre il selettore di sistema, scegli tu la cartella, e
+        quella copia PDF resta lì anche se disinstalli PixelPaper. La libreria
+        invece vive nello spazio privato dell’app — è il motivo per cui non
+        serve nessun permesso di archiviazione e per cui una scansione non
+        finisce mai in Google Foto.
+      </div>
+
+      <div class="tip">
         <strong>Stampa</strong> passa dal sistema Android: da lì puoi anche
-        salvare una copia come PDF su Drive o sul telefono, se ti serve una
-        copia fuori dall'app.
+        salvare una copia come PDF su Drive, se preferisci quella strada.
       </div>
     </section>
 
@@ -529,14 +551,33 @@
         <thead><tr><th>Voce</th><th>Cosa mostra o fa</th></tr></thead>
         <tbody>
           <tr><td>Come si usa</td><td>La guida in sette passi dentro l'app.</td></tr>
-          <tr><td>Cestino</td><td>Gli elementi eliminati, con i giorni rimasti.</td></tr>
+          <tr><td>Cestino</td><td>Gli elementi eliminati, con i giorni rimasti e quanto pesano.</td></tr>
           <tr><td>Documenti / Immagini</td><td>Quanti ne hai.</td></tr>
-          <tr><td>Documenti e immagini</td><td>Lo spazio occupato dai tuoi file.</td></tr>
+          <tr><td>Documenti e immagini</td><td>Lo spazio occupato dai tuoi file. Si accende quando ci sono foto già dentro un documento.</td></tr>
+          <tr><td>Cartella di esportazione</td><td>Dove finisce “Esporta”. Vuota: chiede ogni volta.</td></tr>
           <tr><td>Svuota la cache</td><td>Elimina le anteprime, che si rigenerano da sole.</td></tr>
           <tr><td>Licenze open source</td><td>Tutte le tecnologie usate e le rispettive licenze.</td></tr>
           <tr><td>Versione</td><td>La versione installata.</td></tr>
         </tbody>
       </table>
+
+      <div class="tip">
+        <strong>Le foto già dentro un documento.</strong> Quando crei un
+        documento dalla Galleria, le pagine sono copie: il documento non può
+        rompersi se poi riordini o svuoti la galleria. Il prezzo è che quelle
+        foto stanno sul telefono due volte. La riga <em>Documenti e immagini</em>
+        se ne accorge e te lo dice — «8 foto sono già dentro un documento» —
+        e toccandola le sposta nel cestino. Nessuna pagina viene toccata, e
+        restano recuperabili per 30 giorni come tutto il resto.
+      </div>
+
+      <div class="tip">
+        <strong>Il cestino non si svuota da solo prima dei 30 giorni.</strong>
+        Ora però mostra quanto pesa, così se lo spazio serve davvero lo svuoti
+        tu, quando vuoi tu. Accorciare quella finestra farebbe risparmiare gli
+        stessi megabyte e costerebbe l’unica rete contro un’eliminazione
+        sbagliata.
+      </div>
 
       <div class="tip">
         <strong>La riga della cache si accende da sola.</strong> Sotto una certa
@@ -582,8 +623,8 @@
         <h3>Lo scanner dice che non è disponibile</h3>
         <p>
           Manca il supporto dei servizi Google Play su quel dispositivo. Usa la
-          fotocamera manuale dalla Galleria: scatti le pagine e le unisci in un
-          PDF con l'icona PDF dopo averle selezionate.
+          fotocamera manuale dalla Galleria: scatti le pagine, le selezioni e
+          l’icona PDF le raccoglie in un documento.
         </p>
       </div>
 
@@ -598,10 +639,13 @@
       </div>
 
       <div class="card">
-        <h3>Dopo aver usato "Modifica" su una pagina, il PDF è molto più grande</h3>
+        <h3>Quando viene creato il PDF?</h3>
         <p>
-          È previsto: quella pagina è diventata un'immagine. Se ti serve il file
-          leggero, tieni la modifica per le pagine che devono davvero cambiare.
+          Quando lo chiedi tu. Un documento fatto dalle tue foto conserva le
+          pagine come immagini, alla risoluzione dello scatto; il PDF viene
+          costruito nel momento in cui condividi, stampi o esporti. È per
+          questo che crearlo e riordinarlo sono immediati, e che l’app non
+          tiene sul telefono due copie delle stesse pagine.
         </p>
       </div>
 
@@ -635,6 +679,40 @@
   </main>
 </div>
 
+<section class="signup" id="aggiornamenti" hidden>
+  <div class="signup-inner">
+    <div class="signup-copy">
+      <h2>Quando esce qualcosa di nuovo</h2>
+      <p>
+        Una mail ogni tanto, solo quando c'è una versione nuova o una funzione
+        che cambia il modo di lavorare. Niente altro: nessuna pubblicità,
+        nessun indirizzo ceduto a terzi, e la disiscrizione è in fondo a ogni
+        messaggio.
+      </p>
+    </div>
+
+    <form class="signup-form" id="signup-form" method="post" target="_blank" novalidate>
+      <label class="field">
+        <span>Indirizzo email</span>
+        <input type="email" name="EMAIL" id="signup-email" required autocomplete="email"
+               placeholder="nome@esempio.it" spellcheck="false">
+      </label>
+
+      <label class="consent">
+        <input type="checkbox" id="signup-consent" required>
+        <span>
+          Acconsento a ricevere gli aggiornamenti su PixelPaper. Il mio
+          indirizzo sarà usato solo per questo e posso ritirare il consenso
+          quando voglio.
+        </span>
+      </label>
+
+      <button type="submit" class="btn" id="signup-submit">Iscrivimi</button>
+      <p class="signup-note" id="signup-note" role="status"></p>
+    </form>
+  </div>
+</section>
+
 <footer>
   <div class="footer-inner">
     <div>
@@ -650,6 +728,60 @@
 </footer>
 
 <script>
+  /* ------------------------------------------------------------------
+     Le tre cose da configurare, tutte qui.
+
+     Ognuna si riempie una volta sola e la pagina si adatta: un link vuoto
+     sparisce invece di portare da nessuna parte, e il modulo di iscrizione
+     resta nascosto finché non c'è un endpoint che possa davvero riceverlo.
+     Una pagina che raccoglie indirizzi senza spedirli è peggio di una
+     pagina che non li chiede.
+
+     NEWSLETTER_ACTION: l'URL "action" del modulo che ti dà il provider
+     (Brevo: Contatti → Moduli → codice di incorporamento). Serve un
+     provider vero, non un inoltro via mail: doppio opt-in e link di
+     disiscrizione sono obblighi, non optional.
+     ------------------------------------------------------------------ */
+  const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.khovakrishnapilato.pixelpaper';
+  const TESTING_URL = 'https://play.google.com/apps/testing/com.khovakrishnapilato.pixelpaper';
+  const NEWSLETTER_ACTION = '';
+
+  (() => {
+    const play = document.getElementById('link-play');
+    const testing = document.getElementById('link-testing');
+    if (PLAY_URL) { play.href = PLAY_URL; } else { play.hidden = true; }
+    if (TESTING_URL) {
+      testing.href = TESTING_URL;
+    } else {
+      testing.hidden = true;
+      document.getElementById('get-note').hidden = true;
+    }
+
+    const section = document.getElementById('aggiornamenti');
+    const form = document.getElementById('signup-form');
+    if (!NEWSLETTER_ACTION) return;
+
+    section.hidden = false;
+    form.action = NEWSLETTER_ACTION;
+    document.querySelector('.toc ol')?.insertAdjacentHTML(
+      'beforeend', '<li><a href="#aggiornamenti">Aggiornamenti via mail</a></li>');
+
+    const note = document.getElementById('signup-note');
+    const consent = document.getElementById('signup-consent');
+    form.addEventListener('submit', (event) => {
+      if (!consent.checked) {
+        event.preventDefault();
+        note.textContent = 'Serve la spunta del consenso per procedere.';
+        note.className = 'signup-note warn';
+        return;
+      }
+      // Il provider apre la propria pagina di conferma in una scheda nuova,
+      // quindi questa resta dov'era: l'utente stava leggendo una guida.
+      note.textContent = 'Controlla la posta: c’è una mail da confermare.';
+      note.className = 'signup-note ok';
+    });
+  })();
+
   // Indice richiudibile sui telefoni.
   const toggle = document.getElementById('toc-toggle');
   const toc = document.getElementById('toc');

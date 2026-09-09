@@ -9,6 +9,7 @@ import 'repositories/document_repository.dart';
 import 'repositories/library_repository.dart';
 import 'services/ocr_service.dart';
 import 'services/pdf_service.dart';
+import 'services/settings_store.dart';
 import 'services/scanner_service.dart';
 import 'services/storage_service.dart';
 
@@ -74,3 +75,11 @@ final captureRepositoryProvider = Provider<CaptureRepository>(
     storage: ref.watch(storageServiceProvider),
   ),
 );
+
+final settingsStoreProvider = Provider<SettingsStore>((ref) => SettingsStore());
+
+/// The folder "Esporta" writes into, null while it should ask each time.
+final exportFolderProvider =
+    FutureProvider<({String uri, String name})?>((ref) async {
+  return ref.watch(settingsStoreProvider).exportFolder();
+});

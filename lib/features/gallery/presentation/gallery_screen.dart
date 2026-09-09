@@ -127,7 +127,7 @@ class GalleryScreen extends ConsumerWidget {
         title: Text(strings.plural('gallery_selected', selection.length)),
         actions: [
           IconButton(
-            onPressed: () => _share(context, selected),
+            onPressed: () => _share(context, ref, selected),
             icon: const Icon(Icons.ios_share_rounded),
             tooltip: strings('common_share'),
           ),
@@ -271,19 +271,33 @@ class GalleryScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _share(BuildContext context, List<Capture> captures) async {
+  /// Sharing a whole selection copies every file into the cache first, so this
+  /// is the call most likely to run out of room. Failing silently made it look
+  /// like a dead button; see [DocumentActions.share].
+  Future<void> _share(
+    BuildContext context,
+    WidgetRef ref,
+    List<Capture> captures,
+  ) async {
     if (captures.isEmpty) return;
-    final box = context.findRenderObject() as RenderBox?;
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [
-          for (final capture in captures)
-            XFile(capture.path, mimeType: capture.mimeType),
-        ],
-        sharePositionOrigin:
-            box == null ? null : box.localToGlobal(Offset.zero) & box.size,
-      ),
-    );
+    final strings = ref.read(stringsProvider);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            for (final capture in captures)
+              XFile(capture.path, mimeType: capture.mimeType),
+          ],
+        ),
+      );
+    } on Object {
+      if (!context.mounted) return;
+      showSnack(
+        context,
+        strings('share_failed'),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   Future<void> _move(
@@ -326,11 +340,16 @@ class GalleryScreen extends ConsumerWidget {
     final paths = captures.map((c) => c.path).toList(growable: false);
 
     try {
-      final document =
-          await ref.read(documentsControllerProvider.notifier).createFromImages(
-                imagePaths: paths,
-                title: name,
-              );
+      // Twelve full-resolution photos take seconds to become a PDF, and until
+      // now the screen showed nothing at all while it happened.
+      final document = await withBusy(
+        context,
+        strings.plural('gallery_creating_pdf', paths.length),
+        () => ref.read(documentsControllerProvider.notifier).createFromImages(
+              imagePaths: paths,
+              title: name,
+            ),
+      );
       ref.read(gallerySelectionProvider.notifier).clear();
       if (!context.mounted) return;
       showSnack(context, strings('scan_created'),

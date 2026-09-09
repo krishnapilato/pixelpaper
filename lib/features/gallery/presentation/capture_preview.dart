@@ -225,15 +225,21 @@ class _CapturePreviewState extends ConsumerState<CapturePreview>
   }
 
   Future<void> _share() async {
-    final box = context.findRenderObject() as RenderBox?;
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(_capture.path, mimeType: _capture.mimeType)],
-        sharePositionOrigin: box == null
-            ? null
-            : box.localToGlobal(Offset.zero) & box.size,
-      ),
-    );
+    final strings = ref.read(stringsProvider);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(_capture.path, mimeType: _capture.mimeType)],
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      showSnack(
+        context,
+        strings('share_failed'),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   @override

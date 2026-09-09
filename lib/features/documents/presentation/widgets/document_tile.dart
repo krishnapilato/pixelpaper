@@ -137,14 +137,13 @@ class _Leading extends StatelessWidget {
                 ),
                 child: Icon(Icons.check_rounded, color: scheme.onPrimary),
               )
-            : Hero(
+            // No Hero: its counterpart in the reader is gone, and a Hero with
+            // nothing to fly to is just a trap for whoever adds one back.
+            : DocumentThumbnail(
                 key: const ValueKey('thumb'),
-                tag: 'document-${document.id}',
-                child: DocumentThumbnail(
-                  document: document,
-                  width: 52,
-                  height: 66,
-                ),
+                document: document,
+                width: 52,
+                height: 66,
               ),
       ),
     );
@@ -193,14 +192,11 @@ class DocumentCard extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Hero(
-                    tag: 'document-${document.id}',
-                    child: DocumentThumbnail(
-                      document: document,
-                      width: width,
-                      height: width * 1.3,
-                      radius: 0,
-                    ),
+                  DocumentThumbnail(
+                    document: document,
+                    width: width,
+                    height: width * 1.3,
+                    radius: 0,
                   ),
                   if (selected)
                     ColoredBox(

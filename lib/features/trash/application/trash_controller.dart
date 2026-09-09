@@ -54,3 +54,22 @@ final trashControllerProvider =
 final trashCountProvider = Provider<int>(
   (ref) => ref.watch(trashControllerProvider).value?.length ?? 0,
 );
+
+/// What the bin is holding, in bytes.
+///
+/// Shown next to "Cestino" so the 30-day window has a visible price. Nothing
+/// here shortens that window: a document deleted by mistake three weeks ago
+/// is still there, and the user who needs the space empties the bin on
+/// purpose instead of having it emptied for them.
+final trashSizeProvider = FutureProvider<int>((ref) async {
+  final contents = ref.watch(trashControllerProvider).value;
+  if (contents == null) return 0;
+  var bytes = 0;
+  for (final document in contents.documents) {
+    bytes += document.sizeBytes;
+  }
+  for (final capture in contents.captures) {
+    bytes += capture.sizeBytes;
+  }
+  return bytes;
+});

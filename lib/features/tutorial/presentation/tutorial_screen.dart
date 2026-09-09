@@ -80,91 +80,133 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
               itemBuilder: (context, index) {
                 final step = _steps[index];
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Space.page,
-                    vertical: Space.md,
+                  padding: EdgeInsets.fromLTRB(
+                    Space.page,
+                    Space.md,
+                    Space.page,
+                    // Clears the bar below: without it the last tip sat right
+                    // against the dots and looked cut off.
+                    Space.xl,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Card(
-                        color: scheme.surfaceContainer,
-                        child: Padding(
-                          padding: const EdgeInsets.all(Space.md),
-                          child: Column(
-                            children: [
-                              step.art,
-                              const SizedBox(height: Space.sm),
-                              Text(
-                                strings('${step.key}_caption'),
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.labelSmall,
-                              ),
-                            ],
+                  child: Center(
+                    // A line of text stops being readable past ~70 characters.
+                    // On a phone this changes nothing; on a tablet it is the
+                    // difference between a guide and a wall.
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // The step number leads: it tells the reader where
+                          // they are before showing them anything to look at.
+                          Text(
+                            strings('tutorial_step', {
+                              'a': index + 1,
+                              'b': _steps.length,
+                            }),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: Space.sm),
+                          Text(
+                            strings('${step.key}_title'),
+                            style: theme.textTheme.headlineMedium,
+                          ),
+                          const SizedBox(height: Space.lg),
+                          Card(
+                            margin: EdgeInsets.zero,
+                            color: scheme.surfaceContainer,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                Space.md,
+                                Space.lg,
+                                Space.md,
+                                Space.md,
+                              ),
+                              child: Column(
+                                children: [
+                                  step.art,
+                                  const SizedBox(height: Space.md),
+                                  Text(
+                                    strings('${step.key}_caption'),
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Space.lg),
+                          Text(
+                            strings('${step.key}_body'),
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: Space.lg),
+                          for (var tip = 1; tip <= 3; tip++)
+                            _Tip(text: strings('${step.key}_tip_$tip')),
+                        ],
                       ),
-                      const SizedBox(height: Space.lg),
-                      Text(
-                        strings('tutorial_step', {
-                          'a': index + 1,
-                          'b': _steps.length,
-                        }),
-                        style: theme.textTheme.labelSmall,
-                      ),
-                      const SizedBox(height: Space.xs),
-                      Text(
-                        strings('${step.key}_title'),
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: Space.sm),
-                      Text(
-                        strings('${step.key}_body'),
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: Space.md),
-                      for (var tip = 1; tip <= 3; tip++)
-                        _Tip(text: strings('${step.key}_tip_$tip')),
-                    ],
+                    ),
                   ),
                 );
               },
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              Space.page,
-              Space.sm,
-              Space.page,
-              MediaQuery.paddingOf(context).bottom + Space.md,
+          // A surface of its own, so the content scrolls behind a bar instead
+          // of colliding with loose controls.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              border: Border(
+                top: BorderSide(color: scheme.outlineVariant, width: 0.5),
+              ),
             ),
-            child: Row(
-              children: [
-                for (var i = 0; i < _steps.length; i++)
-                  AnimatedContainer(
-                    duration: Motion.quick,
-                    margin: const EdgeInsets.only(right: 6),
-                    height: 6,
-                    width: i == _index ? 22 : 6,
-                    decoration: BoxDecoration(
-                      color: i == _index
-                          ? scheme.primary
-                          : scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _next,
-                  child: Text(
-                    isLast
-                        ? strings('tutorial_done')
-                        : strings('tutorial_next'),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                Space.page,
+                Space.md,
+                Space.page,
+                MediaQuery.paddingOf(context).bottom + Space.md,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < _steps.length; i++)
+                        AnimatedContainer(
+                          duration: Motion.quick,
+                          margin: const EdgeInsets.only(right: 6),
+                          height: 6,
+                          width: i == _index ? 22 : 6,
+                          decoration: BoxDecoration(
+                            color: i == _index
+                                ? scheme.primary
+                                : scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: _next,
+                        child: Text(
+                          isLast
+                              ? strings('tutorial_done')
+                              : strings('tutorial_next'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
