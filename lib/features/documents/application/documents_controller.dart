@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/selection_controller.dart';
+import '../../../data/models/document_page.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
 import '../../../data/models/folder.dart';
@@ -43,12 +44,17 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
     return document;
   }
 
-  /// Builds a PDF from gallery captures and returns the stored document.
+  /// Makes a document out of gallery captures and returns it.
+  ///
+  /// An album, not a PDF: the pages are the photos themselves, kept at full
+  /// resolution, and the PDF is built only when the user exports. Composing
+  /// one here cost fifteen seconds and a second copy of every pixel, for a
+  /// file most documents never need.
   Future<ScannedDocument> createFromImages({
     required List<String> imagePaths,
     required String title,
   }) async {
-    final document = await _repository.createFromImages(
+    final document = await _repository.createAlbumFromImages(
       imagePaths: imagePaths,
       title: title,
     );
@@ -99,6 +105,19 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
     state = AsyncData(
       current.where((d) => !ids.contains(d.id)).toList(growable: false),
     );
+  }
+
+  /// Writes a new page order for an album and refreshes the archive row.
+  ///
+  /// No file is rewritten: the pages keep their names and only their positions
+  /// change, which is why this returns before the finger has left the screen.
+  Future<ScannedDocument> savePages(
+    ScannedDocument document,
+    List<DocumentPage> pages,
+  ) async {
+    final updated = await _repository.savePages(document, pages);
+    _replace(updated);
+    return updated;
   }
 
   /// Called after the editor rewrote a document on disk.
@@ -210,4 +229,16 @@ final documentByIdProvider =
     if (document.id == id) return document;
   }
   return null;
+});
+
+/// The pages of an album, in order.
+///
+/// Keyed on the document's signature rather than its id, so saving a new order
+/// re-reads once and every screen showing that album follows. Empty for a PDF,
+/// which has no page rows.
+final documentPagesProvider =
+    FutureProvider.family<List<DocumentPage>, int>((ref, id) async {
+  final document = ref.watch(documentByIdProvider(id));
+  if (document == null || !document.isAlbum) return const <DocumentPage>[];
+  return ref.watch(documentRepositoryProvider).pagesOf(document);
 });

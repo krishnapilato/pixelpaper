@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/theme/dimens.dart';
-import '../../../../data/models/scanned_document.dart';
 import '../../../viewer/presentation/widgets/pdf_page_view.dart';
 import '../../application/editor_controller.dart';
 
@@ -17,8 +17,11 @@ class EditorPageCanvas extends StatelessWidget {
     required this.dpi,
   });
 
-  final ScannedDocument document;
+  /// Opened once by the editor and shared by the canvas and every frame.
+  final PdfDocument? document;
   final EditorPageItem page;
+
+  /// Bound on the raster; see [PdfPageImage].
   final double dpi;
 
   @override
@@ -44,10 +47,11 @@ class EditorPageCanvas extends StatelessWidget {
                 fit: BoxFit.contain,
                 gaplessPlayback: true,
               ),
-            EditorPageItem(:final sourceIndex?) => PdfPageImage(
-                file: document.file,
+            EditorPageItem(:final sourceIndex?) when document != null =>
+              PdfPageImage(
+                document: document!,
                 index: sourceIndex,
-                dpi: dpi,
+                maximumDpi: dpi,
               ),
             _ => const SizedBox.shrink(),
           },
@@ -69,7 +73,7 @@ class EditorFilmstripThumb extends StatelessWidget {
     required this.onTap,
   });
 
-  final ScannedDocument document;
+  final PdfDocument? document;
   final EditorPageItem page;
   final int position;
   final double dpi;
@@ -108,11 +112,11 @@ class EditorFilmstripThumb extends StatelessWidget {
                     cacheWidth: 180,
                     gaplessPlayback: true,
                   ),
-                EditorPageItem(:final sourceIndex?) => PdfPageImage(
-                    file: document.file,
+                EditorPageItem(:final sourceIndex?) when document != null =>
+                  PdfPageImage(
+                    document: document!,
                     index: sourceIndex,
-                    dpi: dpi,
-                    fit: BoxFit.cover,
+                    maximumDpi: dpi,
                   ),
                 _ => const SizedBox.expand(),
               },

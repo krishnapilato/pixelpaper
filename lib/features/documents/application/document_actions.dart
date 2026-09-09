@@ -35,20 +35,24 @@ abstract final class DocumentActions {
   ) async {
     if (documents.isEmpty) return;
     final strings = ref.read(stringsProvider);
+    final repository = ref.read(documentRepositoryProvider);
     try {
-      await withBusy(
-        context,
-        strings('share_preparing'),
-        () => SharePlus.instance.share(
+      await withBusy(context, strings('share_preparing'), () async {
+        // An album has no file to share until one is made. This is that
+        // moment, and the only one: nothing else in the app writes a PDF.
+        final files = [
+          for (final document in documents) await repository.exportPdf(document),
+        ];
+        await SharePlus.instance.share(
           ShareParams(
             files: [
-              for (final document in documents)
-                XFile(document.path, mimeType: 'application/pdf'),
+              for (final file in files)
+                XFile(file.path, mimeType: 'application/pdf'),
             ],
             subject: documents.length == 1 ? documents.first.title : null,
           ),
-        ),
-      );
+        );
+      });
     } on Object {
       if (!context.mounted) return;
       showSnack(
@@ -66,9 +70,13 @@ abstract final class DocumentActions {
   ) async {
     final strings = ref.read(stringsProvider);
     try {
-      await ref
-          .read(pdfServiceProvider)
-          .printDocument(document.file, document.title);
+      final file = await withBusy(
+        context,
+        strings('share_preparing'),
+        () => ref.read(documentRepositoryProvider).exportPdf(document),
+      );
+      if (!context.mounted) return;
+      await ref.read(pdfServiceProvider).printDocument(file, document.title);
     } on Object {
       if (!context.mounted) return;
       showSnack(context, strings('common_error'),

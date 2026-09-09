@@ -1,158 +1,41 @@
-import 'dart:async';
-import 'dart:io';
+/// Rendering runs on PDFium, through `pdfrx`, and every entry point here takes
+/// a **path**.
+///
+/// That is the whole point. The previous implementation asked the `printing`
+/// plugin to rasterise a page, which meant, per page: read the file into a
+/// Uint8List, send all of it across the platform channel, render, encode a
+/// PNG, send the PNG back, write it to a disk cache, read it again, decode it.
+/// On a fifty-megabyte scan that was seconds per page and half a gigabyte of
+/// live buffers when a dozen pages asked at once — the crash two people hit on
+/// a twelve-photo document.
+///
+/// PDFium opens the file by path: the operating system maps it, nothing is
+/// copied, pages come back as images. No byte cache to share, no render queue
+/// to serialise, no PNG round-trip, no cache to sweep.
+///
+/// One rule survives: [PdfPageView.maximumDpi] stays bounded, because a page's
+/// size is data from the file and a poster-sized page at a fixed DPI is still
+/// a way to allocate hundreds of megabytes.
+library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/theme/dimens.dart';
-import '../../../../data/providers.dart';
-import '../../../../data/services/pdf_service.dart';
-
-/// Renders one page of a PDF, lazily and at a bounded resolution.
-///
-/// Rendering is per page and cached on disk, so a 60-page document costs the
-/// same memory as a 2-page one. The `printing` package's own PdfPreview
-/// rasterises every page up front at a DPI derived from the *expected* page
-/// size — a document with unusual geometry then allocates hundreds of
-/// megabytes and takes the process down.
-///
-/// The document's bytes belong to [PdfService], which keeps one copy for
-/// whatever is being read and serialises the renders. This widget deliberately
-/// has no way to supply its own: when it did, every visible page read the whole
-/// file for itself and a dozen of them at once was fatal on a large scan.
-class PdfPageImage extends ConsumerStatefulWidget {
-  const PdfPageImage({
-    super.key,
-    required this.file,
-    required this.index,
-    required this.dpi,
-    this.fit = BoxFit.contain,
-  });
-
-  final File file;
-  final int index;
-  final double dpi;
-  final BoxFit fit;
-
-  @override
-  ConsumerState<PdfPageImage> createState() => _PdfPageImageState();
-}
-
-class _PdfPageImageState extends ConsumerState<PdfPageImage> {
-  File? _image;
-  bool _failed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _render();
-  }
-
-  @override
-  void didUpdateWidget(PdfPageImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.index != widget.index ||
-        oldWidget.file.path != widget.file.path ||
-        oldWidget.dpi != widget.dpi) {
-      _image = null;
-      _failed = false;
-      _render();
-    }
-  }
-
-  /// Bumped whenever the page being shown changes, so a render still queued
-  /// for the previous one is dropped rather than drawn into this slot.
-  int _request = 0;
-
-  /// True once the render has taken long enough to be worth admitting to.
-  bool _slow = false;
-  Timer? _slowTimer;
-
-  @override
-  void dispose() {
-    _slowTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _render() async {
-    final request = ++_request;
-
-    _slowTimer?.cancel();
-    _slow = false;
-    // Under this threshold a spinner would appear and vanish inside the same
-    // gesture, which reads as a flicker rather than as progress. Past it, an
-    // unchanging blank sheet reads as a page that failed — and on a document
-    // of forty megabytes the first render really does take seconds.
-    _slowTimer = Timer(const Duration(milliseconds: 400), () {
-      if (mounted && _image == null) setState(() => _slow = true);
-    });
-
-    final rendered = await ref
-        .read(pdfServiceProvider)
-        .pageImage(
-          widget.file,
-          widget.index,
-          dpi: widget.dpi,
-          wanted: () => mounted && _request == request,
-        );
-    if (!mounted || _request != request) return;
-    _slowTimer?.cancel();
-    setState(() {
-      _image = rendered;
-      _failed = rendered == null;
-      _slow = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final image = _image;
-
-    if (_failed) {
-      return Center(
-        child: Icon(Icons.error_outline_rounded, color: scheme.onSurfaceVariant),
-      );
-    }
-    if (image == null) {
-      // A flat sheet first, a spinner only once the wait is real: see the
-      // threshold in [_render].
-      return AspectRatio(
-        aspectRatio: 0.707,
-        child: ColoredBox(
-          color: Colors.white10,
-          child: _slow
-              ? const Center(
-                  child: SizedBox(
-                    height: 26,
-                    width: 26,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  ),
-                )
-              : null,
-        ),
-      );
-    }
-
-    return Image.file(
-      image,
-      fit: widget.fit,
-      gaplessPlayback: true,
-      filterQuality: FilterQuality.medium,
-    );
-  }
-}
 
 /// The reader: one page per screen, swiped vertically.
 ///
 /// Vertical because that is the direction every document reader people already
-/// use scrolls, and reading a page then reaching for a sideways swipe is a
-/// small jolt every single time.
+/// use scrolls. One page at a time rather than a continuous roll because a
+/// scan is a set of discrete sheets: it keeps "pagina 3 di 12" exact instead of
+/// approximate, and gives each page its own zoom, which a continuous scroll
+/// cannot do without its pan gesture fighting the scroll.
 ///
-/// Still one page per screen rather than a continuous roll: it keeps "pagina 3
-/// di 12" exact instead of approximate, and gives each page its own zoom, which
-/// a continuous scroll cannot do without fighting the pan gesture.
-class PdfPager extends ConsumerStatefulWidget {
+/// `pdfrx` ships a continuous viewer of its own, and it is good — but it does
+/// not snap to pages, so this uses its single-page widget and does the paging
+/// here. The album reader has the same shape for the same reason: the user has
+/// one archive, and the two kinds of document must not feel different.
+class PdfPager extends StatelessWidget {
   const PdfPager({
     super.key,
     required this.file,
@@ -161,101 +44,87 @@ class PdfPager extends ConsumerStatefulWidget {
     this.padding = EdgeInsets.zero,
   });
 
-  final File file;
+  final String file;
+
+  /// The count the archive already knows, used while the document opens.
   final int pageCount;
   final ValueChanged<int>? onPageChanged;
   final EdgeInsets padding;
 
   @override
-  ConsumerState<PdfPager> createState() => _PdfPagerState();
-}
-
-class _PdfPagerState extends ConsumerState<PdfPager> {
-  final _controller = PageController();
-  double? _dpi;
-  bool _failed = false;
-
-  bool _prepared = false;
-
-  @override
-  void initState() {
-    super.initState();
-    ref.read(pdfServiceProvider).retainDocument();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Not initState: the screen metrics come from an InheritedWidget, and they
-    // have to be read here — before the await in [_prepare] — because a
-    // context is only safe to touch while its element is still in the tree.
-    if (_prepared) return;
-    _prepared = true;
-    _prepare(
-      MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context),
-    );
-  }
-
-  @override
-  void dispose() {
-    ref.read(pdfServiceProvider).releaseDocument();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _prepare(double screenWidth) async {
-    try {
-      final size = await ref
-          .read(pdfServiceProvider)
-          .firstPageSizeOf(widget.file);
-      if (!mounted) return;
-      setState(() {
-        // Cap the render at ~1200 px wide: sharp on any phone, and small
-        // enough that three live pages stay well inside the image cache.
-        _dpi = PdfService.dpiForWidth(size, screenWidth.clamp(600, 1200));
-      });
-    } on Object {
-      if (mounted) setState(() => _failed = true);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    if (_failed) {
-      return Center(
-        child: Icon(Icons.error_outline_rounded, color: scheme.onSurfaceVariant),
-      );
-    }
-    final dpi = _dpi;
-    if (dpi == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return PageView.builder(
-      controller: _controller,
-      scrollDirection: Axis.vertical,
-      itemCount: widget.pageCount,
-      onPageChanged: widget.onPageChanged,
-      itemBuilder: (context, index) => Padding(
-        padding: widget.padding,
-        child: Center(
-          child: Card(
-            color: Colors.white,
-            margin: EdgeInsets.zero,
-            child: InteractiveViewer(
-              maxScale: 4,
-              child: PdfPageImage(
-                key: ValueKey('${widget.file.path}#$index'),
-                file: widget.file,
-                index: index,
-                dpi: dpi,
+    return PdfDocumentViewBuilder.file(
+      file,
+      loadingBuilder: (context) =>
+          const Center(child: CircularProgressIndicator()),
+      errorBuilder: (context, error, stackTrace) => Center(
+        child: Icon(
+          Icons.error_outline_rounded,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      builder: (context, document) {
+        if (document == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return PageView.builder(
+          scrollDirection: Axis.vertical,
+          itemCount: document.pages.length,
+          onPageChanged: onPageChanged,
+          itemBuilder: (context, index) => Padding(
+            padding: padding,
+            child: Center(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Card(
+                  color: Colors.white,
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: PdfPageImage(document: document, index: index),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+}
+
+/// One page of a document, drawn to fit its box.
+///
+/// Used by the reader for the sheet on screen and by the editor for every
+/// frame of its strip. Both share the [document] their screen opened once, so
+/// twelve thumbnails cost one open file, not twelve.
+class PdfPageImage extends StatelessWidget {
+  const PdfPageImage({
+    super.key,
+    required this.document,
+    required this.index,
+    this.maximumDpi = 300,
+  });
+
+  final PdfDocument document;
+
+  /// Zero-based, like everything else in this app.
+  final int index;
+
+  /// Bound on the raster. A thumbnail asks for far less than a full page.
+  final double maximumDpi;
+
+  @override
+  Widget build(BuildContext context) {
+    if (index < 0 || index >= document.pages.length) {
+      return const SizedBox.shrink();
+    }
+    return PdfPageView(
+      document: document,
+      pageNumber: index + 1,
+      maximumDpi: maximumDpi,
+      backgroundColor: Colors.white,
+      alignment: Alignment.center,
     );
   }
 }

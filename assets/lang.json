@@ -88,6 +88,7 @@
   "editor_discard_title": "Annullare le modifiche?",
   "editor_discard_body": "Il documento resterà come prima.",
   "editor_discard_action": "Annulla modifiche",
+  "editor_add_short": "Aggiungi",
   "editor_add_page": "Aggiungi pagina",
   "editor_add_blank": "Inserisci pagina vuota",
   "editor_add_blank_detail": "Un foglio A4 bianco in fondo al documento",
