@@ -38,6 +38,25 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
+    <!--
+        L'app non fa una sola richiesta di rete, e questi due permessi non li
+        ha chiesti nessuno di noi: INTERNET arriva da
+        com.google.android.datatransport, la telemetria che ML Kit si porta
+        dietro, e ACCESS_NETWORK_STATE da androidx.media3, un lettore video che
+        non usiamo. Nel manifest finito diventano comunque parte di cio' che
+        Play mostra all'utente, e per un'app che promette di funzionare offline
+        e di non mandare niente da nessuna parte quella riga contraddice la
+        promessa.
+
+        I modelli di ML Kit non ne soffrono: a scaricarli e' il processo dei
+        servizi Google Play, con i propri permessi, non il nostro.
+
+        Se un giorno servira' la rete davvero, va tolta questa rimozione e
+        spiegato all'utente perche'.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+
     <application
         android:label="PixelPaper"
         android:name="${applicationName}"

@@ -475,9 +475,12 @@ class _Editor extends StatelessWidget {
             ),
           ),
         ),
+        // Kept identical to the album editor's: the two screens are the same
+        // screen as far as the user is concerned.
         Padding(
-          padding: const EdgeInsets.fromLTRB(Space.md, 0, Space.md, Space.xxs),
+          padding: const EdgeInsets.fromLTRB(Space.md, 0, Space.md, Space.md),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.drag_indicator_rounded,
@@ -485,9 +488,10 @@ class _Editor extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: Space.xs),
-              Expanded(
+              Flexible(
                 child: Text(
                   strings('editor_hint'),
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall,
                 ),
               ),
