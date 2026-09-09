@@ -570,3 +570,42 @@ footer {
   color: var(--on-surface-variant);
   max-width: 46ch;
 }
+
+/* --- Ritmo di lettura ---------------------------------------------------- */
+
+/* Una riga smette di essere leggibile oltre i ~70 caratteri: senza questo la
+   colonna del testo arrivava a novecento pixel e l'occhio perdeva il rigo
+   tornando a capo. Vale per il testo scorrevole, non per tabelle, schermate
+   o griglie, che il limite lo hanno gia' loro. */
+section.step > p,
+section.step > ul,
+section.step > ol {
+  max-width: 68ch;
+}
+
+section.step { padding: 3.4rem 0; }
+section.step:first-child { padding-top: 1.5rem; }
+
+/* Un titolo senza aria sotto si legge come parte del paragrafo che segue. */
+section.step h2 { margin-bottom: 1.1rem; }
+section.step h3 { margin: 2rem 0 0.7rem; }
+section.step h2 + p,
+section.step h3 + p { margin-top: 0; }
+
+section.step li { margin-bottom: 0.45rem; }
+section.step li:last-child { margin-bottom: 0; }
+
+.card { margin: 1.8rem 0; padding: 1.4rem 1.6rem; }
+.card + .card { margin-top: 1.2rem; }
+.grid-2 { gap: 1.2rem; margin: 1.8rem 0; }
+
+/* Lo scatto di ancoraggio: senza, cliccando l'indice il titolo finiva sotto
+   la barra fissa. */
+html { scroll-padding-top: 6.5rem; }
+
+@media (max-width: 900px) {
+  section.step { padding: 2.6rem 0; }
+  section.step > p,
+  section.step > ul,
+  section.step > ol { max-width: none; }
+}

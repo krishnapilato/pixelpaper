@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/text_prompt.dart';
 import '../../../data/models/folder.dart';
@@ -58,6 +60,58 @@ abstract final class DocumentActions {
       showSnack(
         context,
         strings('share_failed'),
+        icon: Icons.error_outline_rounded,
+      );
+    }
+  }
+
+  /// Writes the document, as a PDF, wherever the user points the system's own
+  /// save dialog.
+  ///
+  /// This is the one way a document leaves the app as a lasting file. The
+  /// library itself stays in private storage — which is why PixelPaper asks for
+  /// no storage permission and why a scan never turns up in Google Photos — so
+  /// "esporta" is the deliberate act of putting a copy somewhere the user
+  /// chooses, that survives uninstalling the app.
+  ///
+  /// The system dialog rather than a folder we remember: Android's picker
+  /// already reopens where it was last used, so the folder is remembered
+  /// anyway, by the part of the system that is allowed to remember it. Holding
+  /// a directory handle ourselves would mean a permission to keep alive and a
+  /// stale URI to handle the day the user moves that folder, in exchange for
+  /// one tap.
+  static Future<void> export(
+    BuildContext context,
+    WidgetRef ref,
+    ScannedDocument document,
+  ) async {
+    final strings = ref.read(stringsProvider);
+    try {
+      final file = await withBusy(
+        context,
+        strings('export_preparing'),
+        () => ref.read(documentRepositoryProvider).exportPdf(document),
+      );
+      final saved = await FlutterFileDialog.saveFile(
+        params: SaveFileDialogParams(
+          sourceFilePath: file.path,
+          fileName: '${Fmt.safeFileName(document.title)}.pdf',
+        ),
+      );
+      if (!context.mounted) return;
+      // Null means the user backed out of the dialog, which is not a failure
+      // and does not deserve a message.
+      if (saved == null) return;
+      showSnack(
+        context,
+        strings('export_done'),
+        icon: Icons.check_circle_outline_rounded,
+      );
+    } on Object {
+      if (!context.mounted) return;
+      showSnack(
+        context,
+        strings('export_failed'),
         icon: Icons.error_outline_rounded,
       );
     }
