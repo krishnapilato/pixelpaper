@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/camera/presentation/camera_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';
+import '../../features/documents/application/documents_controller.dart';
+import '../../features/editor/presentation/album_editor_screen.dart';
 import '../../features/editor/presentation/document_editor_screen.dart';
 import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
@@ -88,10 +91,11 @@ GoRouter createRouter() {
           GoRoute(
             path: 'modifica',
             parentNavigatorKey: _rootNavigatorKey,
-            pageBuilder: (context, state) => _fadeThrough(
-              state,
-              DocumentEditorScreen(documentId: _idOf(state)),
-            ),
+            // Two editors, picked by what the document is made of. An album
+            // arranges page images and never rewrites a file; a PDF still has
+            // to be redrawn, so it keeps the older, heavier screen.
+            pageBuilder: (context, state) =>
+                _fadeThrough(state, _EditorForDocument(id: _idOf(state))),
           ),
         ],
       ),
@@ -169,4 +173,26 @@ CustomTransitionPage<void> _slideUp(GoRouterState state, Widget child) {
       );
     },
   );
+}
+
+/// Sends the route to the editor that matches the document.
+///
+/// The choice lives here rather than inside one of the editors so neither has
+/// to know the other exists, and so a document whose kind is not known yet
+/// shows a spinner instead of the wrong screen.
+class _EditorForDocument extends ConsumerWidget {
+  const _EditorForDocument({required this.id});
+
+  final int id;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final document = ref.watch(documentByIdProvider(id));
+    if (document == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return document.isAlbum
+        ? AlbumEditorScreen(documentId: id)
+        : DocumentEditorScreen(documentId: id);
+  }
 }

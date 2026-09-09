@@ -9,6 +9,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../documents/application/document_actions.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../documents/presentation/widgets/document_actions_sheet.dart';
+import 'widgets/album_pager.dart';
 import 'widgets/pdf_page_view.dart';
 
 /// Module D, first half: read the document.
@@ -83,27 +84,59 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
           const SizedBox(width: Space.xxs),
         ],
       ),
-      body: Hero(
-        tag: 'document-${document.id}',
-        // The card in the archive flies into the first page; once the reader
-        // is up, the Hero must not constrain the pager, so the flight target
-        // is the whole reader surface.
-        flightShuttleBuilder: (context, animation, direction, from, to) =>
-            FadeTransition(opacity: animation, child: to.widget),
-        child: PdfPager(
-          // Keyed on the signature, not on the id: coming back from the editor
-          // the path is unchanged but the bytes are not, and without a new key
-          // the reader would keep showing the pages it read on the way in.
-          key: ValueKey(document.signature),
-          file: document.file,
-          pageCount: pageCount,
-          padding: readerPadding(context),
-          onPageChanged: (index) => setState(() => _page = index),
-        ),
-      ),
+      // Two readers, one archive. An album's pages are already images, so it
+      // gets the image path; a PDF gets PDFium. The user is not supposed to be
+      // able to tell which one they are looking at.
+      //
+      // No Hero here, deliberately.
+      //
+      // The card in the archive used to fly into this page, and the flight was
+      // what broke the reader: Hero builds its destination a second time
+      // inside the overlay, so two PdfPagers came up, each reading the file and
+      // each calling setState on the way back — and the one in the overlay was
+      // already unmounted by then. "SingleChildRenderObjectElement unmounted",
+      // over the whole document, reproducible on any scan large enough that
+      // the read outlived the animation.
+      //
+      // It was buying nothing anyway: at flight time page one has not been
+      // rasterised yet, so the thumbnail flew into a blank sheet. A Hero wants
+      // a subtree that holds still, which is the opposite of what a reader that
+      // loads its own content can offer.
+      body: document.isAlbum
+          ? switch (ref.watch(documentPagesProvider(document.id))) {
+              AsyncData(:final value) when value.isNotEmpty => AlbumPager(
+                  key: ValueKey(document.signature),
+                  document: document,
+                  pages: value,
+                  padding: readerPadding(context),
+                  onPageChanged: (index) => setState(() => _page = index),
+                ),
+              AsyncData() => EmptyState(
+                  icon: Icons.description_outlined,
+                  title: strings('viewer_open_failed'),
+                  body: strings('documents_empty_body'),
+                ),
+              AsyncError() => EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: strings('common_error'),
+                  body: strings('viewer_open_failed'),
+                ),
+              _ => const Center(child: CircularProgressIndicator()),
+            }
+          : PdfPager(
+              // Keyed on the signature, not on the id: coming back from the
+              // editor the path is unchanged but the bytes are not, and
+              // without a new key the reader would keep showing the pages it
+              // read on the way in.
+              key: ValueKey(document.signature),
+              file: document.path,
+              pageCount: pageCount,
+              padding: readerPadding(context),
+              onPageChanged: (index) => setState(() => _page = index),
+            ),
       bottomNavigationBar: _ViewerBar(
         onEdit: () => context.push(Routes.editor(document.id)),
-        onShare: () => DocumentActions.share(context, [document]),
+        onShare: () => DocumentActions.share(context, ref, [document]),
         onPrint: () => DocumentActions.print(context, ref, document),
         onDelete: () async {
           final deleted = await DocumentActions.delete(context, ref, [

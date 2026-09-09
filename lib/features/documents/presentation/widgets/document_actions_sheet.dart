@@ -57,7 +57,16 @@ Future<void> showDocumentActions(
             label: strings('common_share'),
             onTap: () {
               Navigator.pop(context);
-              DocumentActions.share(context, [document]);
+              DocumentActions.share(context, ref, [document]);
+            },
+          ),
+          SheetAction(
+            icon: Icons.save_alt_rounded,
+            label: strings('common_export'),
+            detail: strings('common_export_detail'),
+            onTap: () {
+              Navigator.pop(context);
+              DocumentActions.export(context, ref, document);
             },
           ),
           SheetAction(

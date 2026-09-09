@@ -1,7 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:saf_util/saf_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -10,6 +11,7 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../data/providers.dart';
+import '../../../data/models/capture.dart';
 import '../../../data/services/storage_service.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../gallery/application/gallery_controller.dart';
@@ -40,6 +42,10 @@ class SettingsScreen extends ConsumerWidget {
     final cache = ref.watch(_cacheSizeProvider);
     final info = ref.watch(_packageInfoProvider);
     final trashCount = ref.watch(trashCountProvider);
+    final exportFolder = ref.watch(exportFolderProvider);
+    final trashSize = ref.watch(trashSizeProvider);
+    final duplicates = ref.watch(duplicatedCapturesProvider);
+    final duplicated = duplicates.value?.bytes ?? 0;
     final library = ref.watch(_librarySizeProvider);
     final cacheIsLarge = (cache.value ?? 0) >= StorageService.cacheNudgeBytes;
 
@@ -70,10 +76,19 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
+                // The bin keeps its full 30 days. What it did not have was a
+                // price tag: showing the weight lets someone who needs the
+                // space empty it on purpose, which is a very different thing
+                // from the app deciding to empty it for them.
                 ListTile(
                   leading: const Icon(Icons.delete_outline_rounded),
                   title: Text(strings('trash_title')),
-                  subtitle: Text(strings('trash_detail')),
+                  subtitle: Text(
+                    trashCount > 0 && (trashSize.value ?? 0) > 0
+                        ? '${strings('trash_detail')} · '
+                              '${Fmt.bytes(trashSize.value!)}'
+                        : strings('trash_detail'),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -98,10 +113,65 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: Text('${captures?.length ?? 0}'),
                 ),
                 const Divider(indent: Space.md, endIndent: Space.md),
+                // Quiet until there is something to recover, then tonal, like
+                // the cache row: a nudge that only appears when tapping it can
+                // actually give something back. No modal — an alert that fires
+                // every time the archive grows is one people learn to dismiss
+                // without reading.
                 ListTile(
+                  tileColor: duplicated > 0
+                      ? Theme.of(context).colorScheme.secondaryContainer
+                      : null,
                   leading: const Icon(Icons.sd_storage_outlined),
                   title: Text(strings('settings_space_library')),
+                  subtitle: duplicated > 0
+                      ? Text(
+                          strings.plural(
+                            'settings_duplicates',
+                            duplicates.value!.captures.length,
+                          ),
+                        )
+                      : null,
                   trailing: Text(Fmt.bytes(library.value ?? 0)),
+                  onTap: duplicated > 0
+                      ? () => _cleanDuplicates(
+                          context,
+                          ref,
+                          strings,
+                          duplicates.value!.captures,
+                          duplicated,
+                        )
+                      : null,
+                ),
+                const Divider(indent: Space.md, endIndent: Space.md),
+                // Where "Esporta" puts the PDF. Unset by default: the app
+                // should not hold a permission on a folder nobody asked it to
+                // remember, so the first export asks and only a choice made
+                // here makes it silent from then on.
+                ListTile(
+                  leading: const Icon(Icons.drive_folder_upload_outlined),
+                  title: Text(strings('settings_export_folder')),
+                  subtitle: Text(
+                    exportFolder.value == null
+                        ? strings('settings_export_folder_ask')
+                        : '${exportFolder.value!.name} · '
+                              '${strings('settings_export_folder_change')}',
+                  ),
+                  onTap: () => _pickExportFolder(context, ref, strings),
+                  onLongPress: exportFolder.value == null
+                      ? null
+                      : () async {
+                          await ref
+                              .read(settingsStoreProvider)
+                              .clearExportFolder();
+                          ref.invalidate(exportFolderProvider);
+                          if (!context.mounted) return;
+                          showSnack(
+                            context,
+                            strings('settings_export_folder_cleared'),
+                            icon: Icons.check_rounded,
+                          );
+                        },
                 ),
                 const Divider(indent: Space.md, endIndent: Space.md),
                 // The cache row starts quiet and turns tonal once it is worth
@@ -322,4 +392,79 @@ class _Section extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks Android for a folder and remembers it.
+///
+/// `persistablePermission` is the whole point: without it the grant dies with
+/// the process and the setting would be a promise the app cannot keep past the
+/// next launch.
+Future<void> _pickExportFolder(
+  BuildContext context,
+  WidgetRef ref,
+  Strings strings,
+) async {
+  try {
+    final picked = await SafUtil().pickDirectory(
+      writePermission: true,
+      persistablePermission: true,
+    );
+    if (picked == null) return; // backed out of the picker
+    await ref
+        .read(settingsStoreProvider)
+        .setExportFolder(uri: picked.uri, name: picked.name);
+    ref.invalidate(exportFolderProvider);
+    if (!context.mounted) return;
+    showSnack(
+      context,
+      strings('export_done_in', {'folder': picked.name}),
+      icon: Icons.check_rounded,
+    );
+  } on Object {
+    if (!context.mounted) return;
+    showSnack(
+      context,
+      strings('common_error'),
+      icon: Icons.error_outline_rounded,
+    );
+  }
+}
+
+/// Offers to move the photos that already live inside a document to the bin.
+///
+/// The bin, not oblivion: everything in this app is reversible until the user
+/// says otherwise, and a screen about freeing space is the worst possible
+/// place to make an exception. It says so plainly, and the row above shows the
+/// bin's weight, so the second step is one tap away when they want it.
+Future<void> _cleanDuplicates(
+  BuildContext context,
+  WidgetRef ref,
+  Strings strings,
+  List<Capture> captures,
+  int bytes,
+) async {
+  final ok = await confirmAction(
+    context,
+    title: strings('settings_duplicates_title'),
+    message: strings('settings_duplicates_body', {
+      'n': captures.length,
+      'size': Fmt.bytes(bytes),
+    }),
+    confirmLabel: strings('settings_duplicates_action'),
+    cancelLabel: strings('common_cancel'),
+  );
+  if (!ok || !context.mounted) return;
+
+  await ref
+      .read(galleryControllerProvider.notifier)
+      .moveToTrash(captures);
+  ref
+    ..invalidate(duplicatedCapturesProvider)
+    ..invalidate(_librarySizeProvider);
+  if (!context.mounted) return;
+  showSnack(
+    context,
+    strings('settings_duplicates_done'),
+    icon: Icons.check_rounded,
+  );
 }
