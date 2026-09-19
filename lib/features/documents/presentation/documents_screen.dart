@@ -7,6 +7,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/feedback.dart';
+import '../../../core/widgets/motion.dart';
 import '../../../data/models/folder.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../folders/application/folders_controller.dart';
@@ -73,18 +74,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Widget build(BuildContext context) {
     final strings = ref.watch(stringsProvider);
     final documents = ref.watch(visibleDocumentsProvider);
-    final selection = ref.watch(documentSelectionProvider);
+    // Only whether a selection exists: the contextual bar and each row watch
+    // their own slice, so a tap repaints one row and the bar, not the list.
+    final selecting = ref.watch(
+      documentSelectionProvider.select((s) => s.isNotEmpty),
+    );
     final isGrid = ref.watch(documentGridProvider);
     final folder = ref.watch(currentFolderDetailProvider(FolderKind.document));
+    final folderId = ref.watch(currentFolderProvider(FolderKind.document));
+    final sort = ref.watch(documentSortProvider);
     final all = documents.value ?? const <ScannedDocument>[];
 
     return PopScope(
       // Back unwinds one layer at a time: selection, then search, then the
       // open folder, and only then the app.
-      canPop: selection.isEmpty && !_searching && folder == null,
+      canPop: !selecting && !_searching && folder == null,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (selection.isNotEmpty) {
+        if (selecting) {
           ref.read(documentSelectionProvider.notifier).clear();
         } else if (_searching) {
           _toggleSearch();
@@ -98,7 +105,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               ref.read(documentsControllerProvider.notifier).refresh(),
           child: CustomScrollView(
             slivers: [
-              _appBar(strings, selection, all, isGrid, folder),
+              Consumer(
+                builder: (context, ref, _) => _appBar(
+                  strings,
+                  ref.watch(documentSelectionProvider),
+                  all,
+                  isGrid,
+                  folder,
+                ),
+              ),
               if (!_searching)
                 PinnedFolderStrip(kind: FolderKind.document, onMove: _move),
               ...switch (documents) {
@@ -119,10 +134,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     ),
                   ],
                 AsyncData(:final value) => [
-                    if (isGrid)
-                      _grid(value, selection)
-                    else
-                      _list(value, selection),
+                    EntranceGroup(
+                      // Another folder, order or layout is another list: it
+                      // cascades in again. Search results just appear, since
+                      // they change on every keystroke.
+                      epoch: _searching ? null : (folderId, sort, isGrid),
+                      ids: value.map((d) => d.id),
+                      child: isGrid ? _grid(value) : _list(value),
+                    ),
                     const SliverToBoxAdapter(
                       child: SizedBox(height: Space.bottomInset),
                     ),
@@ -286,7 +305,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     );
   }
 
-  Widget _list(List<ScannedDocument> documents, Set<int> selection) {
+  Widget _list(List<ScannedDocument> documents) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(Space.md, Space.xs, Space.md, 0),
       sliver: SliverList.builder(
@@ -294,23 +313,30 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         addAutomaticKeepAlives: false,
         itemBuilder: (context, index) {
           final document = documents[index];
-          return LibraryDraggable(
+          return Entrance(
             key: ValueKey(document.id),
-            kind: FolderKind.document,
             id: document.id,
-            selectionProvider: documentSelectionProvider,
-            preview: DocumentThumbnail(
-              document: document,
-              width: 76,
-              height: 92,
-              radius: 0,
-            ),
-            child: DocumentTile(
-              document: document,
-              selected: selection.contains(document.id),
-              selectionActive: selection.isNotEmpty,
-              onTap: () => _open(document),
-              onMore: () => showDocumentActions(context, ref, document),
+            index: index,
+            child: LibraryDraggable(
+              kind: FolderKind.document,
+              id: document.id,
+              selectionProvider: documentSelectionProvider,
+              preview: DocumentThumbnail(
+                document: document,
+                width: 76,
+                height: 92,
+                radius: 0,
+              ),
+              child: _Selectable(
+                id: document.id,
+                builder: (selected, active) => DocumentTile(
+                  document: document,
+                  selected: selected,
+                  selectionActive: active,
+                  onTap: () => _open(document),
+                  onMore: () => showDocumentActions(context, ref, document),
+                ),
+              ),
             ),
           );
         },
@@ -318,7 +344,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     );
   }
 
-  Widget _grid(List<ScannedDocument> documents, Set<int> selection) {
+  Widget _grid(List<ScannedDocument> documents) {
     final width =
         (MediaQuery.sizeOf(context).width - Space.md * 2 - Space.sm) / 2;
     return SliverPadding(
@@ -334,23 +360,30 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         addAutomaticKeepAlives: false,
         itemBuilder: (context, index) {
           final document = documents[index];
-          return LibraryDraggable(
+          return Entrance(
             key: ValueKey(document.id),
-            kind: FolderKind.document,
             id: document.id,
-            selectionProvider: documentSelectionProvider,
-            preview: DocumentThumbnail(
-              document: document,
-              width: 76,
-              height: 92,
-              radius: 0,
-            ),
-            child: DocumentCard(
-              document: document,
-              width: width,
-              selected: selection.contains(document.id),
-              onTap: () => _open(document),
-              onMore: () => showDocumentActions(context, ref, document),
+            index: index,
+            child: LibraryDraggable(
+              kind: FolderKind.document,
+              id: document.id,
+              selectionProvider: documentSelectionProvider,
+              preview: DocumentThumbnail(
+                document: document,
+                width: 76,
+                height: 92,
+                radius: 0,
+              ),
+              child: _Selectable(
+                id: document.id,
+                builder: (selected, active) => DocumentCard(
+                  document: document,
+                  width: width,
+                  selected: selected,
+                  onTap: () => _open(document),
+                  onMore: () => showDocumentActions(context, ref, document),
+                ),
+              ),
             ),
           );
         },
@@ -389,5 +422,25 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         ],
       ),
     );
+  }
+}
+
+/// Rebuilds a row only when its own selection state changes, or when the
+/// list enters or leaves selection mode.
+class _Selectable extends ConsumerWidget {
+  const _Selectable({required this.id, required this.builder});
+
+  final int id;
+  final Widget Function(bool selected, bool active) builder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(
+      documentSelectionProvider.select((s) => s.contains(id)),
+    );
+    final active = ref.watch(
+      documentSelectionProvider.select((s) => s.isNotEmpty),
+    );
+    return builder(selected, active);
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/dimens.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../data/models/scanned_document.dart';
 import '../../../../data/providers.dart';
 
@@ -93,6 +94,7 @@ class _DocumentThumbnailState extends ConsumerState<DocumentThumbnail> {
               cacheWidth: pixels,
               filterQuality: FilterQuality.medium,
               gaplessPlayback: true,
+              frameBuilder: fadeInFrame,
               errorBuilder: (context, error, stack) =>
                   _Placeholder(scheme: scheme, size: widget.width),
             ),

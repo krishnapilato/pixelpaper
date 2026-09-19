@@ -15,6 +15,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/image_editor_config.dart';
 import '../../../data/providers.dart';
 import '../../../data/services/pdf_service.dart';
+import '../../camera/presentation/camera_screen.dart';
 import '../application/editor_controller.dart';
 import 'widgets/editor_page_card.dart';
 
@@ -363,7 +364,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               // this one page worse than every other page in the same document,
               // and a page added in the editor is an archive page like any
               // other. Full resolution, re-encoded by nobody.
-              final shot = await picker.pickImage(source: ImageSource.camera);
+              final shot = await CameraScreen.takePage(context);
               if (shot == null) return;
               _controller.addImage(await shot.readAsBytes());
               await appended();

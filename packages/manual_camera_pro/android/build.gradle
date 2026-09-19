@@ -1,0 +1,31 @@
+// PixelPaper patch: the published 0.1.0 build script targeted AGP 3.3 with
+// jcenter() and no namespace, which Gradle 9 and AGP 9 refuse outright. The
+// app's own plugin management supplies AGP; the plugin has no Kotlin sources,
+// so the Kotlin plugin it used to apply is gone as well.
+group 'com.afonsoraposo.camera'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.afonsoraposo.camera'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        disable 'InvalidPackage'
+    }
+}
+
+dependencies {
+    implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'androidx.core:core:1.13.1'
+}

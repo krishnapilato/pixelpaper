@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Durations, Easing;
 import 'package:flutter/widgets.dart';
 
 /// Spacing scale. Generous by design: the interface should breathe.
@@ -31,13 +32,33 @@ abstract final class Radii {
       BorderRadius.vertical(top: Radius.circular(xl));
 }
 
-/// Motion. Short, confident, never showy.
+/// Motion, on the Material 3 duration and easing tokens.
+///
+/// Short, confident, never showy: things that enter decelerate into place,
+/// things that leave accelerate away, and anything that moves across the
+/// screen uses the emphasized curve.
 abstract final class Motion {
-  static const Duration quick = Duration(milliseconds: 150);
-  static const Duration base = Duration(milliseconds: 260);
-  static const Duration slow = Duration(milliseconds: 420);
+  /// Small components: icons, checkmarks, chips (M3 short3).
+  static const Duration quick = Durations.short3;
 
-  static const Curve enter = Curves.easeOutCubic;
-  static const Curve exit = Curves.easeInCubic;
+  /// Most transitions: switches, fades, list entrances (M3 medium1).
+  static const Duration base = Durations.medium1;
+
+  /// Large surfaces and screen-level changes (M3 long1).
+  static const Duration slow = Durations.long1;
+
+  /// Page transitions of the Material motion system (M3 medium2).
+  static const Duration transition = Durations.medium2;
+
+  /// A surface growing into a full screen, such as the camera opening from
+  /// its button (M3 long2).
+  static const Duration expand = Durations.long2;
+
+  /// Delay between consecutive items of a list entering together.
+  static const Duration stagger = Duration(milliseconds: 28);
+
+  static const Curve enter = Easing.emphasizedDecelerate;
+  static const Curve exit = Easing.emphasizedAccelerate;
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;
+  static const Curve standard = Easing.standard;
 }
