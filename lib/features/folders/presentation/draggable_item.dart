@@ -37,10 +37,15 @@ class LibraryDraggable extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watched, not read: the tiles no longer rebuild on every selection
+    // change, so this wrapper is what keeps the payload current — dragging
+    // one of three selected photos must carry all three. The child arrives
+    // ready-made, so rebuilding the wrapper does not rebuild the tile.
+    final selection = ref.watch(selectionProvider);
+    final ids = selection.contains(id) ? selection : {id, ...selection};
+
     return LongPressDraggable<LibraryDragPayload>(
-      // The payload is resolved at drag start, so it always reflects the
-      // selection as it is at that moment.
-      data: LibraryDragPayload(kind: kind, ids: _resolveSelection(ref)),
+      data: LibraryDragPayload(kind: kind, ids: ids),
       dragAnchorStrategy: pointerDragAnchorStrategy,
       onDragStarted: () {
         HapticFeedback.selectionClick();
@@ -55,10 +60,7 @@ class LibraryDraggable extends ConsumerWidget {
       onDragEnd: (_) => ref.read(activeDragProvider.notifier).end(),
       onDraggableCanceled: (velocity, offset) =>
           ref.read(activeDragProvider.notifier).end(),
-      feedback: _DragFeedback(
-        preview: preview,
-        count: _resolveSelection(ref).length,
-      ),
+      feedback: _DragFeedback(preview: preview, count: ids.length),
       childWhenDragging: Opacity(opacity: 0.35, child: child),
       child: child,
     );

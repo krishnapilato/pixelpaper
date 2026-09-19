@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:path/path.dart' as p;
+
 import '../local/capture_dao.dart';
 import '../models/capture.dart';
 import '../services/storage_service.dart';
@@ -41,15 +43,30 @@ class CaptureRepository {
         .toList(growable: false);
   }
 
-  /// Moves a freshly taken photo into the gallery. The source is a temporary
-  /// file owned by the camera plugin, so it is copied and then removed.
-  Future<Capture> adopt(File source, {required CaptureSource origin}) async {
+  /// Moves a freshly taken or imported photo into the gallery, inside
+  /// [folderId] when given. The source is a temporary file written by the
+  /// camera or copied by the photo picker, so it is copied and then removed.
+  Future<Capture> adopt(
+    File source, {
+    required CaptureSource origin,
+    int? folderId,
+  }) async {
+    // An empty file is a shot or an import that failed half-way: it is
+    // reported as a failure, not kept as a blank photo in the gallery.
+    if (await source.length() == 0) {
+      throw FileSystemException('Empty image', source.path);
+    }
     final dir = await _storage.capturesDir();
     final stamp = DateTime.now();
+    // A PNG from the picker stays a PNG: the extension is what the share
+    // sheet and the MIME type are derived from.
+    final extension = p.extension(source.path).toLowerCase() == '.png'
+        ? '.png'
+        : '.jpg';
     final target = await _storage.uniqueFile(
       dir,
       'IMG_${stamp.millisecondsSinceEpoch}',
-      '.jpg',
+      extension,
     );
     await source.copy(target.path);
     try {
@@ -58,7 +75,17 @@ class CaptureRepository {
       // The plugin's temp file is disposable; failing to delete is harmless.
     }
 
-    final capture = await _describe(target, origin);
+    final described = await _describe(target, origin);
+    final capture = Capture(
+      id: 0,
+      path: described.path,
+      createdAt: described.createdAt,
+      sizeBytes: described.sizeBytes,
+      source: described.source,
+      width: described.width,
+      height: described.height,
+      folderId: folderId,
+    );
     final id = await _dao.insert(capture);
     return Capture(
       id: id,
@@ -68,6 +95,7 @@ class CaptureRepository {
       source: capture.source,
       width: capture.width,
       height: capture.height,
+      folderId: folderId,
     );
   }
 

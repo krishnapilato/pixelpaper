@@ -23,11 +23,24 @@ class GalleryController extends AsyncNotifier<List<Capture>> {
     if (live != null) ref.read(gallerySelectionProvider.notifier).retain(live);
   }
 
-  /// Stores a photo the camera just produced.
-  Future<Capture> adopt(File source, {required CaptureSource origin}) async {
-    final capture = await _repository.adopt(source, origin: origin);
+  /// Stores a photo the camera just produced (or the picker handed over),
+  /// inside [folderId] when given.
+  Future<Capture> adopt(
+    File source, {
+    required CaptureSource origin,
+    int? folderId,
+  }) async {
+    final capture = await _repository.adopt(
+      source,
+      origin: origin,
+      folderId: folderId,
+    );
     final current = state.value ?? const <Capture>[];
     state = AsyncData([capture, ...current]);
+    if (folderId != null) {
+      // The folder chip shows a count.
+      await ref.read(foldersProvider(FolderKind.capture).notifier).refresh();
+    }
     return capture;
   }
 

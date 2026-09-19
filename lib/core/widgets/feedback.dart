@@ -161,7 +161,20 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
+    // Rises into place once, on the emphasized-decelerate curve, so an empty
+    // screen arrives instead of being found.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Motion.slow,
+      curve: Motion.enter,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 16),
+          child: child,
+        ),
+      ),
+      child: Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Space.xl),
         child: Column(
@@ -195,6 +208,7 @@ class EmptyState extends StatelessWidget {
             if (action != null) ...[const SizedBox(height: Space.lg), action!],
           ],
         ),
+      ),
       ),
     );
   }

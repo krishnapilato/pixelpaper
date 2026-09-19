@@ -122,13 +122,21 @@ class _FolderChip extends ConsumerWidget {
 
         return Padding(
           padding: const EdgeInsets.only(right: Space.xs),
-          child: Material(
-            color: dashed ? Colors.transparent : background,
-            shape: StadiumBorder(
-              side: dashed
-                  ? BorderSide(color: scheme.outlineVariant)
-                  : BorderSide.none,
+          child: AnimatedContainer(
+            // Selection and drop highlights cross-fade instead of snapping.
+            duration: Motion.base,
+            curve: Motion.standard,
+            decoration: ShapeDecoration(
+              color: dashed ? Colors.transparent : background,
+              shape: StadiumBorder(
+                side: dashed
+                    ? BorderSide(color: scheme.outlineVariant)
+                    : BorderSide.none,
+              ),
             ),
+            child: Material(
+            type: MaterialType.transparency,
+            shape: const StadiumBorder(),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onTap,
@@ -160,10 +168,29 @@ class _FolderChip extends ConsumerWidget {
                     ),
                     if (count != null && count! > 0) ...[
                       const SizedBox(width: 6),
-                      Text(
-                        '$count',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: foreground.withValues(alpha: 0.75),
+                      // A photo filed into the folder ticks the count over
+                      // instead of swapping the digit.
+                      AnimatedSwitcher(
+                        duration: Motion.base,
+                        switchInCurve: Motion.enter,
+                        switchOutCurve: Motion.exit,
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.6),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                        child: Text(
+                          '$count',
+                          key: ValueKey(count),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: foreground.withValues(alpha: 0.75),
+                          ),
                         ),
                       ),
                     ],
@@ -171,6 +198,7 @@ class _FolderChip extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

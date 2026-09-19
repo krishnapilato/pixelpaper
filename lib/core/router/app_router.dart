@@ -1,8 +1,8 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/camera/presentation/camera_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';
 import '../../features/documents/application/documents_controller.dart';
 import '../../features/editor/presentation/album_editor_screen.dart';
@@ -21,7 +21,6 @@ abstract final class Routes {
   static const String splash = '/';
   static const String documents = '/documenti';
   static const String gallery = '/galleria';
-  static const String camera = '/fotocamera';
   static const String settings = '/impostazioni';
   static const String tutorial = '/guida';
   static const String trash = '/cestino';
@@ -52,12 +51,29 @@ GoRouter createRouter() {
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: SplashScreen()),
       ),
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            HomeShell(navigationShell: navigationShell),
+      // The two tabs are pages of a pager (see HomeShell), so the shell
+      // supplies its own container instead of go_router's IndexedStack. It
+      // arrives from the splash with a fade through: a top-level change.
+      StatefulShellRoute(
+        pageBuilder: (context, state, navigationShell) =>
+            CustomTransitionPage<void>(
+          key: state.pageKey,
+          transitionDuration: Motion.slow,
+          child: navigationShell,
+          transitionsBuilder: (context, animation, secondary, child) =>
+              FadeThroughTransition(
+            animation: animation,
+            secondaryAnimation: secondary,
+            fillColor: Theme.of(context).colorScheme.surface,
+            child: child,
+          ),
+        ),
+        navigatorContainerBuilder: (context, navigationShell, children) =>
+            HomeShell(navigationShell: navigationShell, children: children),
         branches: [
           StatefulShellBranch(
             navigatorKey: _documentsNavigatorKey,
+            observers: [ShellModalObserver()],
             routes: [
               GoRoute(
                 path: Routes.documents,
@@ -69,6 +85,7 @@ GoRouter createRouter() {
           ),
           StatefulShellBranch(
             navigatorKey: _galleryNavigatorKey,
+            observers: [ShellModalObserver()],
             routes: [
               GoRoute(
                 path: Routes.gallery,
@@ -100,12 +117,6 @@ GoRouter createRouter() {
         ],
       ),
       GoRoute(
-        path: Routes.camera,
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _slideUp(state, const CameraScreen()),
-      ),
-      GoRoute(
         path: Routes.settings,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
@@ -129,49 +140,44 @@ GoRouter createRouter() {
 int _idOf(GoRouterState state) =>
     int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
 
-/// Peer-to-peer navigation (archive → document): fade with a hair of scale, so
-/// the eye follows the Hero'd page thumbnail rather than a sliding panel.
+/// Forward navigation (archive → document → editor): Material's shared axis
+/// on Z. The page grows in from slightly behind while the one it replaces
+/// recedes, and the Hero'd thumbnail flies on top, so the eye follows the
+/// document rather than a sliding panel.
 CustomTransitionPage<void> _fadeThrough(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    transitionDuration: Motion.base,
-    reverseTransitionDuration: Motion.quick,
+    transitionDuration: Motion.transition,
+    reverseTransitionDuration: Motion.transition,
     child: child,
-    transitionsBuilder: (context, animation, secondary, child) {
-      final curved = CurvedAnimation(parent: animation, curve: Motion.enter);
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    transitionsBuilder: (context, animation, secondary, child) =>
+        SharedAxisTransition(
+      animation: animation,
+      secondaryAnimation: secondary,
+      transitionType: SharedAxisTransitionType.scaled,
+      fillColor: Theme.of(context).colorScheme.surface,
+      child: child,
+    ),
   );
 }
 
-/// Temporary surfaces (camera, settings, guide) rise from the bottom: the
-/// gesture to dismiss them is "push it back down", which matches the motion.
+/// Temporary surfaces (settings, guide, bin) rise from below on Material's
+/// vertical shared axis: the gesture to dismiss them is "push it back down",
+/// which matches the motion.
 CustomTransitionPage<void> _slideUp(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    transitionDuration: Motion.base,
-    reverseTransitionDuration: Motion.quick,
+    transitionDuration: Motion.transition,
+    reverseTransitionDuration: Motion.transition,
     child: child,
-    transitionsBuilder: (context, animation, secondary, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Motion.emphasized,
-        reverseCurve: Motion.exit,
-      );
-      return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.06),
-          end: Offset.zero,
-        ).animate(curved),
-        child: FadeTransition(opacity: curved, child: child),
-      );
-    },
+    transitionsBuilder: (context, animation, secondary, child) =>
+        SharedAxisTransition(
+      animation: animation,
+      secondaryAnimation: secondary,
+      transitionType: SharedAxisTransitionType.vertical,
+      fillColor: Theme.of(context).colorScheme.surface,
+      child: child,
+    ),
   );
 }
 

@@ -7,6 +7,7 @@ import 'core/l10n/strings.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
+import 'features/gallery/application/capture_flow.dart';
 
 /// The router outlives every rebuild of the app widget.
 final routerProvider = Provider<GoRouter>((ref) {
@@ -31,6 +32,10 @@ class _PixelPaperAppState extends ConsumerState<PixelPaperApp> {
       ref.read(storageServiceProvider).prunePreviewCache();
       // Anything sitting in the bin past its 30 days goes now, files included.
       ref.read(libraryRepositoryProvider).purgeExpired();
+      // Photos picked while Android had closed the app are not lost; then
+      // what the picker and the camera left in the cache goes.
+      CaptureFlow.recoverLostPhotos(ref)
+          .whenComplete(CaptureFlow.clearLeftovers);
     });
   }
 

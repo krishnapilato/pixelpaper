@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/widgets/motion.dart';
 import '../../../../data/models/document_page.dart';
 import '../../../../data/models/scanned_document.dart';
 
@@ -57,6 +58,7 @@ class AlbumPager extends StatelessWidget {
                 cacheWidth: decodeWidth,
                 filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
+                frameBuilder: fadeInFrame,
                 errorBuilder: (context, error, stack) => AspectRatio(
                   aspectRatio: 0.707,
                   child: Center(

@@ -15,6 +15,7 @@ import '../../../core/widgets/image_editor_config.dart';
 import '../../../data/models/document_page.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
+import '../../camera/presentation/camera_screen.dart';
 import '../../documents/application/documents_controller.dart';
 
 /// The editor for an album.
@@ -339,8 +340,10 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             onTap: () async {
               Navigator.pop(context);
               // Full resolution, like every other page: a page added later is
-              // an archive page too.
-              await append(await picker.pickImage(source: ImageSource.camera));
+              // an archive page too. The app's own camera, in single-page mode:
+              // the shot closes it and lands here.
+              final shot = await CameraScreen.takePage(context);
+              await append(shot == null ? null : XFile(shot.path));
             },
           ),
           SheetAction(

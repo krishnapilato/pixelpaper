@@ -10,6 +10,7 @@ import '../../../core/widgets/text_prompt.dart';
 import '../../../data/providers.dart';
 import '../../../data/services/scanner_service.dart';
 import '../../documents/application/documents_controller.dart';
+import '../../gallery/application/capture_flow.dart';
 
 /// Module A end to end: launch Google's scanner, name the result, store it.
 ///
@@ -31,7 +32,7 @@ abstract final class ScanFlow {
           // Backing out is a normal outcome, not an error worth a banner.
           return;
         case ScanFailure.unavailable:
-          await _showUnavailable(context, strings);
+          await _showUnavailable(context, ref, strings);
         case ScanFailure.failed:
           showSnack(context, strings('scan_failed'),
               icon: Icons.error_outline_rounded);
@@ -82,9 +83,10 @@ abstract final class ScanFlow {
 
   static Future<void> _showUnavailable(
     BuildContext context,
+    WidgetRef ref,
     Strings strings,
   ) async {
-    await showDialog<void>(
+    final useCamera = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.document_scanner_outlined),
@@ -92,18 +94,20 @@ abstract final class ScanFlow {
         content: Text(strings('scan_unavailable_body')),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text(strings('common_close')),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ctx.push(Routes.camera);
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text(strings('camera_title')),
           ),
         ],
       ),
     );
+    if (useCamera != true || !context.mounted) return;
+    // Photos belong to the Galleria: go there first, so they are on screen
+    // when the camera closes.
+    context.go(Routes.gallery);
+    await CaptureFlow.openCamera(context);
   }
 }
