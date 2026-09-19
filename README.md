@@ -21,19 +21,19 @@ The interface is **Italian only** — a product decision, not an oversight; see
   <tr>
     <td align="center" width="25%">
       <img src="web/screenshots/01-avvio.jpg" width="190" alt="Launch screen"><br>
-      <sub><b>Launch</b><br>The beam writes the name</sub>
+      <sub><b>Launch</b><br>The icon is scanned, the beam writes the name</sub>
     </td>
     <td align="center" width="25%">
-      <img src="web/screenshots/02-archivio.jpg" width="190" alt="PDF archive"><br>
+      <img src="web/screenshots/02-archivio.jpg" width="190" alt="Document archive"><br>
       <sub><b>Archive</b><br>Pages, size, date, folders</sub>
     </td>
     <td align="center" width="25%">
-      <img src="web/screenshots/03-nome-pdf.jpg" width="190" alt="Naming the PDF"><br>
+      <img src="web/screenshots/03-nome-pdf.jpg" width="190" alt="Naming the document"><br>
       <sub><b>Naming</b><br>Asked after the scan</sub>
     </td>
     <td align="center" width="25%">
       <img src="web/screenshots/04-visualizzatore.jpg" width="190" alt="Document viewer"><br>
-      <sub><b>Viewer</b><br>One page at a time</sub>
+      <sub><b>Viewer</b><br>Pages scroll vertically</sub>
     </td>
   </tr>
   <tr>
@@ -51,12 +51,12 @@ The interface is **Italian only** — a product decision, not an oversight; see
     </td>
     <td align="center">
       <img src="web/screenshots/08-impostazioni.jpg" width="190" alt="Settings"><br>
-      <sub><b>Settings</b><br>Storage, bin, licences, author</sub>
+      <sub><b>Settings</b><br>Storage, bin, export folder, licences</sub>
     </td>
   </tr>
 </table>
 
-<sub>Screenshots taken on an Android 16 emulator, release build. The camera and
+<sub>Screenshots taken on an Android emulator, release build. The camera and
 scanner ones show the emulator's virtual scene.</sub>
 
 ---
@@ -65,16 +65,19 @@ scanner ones show the emulator's virtual scene.</sub>
 
 | Module | What you get |
 | :--- | :--- |
-| **Smart scanner** | Google's ML Kit flow: edge detection, perspective correction, shadow cleanup, several pages in a row. The PDF comes out ready — you only pick the name. |
-| **Camera and gallery** | Manual shots at full sensor resolution (`ResolutionPreset.max`), no automatic cropping, for old texts or fragile pages. Import from the system photo picker. Multi-select → share or build a PDF. |
-| **Full-screen photo** | Zoom, swipe between shots, and four actions: details, text extraction (ML Kit, with copy and share), image editing and sharing. Nothing from the app covers the photo; swipe up or down to leave. |
-| **PDF archive** | List or grid with thumbnail, page count, size and date. Search, sorting, rename, share, print, details. |
-| **Viewer** | One page at a time, with zoom. |
-| **Page editor** | Horizontal paging with the whole page on screen, a filmstrip above the dock for drag-and-drop reordering, and four actions: add, **edit the page as an image** (crop, rotate, draw, annotate), duplicate, delete. The PDF is recompiled in an isolate. |
+| **Two tabs, one button** | Archivio and Galleria side by side: tap the bar or swipe between them. One action button follows the finger — scan in the Archivio, camera in the Galleria, and in the Galleria a **2-second hold imports** photos already on the phone. |
+| **Smart scanner** | Google's ML Kit flow: edge detection, perspective correction, shadow cleanup, several pages in a row. You only pick the name. |
+| **Manual camera** | Built on [`manual_camera_pro`](packages/manual_camera_pro). Automatic by default; exposure compensation, ISO, shutter speed, white balance and focus on stepped dials, each offering only what the lens reports. Pinch or 1×/2×/5× zoom, self-timer, torch, grid, front/back lens. The camera **stays open** between shots: every photo is confirmed on the viewfinder and lands in the folder you had open. |
+| **Gallery** | Full-resolution photos, two to four columns. Select them **in the order you want the pages**: each tile shows its number, and "Crea album" copies them into a document in exactly that order. |
+| **Full-screen photo** | Zoom, swipe between shots, and four actions: details, text extraction (ML Kit, with copy and share), image editing and sharing. Swipe up or down to leave. |
+| **Archive** | List or grid with thumbnail, page count, size and date. Search, sorting, rename, share, **export**, print, details. A document made from photos is an **album** of page images; the PDF is built when you share, print or export it. |
+| **Export** | "Esporta" opens the system save dialog, or writes straight into a folder you chose once in Impostazioni. |
+| **Viewer** | Pages scroll vertically, one per screen, each with its own zoom. |
+| **Page editor** | The whole page on screen, a filmstrip above the dock for drag-and-drop reordering, and four actions: add (from the app's camera or the phone's photos; PDFs also take a blank page), edit the page as an image, duplicate, delete. |
 | **Folders** | One level of folders for documents and for images, moved by dragging or from the "Sposta in" (move to) menu. The folder rail stays pinned while you scroll. |
 | **Bin** | Deletion is reversible for 30 days, with immediate undo; deleting for good removes the files from storage. |
 | **Guide and licences** | A seven-step in-app tutorial with code-drawn illustrations and three practical tips per step, plus the full list of technologies used with their open-source licences. |
-| **Launch** | A four-second opening screen where the scanner beam "writes" the app's name, while the archive and gallery load underneath. One tap skips it. |
+| **Launch** | A little over three seconds: the launcher mark is scanned and turns into pixels, the beam writes the name, and the finished mark rests on screen while the archive and gallery load underneath. One tap skips it. |
 
 ---
 
@@ -89,10 +92,42 @@ Every detail answers a concrete problem:
   in the code. The parts Flutter draws itself (text selection menu, licence
   page) and the image editor, which ships in English, are translated too: an
   English screen inside an all-Italian app is the crack you notice most.
-- **The PDF name is asked after the scan**, not before: until you have scanned,
+- **The name is asked after the scan**, not before: until you have scanned,
   you do not yet know what you are saving.
-- **One action button**, unlabelled, whose meaning follows the tab: Archive →
-  scan, Gallery → camera.
+- **One action button, two gestures.** Its meaning follows the tab: Archive →
+  scan, Gallery → camera. Importing is the occasional action, so it sits
+  behind a deliberate **2-second hold** in the Gallery: the button fills from
+  the bottom, ticks once at the halfway mark and opens the photo picker at the
+  end; letting go early does nothing and explains the gesture. The empty
+  Gallery spells both actions out, and screen readers get import as the
+  button's long-press action.
+- **Tabs are pages.** Archive and Gallery are peers, so moving between them is
+  a horizontal swipe as well as a tap on the bar, and the button's icon turns
+  from scan to camera with the finger. Swiping is off while items are
+  selected or dragged, so a selection can never be carried off screen.
+- **Selection order is page order.** Picking photos for an album numbers
+  them 1, 2, 3 on the tiles; the album copies them in that order. The grid's
+  order is how the photos were taken, not how the document should read.
+- **A document is its pages.** An album is a row and an ordered list of image
+  files: creating one is a file copy, reordering is a column of integers, and
+  reading shows the images at the size they are drawn. The PDF is built once,
+  on the way out — share, print, export — and thrown away after.
+- **The camera's dials are the lens's own.** Every stop on every dial comes from
+  what Camera2 reports for that lens — ISO range, exposure range, closest
+  focus, white balance presets, compensation steps. A dial the lens cannot
+  turn stays in its place, dimmed, and says why when tapped, so switching
+  lenses never makes the controls jump around.
+- **The camera stays open.** A roll of pages is shot without leaving the
+  viewfinder; each shot is confirmed on screen and filed into the folder that
+  was open. The confirmation sits at the top: the bottom belongs to the
+  shutter.
+- **Motion follows Material.** Container transform from the button to the
+  camera, shared axis for forward navigation, fade through between top-level
+  destinations, emphasized easing and the M3 duration tokens everywhere.
+  Lists cascade in when they appear or change folder, new items enter on their
+  own, images fade in when decoded, and the splash starts exactly where
+  Android's system splash leaves off. With Android's animations turned off the
+  splash is skipped.
 - **Long press = select and drag.** Lift without moving and you are simply in
   selection mode; keep moving and you carry the whole selection. One gesture,
   two outcomes, as in Files and Photos.
@@ -103,57 +138,48 @@ Every detail answers a concrete problem:
 - **Folders are flat.** A scan archive needs "Fatture", "Università",
   "Ricette" — a tree would add breadcrumbs and navigation without adding value.
   Deleting a folder does not delete the files.
-- **The viewer turns one page at a time**: a scan is a set of discrete pages, so
-  the page number is exact and every page keeps its own zoom.
-- **The editor shows one whole page at a time** and you change it by swiping
-  horizontally, like the viewer: you are working on the content, not on a grid
-  of postage stamps. The strip above the dock is the map of the document — tap
-  a thumbnail to jump to it, hold it to drag it elsewhere.
-- **"Modifica" turns the page into an image.** A PDF cannot be rewritten as
-  text, so the page is rasterised at ~190 dpi, opened in the image editor and
-  put back in its slot: you can crop, rotate, draw on and redact a single page
-  without touching the others. The price is that the page becomes an image
-  (bigger file, text no longer selectable), which is why it is an explicit
-  action and never something that happens on its own.
+- **The viewer scrolls down, one page per screen**: a scan is a set of
+  discrete pages, so the page number is exact and every page keeps its own
+  zoom.
 - **The folder rail stays pinned.** A filter that disappears as soon as you
   scroll is a filter you forget you turned on; it is also the drop target, so
   dragging no longer means scrolling back to the top.
 - **A vertical swipe closes the full-screen photo.** The photo follows the
-  finger and shrinks: the gesture shows where it is going before it commits, and
-  if you stop halfway it springs back. While zoomed the gesture is off, because
-  there dragging means panning the image.
+  finger and shrinks: the gesture shows where it is going before it commits,
+  and if you stop halfway it springs back.
 - **"Svuota la cache" lights up by itself.** Above 20 MB the row turns tonal and
   explains that space can be freed: it asks for attention only when it has
   something to give back.
 - **The icon is the app's name.** An A4 sheet whose corner comes away as pixels:
-  paper turning into an image. It is a vector (adaptive and monochrome icon)
-  and, from Android 12, also the system launch screen, on a dark background —
-  no white flash before an all-dark app.
-- **One gesture, two outcomes, never two recognisers.** Tiles do not handle the
-  long press themselves: the `LongPressDraggable` wrapping them does. Two
-  recognisers on the same pointer fight over the arena and the innermost one
-  wins — that is exactly how drag-and-drop stops working.
+  paper turning into an image. It is a vector (adaptive and monochrome icon),
+  the system launch screen from Android 12, and the first frame of the
+  in-app splash.
 
 ---
 
 ## Performance and memory
 
-- **No unbounded rasterising.** DPI is computed from the page's real geometry
-  (`PdfService.dpiFor`): an outsized page can no longer allocate hundreds of MB
-  and take the process down.
-- **Lazy rendering, cached on disk.** Pages are drawn one at a time and cached
-  under a key that includes the file's modification stamp: a document is never
-  rendered twice. The cache caps itself at 64 MB.
+- **Rebuilds are scoped.** A tap in a selection repaints that tile and the
+  contextual bar, not the grid: each tile watches only its own slice of the
+  selection (`select`), and the drag wrapper keeps the drag payload current
+  without rebuilding the tile inside it.
 - **Images decoded at the size they are drawn** (`cacheWidth`), with the image
-  cache capped at 80 MB: hundreds of 12 MP photos stay inside the heap.
-- **Heavy work off the UI thread**: composing and rewriting PDFs run in an
-  isolate through `compute`.
-- **No memory leaks**: every controller, `PageController`,
-  `TextEditingController` and camera session is closed; the camera is also
-  released when the app goes to the background.
-- **Minimum permissions**: `CAMERA` only. `RECORD_AUDIO` and
-  `READ_EXTERNAL_STORAGE`, which would arrive from plugins, are stripped from
-  the manifest with `tools:node="remove"`.
+  cache capped at 80 MB: hundreds of 12 MP photos stay inside the heap. Album
+  pages are shown as images, never rasterised back from a PDF.
+- **No PDF until it is needed.** Albums are file copies; the PDF is composed in
+  an isolate only when it leaves the app.
+- **The camera holds the sensor only while it is on screen**: it is released
+  when the app goes to the background and reopened on return, and native
+  open/close calls are serialised so a quick lens switch cannot leak a session.
+  Zoom gestures send the latest value to the camera, never a queue.
+- **Lazy rendering for PDFs** through PDFium (`pdfrx`), with a bounded DPI: an
+  outsized page cannot allocate hundreds of MB.
+- **Housekeeping at start-up**: expired bin items, the preview cache above its
+  budget, and whatever the photo picker and the camera left in the cache.
+- **Minimum permissions**: `CAMERA` only. `RECORD_AUDIO`,
+  `READ_EXTERNAL_STORAGE`, `INTERNET` and `ACCESS_NETWORK_STATE`, which would
+  arrive from plugins, are stripped from the manifest with
+  `tools:node="remove"`.
 
 ---
 
@@ -163,25 +189,41 @@ Clean Architecture, feature-first:
 
 ```text
 lib/
-├── main.dart                 # bootstrap: edge-to-edge, locale, image cache
-├── app.dart                  # MaterialApp.router + theme
-├── core/                     # theme, spacing, router, strings, shared widgets
+├── main.dart                 # bootstrap: edge-to-edge, locale, image cache, error guards
+├── app.dart                  # MaterialApp.router + theme + start-up housekeeping
+├── core/                     # theme and motion tokens, router, strings, shared widgets
 ├── data/
-│   ├── models/               # ScannedDocument, Capture, Folder
-│   ├── local/                # sqflite: database and DAOs
-│   ├── services/             # ML Kit scanner, PDF, OCR, file system
-│   ├── repositories/         # documents, images, folders + bin
+│   ├── models/               # ScannedDocument, DocumentPage, Capture, Folder
+│   ├── local/                # sqflite: database (idempotent migrations) and DAOs
+│   ├── services/             # ML Kit scanner, PDF, OCR, file system, settings
+│   ├── repositories/         # documents and albums, images, folders + bin
 │   └── providers.dart        # composition root
 └── features/
     ├── shell/ documents/ gallery/ camera/ scanner/
     ├── viewer/ editor/ folders/ trash/
     └── settings/ tutorial/ splash/
+packages/
+└── manual_camera_pro/        # the camera plugin, vendored with patches
 ```
 
 Every feature has `application/` (Riverpod controllers) and `presentation/`
 (screens and widgets). The sqflite database is the source of truth for
 metadata, the file system is the source of truth for what actually exists:
 every read reconciles the two.
+
+### The camera plugin
+
+The camera is [`manual_camera_pro`](https://pub.dev/packages/manual_camera_pro),
+whose last release (0.1.0, May 2023) no longer builds with current Flutter,
+Gradle 9 or AGP 8+. `pubspec.yaml` depends on it as usual and overrides it with
+a local copy in `packages/manual_camera_pro`, patched to build (namespace,
+modern Gradle, no v1 embedding) and to work: the still capture now applies the
+manual settings (0.1.0 only applied them to the preview), `focusDistance: 0`
+really means autofocus, `dispose()` survives a failed `initialize()`, and the
+settings, exposure compensation and zoom can change on a running session.
+Every change is listed in
+[its CHANGELOG](packages/manual_camera_pro/CHANGELOG.md) and marked
+"PixelPaper patch" in the source.
 
 ---
 
@@ -190,12 +232,13 @@ every read reconciles the two.
 | Area | Packages |
 | :--- | :--- |
 | State | `flutter_riverpod` 3 (no code generation) |
-| Navigation | `go_router` 18 (every route declares its own transition) |
+| Navigation | `go_router` 18 (every route declares its own transition), `animations` (Material motion) |
 | Language | `flutter_localizations` (locale fixed to `it`) + `assets/lang.json` |
-| Database | `sqflite` (schema v2, with migration) |
-| Capture | `google_mlkit_document_scanner`, `camera`, `image_picker` |
-| PDF | `pdf`, `printing`, `syncfusion_flutter_pdf` |
+| Database | `sqflite` (schema v4, idempotent migrations) |
+| Capture | `google_mlkit_document_scanner`, `manual_camera_pro` (vendored), `permission_handler`, `image_picker` |
+| PDF | `pdf`, `printing`, `syncfusion_flutter_pdf`, `pdfrx` |
 | Images | `pro_image_editor`, `google_mlkit_text_recognition` |
+| Export | `flutter_file_dialog`, `saf_util`, `saf_stream` |
 | Misc | `share_plus`, `url_launcher`, `intl`, `crypto`, `package_info_plus` |
 
 ---
@@ -204,25 +247,26 @@ every read reconciles the two.
 
 | | Version |
 | :--- | :--- |
-| Flutter / Dart | 3.47.2 / 3.13.2 |
+| Flutter / Dart | 3.47.5 / 3.13.4 |
 | Gradle | 9.1.0 |
 | Android Gradle Plugin | 9.0.1 |
 | Kotlin | 2.3.20 (AGP's built-in Kotlin) |
 | JDK | 17 (`sourceCompatibility`/`jvmTarget`), built on JDK 21 |
 | compileSdk / targetSdk / minSdk | 36 / 36 / 24 |
 
-`compileSdk 36` is required by `google_mlkit_document_scanner` 0.6.x. The
-scanner only works on Android devices with Google Play services: without them
-the app says so and offers the manual camera instead.
+`compileSdk 36` is required by `google_mlkit_document_scanner` 0.6.x; it is also
+why `permission_handler` stays on 12.x (13.x needs 37). The scanner only works
+on Android devices with Google Play services: without them the app says so and
+offers the manual camera instead.
 
 ```bash
 flutter pub get
 flutter run                 # debug on the connected device
-flutter test                # page order after a save
+flutter test                # camera scales and labels, the action button, page order
 flutter build apk --release # without key.properties it signs with the debug key
 ```
 
-`flutter analyze` reports no issues and the Gradle build emits no warnings.
+`flutter analyze` reports no issues.
 
 ### Two things a release build can break silently
 
@@ -236,12 +280,12 @@ debug — test the release build before every upload.
   `com.google.mlkit.**`, `com.google.android.gms.**` and the plugins' bridge
   classes, plus the annotation and signature attributes those libraries read
   back.
-- **`uses-feature` and the manifest merger.** `camera_android_camerax` declares
-  `android.hardware.camera.any` as `required="true"`, and the merger ORs that
-  value with ours, so the app shipped as "camera required" and Play dropped
-  every camera-less device. The manifest now declares camera, camera.any and
-  camera.autofocus as not required with `tools:replace="android:required"`.
-  Check the merged result, not the source:
+- **`uses-feature` and the manifest merger.** The merger ORs `required` across
+  every library that declares a feature, so a single plugin declaring
+  `android.hardware.camera.any` as required ships the app as "camera
+  required" and Play drops every camera-less device. The manifest declares
+  camera, camera.any and camera.autofocus as not required with
+  `tools:replace="android:required"`. Check the merged result, not the source:
 
   ```bash
   grep -A2 uses-feature build/app/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
@@ -310,7 +354,9 @@ The user guide at
 [krishnapilato.github.io/pixelpaper](https://krishnapilato.github.io/pixelpaper/)
 lives in `web/`: `index.html`, `styles.css`, `favicon.svg`. Plain HTML and CSS,
 no framework, no build step — which is the point: a page you can fix in thirty
-seconds is a page that stays accurate.
+seconds is a page that stays accurate. The stylesheet runs on one spacing
+scale (multiples of 4 px) and one reading column, so text, tables and boxes
+always share the same right edge.
 
 Editing it is a commit. `.github/workflows/deploy.yml` watches `web/**` on
 `main` and publishes the folder as it is, so a change is live about half a
@@ -319,8 +365,8 @@ without touching anything else in the repository. `workflow_dispatch` re-runs
 the deploy by hand when you need it.
 
 ```bash
-# preview before pushing: open the file, or serve the folder
-start web/index.html
+# preview before pushing, exactly as Pages serves it
+node tool/serve-web.js      # then open http://localhost:4173
 ```
 
 Two things worth keeping true: paths inside the page stay **relative**
