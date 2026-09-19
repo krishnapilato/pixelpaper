@@ -76,7 +76,7 @@ class AppDatabase {
   /// container should never be a way to lose documents by accident.
   Future<void> _upgradeToV2(Database db) async {
     await db.execute('''
-      CREATE TABLE folders (
+      CREATE TABLE IF NOT EXISTS folders (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         name       TEXT    NOT NULL,
         kind       TEXT    NOT NULL,
@@ -84,22 +84,25 @@ class AppDatabase {
       )
     ''');
     await db.execute(
-      'CREATE UNIQUE INDEX idx_folders_name_kind ON folders(name, kind)',
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_folders_name_kind '
+      'ON folders(name, kind)',
     );
 
     for (final table in ['documents', 'captures']) {
-      await db.execute(
-        'ALTER TABLE $table ADD COLUMN folder_id INTEGER '
-        'REFERENCES folders(id) ON DELETE SET NULL',
+      await _addColumn(
+        db,
+        table,
+        'folder_id',
+        'INTEGER REFERENCES folders(id) ON DELETE SET NULL',
       );
       // Soft delete: the row is hidden everywhere but the bin, and the file
       // stays on disk until the user empties it or 30 days pass.
-      await db.execute('ALTER TABLE $table ADD COLUMN deleted_at INTEGER');
+      await _addColumn(db, table, 'deleted_at', 'INTEGER');
       await db.execute(
-        'CREATE INDEX idx_${table}_deleted ON $table(deleted_at)',
+        'CREATE INDEX IF NOT EXISTS idx_${table}_deleted ON $table(deleted_at)',
       );
       await db.execute(
-        'CREATE INDEX idx_${table}_folder ON $table(folder_id)',
+        'CREATE INDEX IF NOT EXISTS idx_${table}_folder ON $table(folder_id)',
       );
     }
   }
@@ -120,11 +123,9 @@ class AppDatabase {
   /// Page order lives in `position`, never in the file name: renaming a dozen
   /// files on every drag would be the same mistake this table exists to undo.
   Future<void> _upgradeToV3(Database db) async {
-    await db.execute(
-      "ALTER TABLE documents ADD COLUMN kind TEXT NOT NULL DEFAULT 'pdf'",
-    );
+    await _addColumn(db, 'documents', 'kind', "TEXT NOT NULL DEFAULT 'pdf'");
     await db.execute('''
-      CREATE TABLE document_pages (
+      CREATE TABLE IF NOT EXISTS document_pages (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL
                     REFERENCES documents(id) ON DELETE CASCADE,
@@ -134,7 +135,8 @@ class AppDatabase {
       )
     ''');
     await db.execute(
-      'CREATE INDEX idx_pages_document ON document_pages(document_id, position)',
+      'CREATE INDEX IF NOT EXISTS idx_pages_document '
+      'ON document_pages(document_id, position)',
     );
   }
 
@@ -150,10 +152,29 @@ class AppDatabase {
   /// deleting it from the gallery costs nothing. A plain path, not a foreign
   /// key: the capture may be gone, and the page must not care.
   Future<void> _upgradeToV4(Database db) async {
-    await db.execute('ALTER TABLE document_pages ADD COLUMN source_path TEXT');
+    await _addColumn(db, 'document_pages', 'source_path', 'TEXT');
     await db.execute(
-      'CREATE INDEX idx_pages_source ON document_pages(source_path)',
+      'CREATE INDEX IF NOT EXISTS idx_pages_source '
+      'ON document_pages(source_path)',
     );
+  }
+
+  /// Adds [column] unless [table] already has it.
+  ///
+  /// Every upgrade step must survive a database that already went through
+  /// it. An older build installed over a newer one opens the file with a
+  /// lower version number and leaves the newer columns in place; on the next
+  /// upgrade a plain ALTER TABLE then fails on "duplicate column" and the
+  /// archive no longer opens at all.
+  Future<void> _addColumn(
+    Database db,
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    if (columns.any((row) => row['name'] == column)) return;
+    await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
   }
 
   Future<void> close() async {
