@@ -80,7 +80,7 @@
   <div class="shots-track" id="shots-track" tabindex="0" aria-label="Galleria delle schermate, scorri o usa le frecce">
     <figure>
       <img src="screenshots/01-avvio.jpg" alt="Schermata di avvio con il nome PixelPaper" width="420" height="935" loading="lazy" decoding="async">
-      <figcaption><strong>Avvio</strong>Il raggio scrive il nome mentre archivio e galleria si caricano.</figcaption>
+      <figcaption><strong>Avvio</strong>Il foglio dell'icona viene scansionato e diventa pixel, poi il raggio scrive il nome.</figcaption>
     </figure>
     <figure>
       <img src="screenshots/02-archivio.jpg" alt="Archivio con tre documenti PDF" width="420" height="935" loading="lazy" decoding="async">
@@ -92,7 +92,7 @@
     </figure>
     <figure>
       <img src="screenshots/04-visualizzatore.jpg" alt="Visualizzatore con una pagina del documento" width="420" height="935" loading="lazy" decoding="async">
-      <figcaption><strong>Visualizzatore</strong>Una pagina alla volta, con zoom. Modifica, condividi, stampa, elimina.</figcaption>
+      <figcaption><strong>Visualizzatore</strong>Le pagine scorrono in verticale, ognuna con il suo zoom. Modifica, condividi, stampa, elimina.</figcaption>
     </figure>
     <figure>
       <img src="screenshots/05-editor.jpg" alt="Editor delle pagine con la striscia delle miniature" width="420" height="935" loading="lazy" decoding="async">
@@ -100,7 +100,7 @@
     </figure>
     <figure>
       <img src="screenshots/06-galleria.jpg" alt="Galleria con quattro scatti" width="420" height="935" loading="lazy" decoding="async">
-      <figcaption><strong>Galleria</strong>Scatti a piena risoluzione, da due a quattro colonne.</figcaption>
+      <figcaption><strong>Galleria</strong>Scatti a piena risoluzione. Un tocco sul pulsante scatta, due secondi premuto importa.</figcaption>
     </figure>
     <figure>
       <img src="screenshots/07-schermo-intero.jpg" alt="Foto a schermo intero con le quattro azioni" width="420" height="935" loading="lazy" decoding="async">
@@ -147,6 +147,11 @@
         conserva le foto grezze. Sono due materiali diversi, non due filtri
         della stessa lista.
       </p>
+      <p>
+        Si passa dall'una all'altra toccando la barra in basso oppure
+        <strong>scorrendo col dito</strong> verso destra o sinistra, come tra le
+        schede di qualsiasi app Android.
+      </p>
 
       <div class="screen">
         <div class="screen-bar"><span class="dot"></span> Archivio</div>
@@ -162,16 +167,17 @@
       </div>
 
       <p>
-        Il pulsante rotondo in basso a destra è uno solo e non ha etichetta,
-        perché il suo significato lo dice la scheda in cui ti trovi:
+        Il pulsante in basso a destra è uno solo e non ha etichetta, perché il
+        suo significato lo dice la scheda in cui ti trovi. Mentre scorri da una
+        scheda all'altra, la sua icona cambia seguendo il dito:
       </p>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Scheda</th><th>Il pulsante fa</th></tr></thead>
         <tbody>
           <tr><td>Archivio</td><td>Apre lo <strong>scanner</strong>: rileva i bordi del foglio e produce un PDF.</td></tr>
-          <tr><td>Galleria</td><td>Apre la <strong>fotocamera manuale</strong>, da cui si può anche importare dalle foto del telefono.</td></tr>
+          <tr><td>Galleria</td><td>Un tocco apre la <strong>fotocamera manuale</strong>. Tenendolo premuto per <strong>2 secondi</strong> — il pulsante si riempie dal basso e vibra a ogni secondo — importi invece <strong>foto già sul telefono</strong>.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <div class="tip">
         <strong>Come scegliere.</strong> Se il risultato che vuoi è un documento
@@ -240,19 +246,61 @@
       <p class="eyebrow">Passo 2</p>
       <h2>Fotocamera manuale e importazione</h2>
       <p>
-        La fotocamera della Galleria scatta alla <strong>massima risoluzione del
-        sensore</strong>, senza ritaglio automatico e senza correzioni: il file
-        resta come l'ha visto la fotocamera. È la scelta giusta quando il
+        La fotocamera della Galleria scatta alla <strong>massima risoluzione
+        dell'obiettivo</strong>, senza ritaglio automatico e senza correzioni:
+        il file resta come l'ha visto il sensore. È la scelta giusta quando il
         dettaglio è il contenuto — carte antiche, testi latini, timbri,
         firme, pagine rovinate.
       </p>
 
       <ol class="howto">
-        <li>Vai nella scheda <strong>Galleria</strong> e tocca il pulsante in basso a destra.</li>
-        <li>Usa i comandi in alto per il <strong>flash</strong> e per passare tra fotocamera posteriore e frontale.</li>
-        <li>Scatta quante foto vuoi: ognuna entra subito nella Galleria.</li>
-        <li>Con l'icona della galleria, nella stessa schermata, <strong>importi foto già sul telefono</strong> senza passare dalla fotocamera.</li>
+        <li>Nella scheda <strong>Galleria</strong> tocca il pulsante in basso a destra: si allarga fino a diventare la fotocamera. La prima volta Android chiede il permesso.</li>
+        <li>Inquadra e scatta. La fotocamera <strong>resta aperta</strong>: in alto compare la conferma (<em>Foto salvata nella Galleria</em>, oppure <em>Salvata in «Fatture»</em> se avevi aperto una cartella), e in basso a sinistra la miniatura dell'ultimo scatto con il conteggio.</li>
+        <li>Continua a scattare quante pagine vuoi; quando hai finito, torna indietro o tocca la miniatura.</li>
       </ol>
+
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span> Fotocamera · autoscatto · torcia · griglia</div>
+        <div class="rail">
+          <span class="fchip sel">EV ±0</span>
+          <span class="fchip">ISO Auto</span>
+          <span class="fchip">Tempo Auto</span>
+          <span class="fchip">Bianco Auto</span>
+          <span class="fchip">Fuoco Auto</span>
+        </div>
+        <div class="dock">
+          <span>Ultimo scatto</span><span>Scatta</span><span>Cambia fotocamera</span>
+        </div>
+      </div>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Controllo</th><th>A cosa serve</th></tr></thead>
+        <tbody>
+          <tr><td>EV</td><td>Schiarisce o scurisce l'esposizione automatica, a passi di un terzo di stop, fino a ±2. Il primo rimedio a una pagina bianca troppo "bruciata".</td></tr>
+          <tr><td>ISO e Tempo</td><td>Esposizione del tutto manuale: ISO bassi per una pagina pulita, un tempo più lungo quando la luce è poca e il telefono è appoggiato.</td></tr>
+          <tr><td>Bianco</td><td>Bilanciamento del bianco: sole, nuvoloso, ombra, lampadina, neon. Toglie la dominante gialla di una lampada da tavolo.</td></tr>
+          <tr><td>Fuoco</td><td>Blocca la messa a fuoco a una distanza, da pochi centimetri all'infinito, quando l'automatico insegue il bordo sbagliato.</td></tr>
+          <tr><td>Zoom</td><td>Con due dita sull'anteprima, oppure con i pulsanti 1× · 2× · 5×.</td></tr>
+          <tr><td>Autoscatto</td><td>3 o 10 secondi, con il conto alla rovescia sull'anteprima: il telefono non si muove mentre scatta.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="tip">
+        <strong>Ogni ghiera mostra solo quello che l'obiettivo sa fare.</strong>
+        I valori offerti sono quelli dichiarati dalla fotocamera del tuo
+        telefono; se un obiettivo non ha un controllo, la sua ghiera resta al
+        suo posto ma attenuata, e toccandola l'app ti dice perché. Il pulsante
+        con la freccia circolare riporta tutto in automatico.
+      </div>
+
+      <h3>Importare foto già sul telefono</h3>
+      <p>
+        Nella Galleria <strong>tieni premuto il pulsante per 2 secondi</strong>:
+        il pulsante si riempie dal basso, a metà vibra una volta e alla fine si
+        apre il selettore foto di sistema. Se lo lasci prima, non succede
+        nulla e l'app ti ricorda il gesto. Con la Galleria vuota trovi anche
+        il pulsante <em>Importa dalle foto del telefono</em>.
+      </p>
 
       <div class="tip">
         <strong>L'importazione non chiede permessi di archiviazione.</strong>
@@ -262,8 +310,8 @@
 
       <p>
         Le foto importate o scattate vengono <strong>copiate</strong> nello
-        spazio privato dell'app. Cancellare l'originale dal telefono non tocca
-        la copia in PixelPaper, e viceversa.
+        spazio privato dell'app, nella cartella che avevi aperto. Cancellare
+        l'originale dal telefono non tocca la copia in PixelPaper, e viceversa.
       </p>
     </section>
 
@@ -280,16 +328,16 @@
       <ol class="howto">
         <li><strong>Tieni premuta</strong> una foto per entrare in selezione.</li>
         <li>Tocca le altre per aggiungerle. In alto compare il conteggio: <em>3 selezionate</em>.</li>
-        <li>Dalla barra in alto: <strong>condividi</strong> le immagini, oppure tocca l'icona <strong>PDF</strong> per unirle in un unico documento.</li>
+        <li>Dalla barra in alto: <strong>condividi</strong> le immagini, oppure tocca l'icona <strong>album</strong> per unirle in un unico documento.</li>
         <li>Il menu <span class="kbd">⋮</span> aggiunge <em>Seleziona tutto</em>, <em>Sposta in</em> (una cartella) ed <em>Elimina</em>.</li>
       </ol>
 
       <div class="tip">
-        <strong>L’ordine iniziale è quello della Galleria</strong>, cioè dalla
-        più recente alla più vecchia. Se l’ordine conta, crea comunque il
-        documento e sistemalo nell’<a href="#editor">editor delle pagine</a>:
-        trascini una miniatura, la molli dove serve e salvi. Non viene
-        ricostruito nessun file, quindi è immediato anche su dodici pagine.
+        <strong>L'ordine delle pagine è quello in cui tocchi le foto.</strong>
+        Su ogni foto selezionata compare un numero: è la pagina che avrà
+        nell'album. Deselezionandone una, i numeri si ricompattano da soli. Se
+        cambi idea dopo, l'<a href="#editor">editor delle pagine</a> riordina
+        trascinando le miniature, all'istante.
       </div>
     </section>
 
@@ -310,14 +358,14 @@
         </div>
       </div>
 
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Gesto</th><th>Effetto</th></tr></thead>
         <tbody>
           <tr><td>Scorri a destra o sinistra</td><td>Passa alla foto precedente o successiva.</td></tr>
           <tr><td>Pizzica</td><td>Ingrandisce fino a 6×; da ingrandita, trascinando ti sposti dentro l'immagine.</td></tr>
           <tr><td>Scorri in alto o in basso</td><td>Chiude e torna alla griglia. La foto segue il dito e rimpicciolisce: se ti fermi a metà, torna al suo posto.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <div class="grid-2">
         <div class="card">
@@ -357,7 +405,7 @@
         immagine viene inviata da nessuna parte, e funziona in aereo.
       </p>
 
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Cosa</th><th>Riconosciuto</th></tr></thead>
         <tbody>
           <tr><td>Alfabeto latino</td><td>Sì — italiano, inglese, francese, tedesco, e anche il <strong>latino</strong>. Il modello riconosce una <em>scrittura</em>, non una lingua: non rifiuta le parole che non conosce.</td></tr>
@@ -366,7 +414,7 @@
           <tr><td>Gotico, Fraktur, incunaboli</td><td>Risultati parziali: legature, s lunga (ſ) e abbreviazioni vengono lette male.</td></tr>
           <tr><td>Scrittura a mano</td><td>Molto incerta, soprattutto in corsivo.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <div class="tip">
         <strong>Per un risultato migliore.</strong> Fotografa la pagina dritta e
@@ -393,7 +441,7 @@
         (elenco o griglia), ordinamento e impostazioni.
       </p>
 
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Comando</th><th>A cosa serve</th></tr></thead>
         <tbody>
           <tr><td>Ricerca</td><td>Filtra per nome mentre scrivi.</td></tr>
@@ -401,7 +449,7 @@
           <tr><td>Ordinamento</td><td>Recenti, meno recenti, nome A-Z e Z-A, dimensione.</td></tr>
           <tr><td><span class="kbd">⋮</span> sulla scheda</td><td>Modifica, Rinomina, Condividi, Esporta, Stampa, Dettagli, Elimina.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <p>
         Toccando un documento si apre il <strong>visualizzatore</strong>: una
@@ -547,7 +595,7 @@
     <section class="step" id="impostazioni">
       <p class="eyebrow">Manutenzione</p>
       <h2>Impostazioni e spazio</h2>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Voce</th><th>Cosa mostra o fa</th></tr></thead>
         <tbody>
           <tr><td>Come si usa</td><td>La guida in sette passi dentro l'app.</td></tr>
@@ -559,7 +607,7 @@
           <tr><td>Licenze open source</td><td>Tutte le tecnologie usate e le rispettive licenze.</td></tr>
           <tr><td>Versione</td><td>La versione installata.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <div class="tip">
         <strong>Le foto già dentro un documento.</strong> Quando crei un
@@ -599,7 +647,7 @@
       </p>
 
       <ul class="plain">
-        <li><strong>Un solo permesso da concedere: la fotocamera</strong>, e serve solo per gli scatti manuali.</li>
+        <li><strong>Un solo permesso da concedere: la fotocamera</strong>, chiesto la prima volta che apri la fotocamera della Galleria e usato solo per gli scatti.</li>
         <li>Lo scanner ML Kit usa la fotocamera dei servizi Google Play: non chiede permessi all'app.</li>
         <li>L'importazione passa dal selettore foto di sistema: nessun accesso all'intera galleria.</li>
         <li>Il riconoscimento del testo gira sul dispositivo, senza rete.</li>
@@ -623,8 +671,8 @@
         <h3>Lo scanner dice che non è disponibile</h3>
         <p>
           Manca il supporto dei servizi Google Play su quel dispositivo. Usa la
-          fotocamera manuale dalla Galleria: scatti le pagine, le selezioni e
-          l’icona PDF le raccoglie in un documento.
+          fotocamera manuale dalla Galleria: scatti le pagine, le selezioni
+          nell'ordine giusto e l'icona album le raccoglie in un documento.
         </p>
       </div>
 

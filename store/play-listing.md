@@ -25,7 +25,7 @@ SCANSIONE
 Il rilevamento dei bordi di Google ML Kit trova il foglio, raddrizza la prospettiva e pulisce ombre e riflessi. Più pagine di seguito diventano un unico PDF, e il nome lo scegli alla fine, quando hai già visto cosa hai acquisito.
 
 FOTOCAMERA A PIENA RISOLUZIONE
-Per le pagine che il ritaglio automatico rovinerebbe — inchiostri sbiaditi, carte fragili, testi antichi — c'è la fotocamera manuale: nessun ritaglio, nessuna correzione, il file resta come l'ha visto il sensore. Puoi anche importare foto già sul telefono e unirle in un unico PDF.
+Per le pagine che il ritaglio automatico rovinerebbe — inchiostri sbiaditi, carte fragili, testi antichi — c'è la fotocamera manuale: nessun ritaglio, nessuna correzione, il file resta come l'ha visto il sensore. Esposizione, ISO, tempo, bilanciamento del bianco e messa a fuoco si regolano a mano quando l'automatico sbaglia, e la fotocamera resta aperta finché scatti. Puoi anche importare foto già sul telefono e unirle in un unico PDF.
 
 ARCHIVIO ED EDITOR
 Elenco o griglia con anteprima, numero di pagine, dimensione e data; ricerca, ordinamento, rinomina, condivisione e stampa. Nell'editor la pagina occupa tutto lo schermo e si cambia scorrendo in orizzontale: trascini una miniatura per riordinare le pagine, ne aggiungi da fotocamera o galleria, duplichi, elimini. Puoi aprire una singola pagina come immagine per ritagliarla, ruotarla, disegnarci sopra o oscurare un dato sensibile, senza toccare le altre.
