@@ -1,7 +1,7 @@
 name: pixel_paper
 description: "Scanner di documenti e archivio PDF per Android."
 publish_to: 'none'
-version: 3.2.0+5
+version: 3.2.0+10
 
 environment:
   sdk: ^3.13.0
