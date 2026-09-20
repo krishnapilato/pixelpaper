@@ -67,12 +67,12 @@ scanner ones show the emulator's virtual scene.</sub>
 | :--- | :--- |
 | **Two tabs, one button** | Archivio and Galleria side by side: tap the bar or swipe between them. One action button follows the finger — scan in the Archivio, camera in the Galleria, and in the Galleria a **2-second hold imports** photos already on the phone. |
 | **Smart scanner** | Google's ML Kit flow: edge detection, perspective correction, shadow cleanup, several pages in a row. You only pick the name. |
-| **Manual camera** | Built on [`manual_camera_pro`](packages/manual_camera_pro). Automatic by default; exposure compensation, ISO, shutter speed, white balance and focus on stepped dials, each offering only what the lens reports. Pinch or 1×/2×/5× zoom, self-timer, torch, grid, front/back lens. The camera **stays open** between shots: every photo is confirmed on the viewfinder and lands in the folder you had open. |
+| **Camera** | The official `camera` plugin, CameraX underneath, at the lens's full resolution with no crop and no corrections. Tap the viewfinder to focus and meter there, drag up or down to compensate the exposure in the steps the device takes, long-press to go back to automatic. Pinch or 1×/2×/5× zoom, flash, self-timer, thirds grid, front/back lens. The camera **stays open** between shots: every photo is confirmed on the viewfinder and lands in the folder you had open. |
 | **Gallery** | Full-resolution photos, two to four columns. Select them **in the order you want the pages**: each tile shows its number, and "Crea album" copies them into a document in exactly that order. |
 | **Full-screen photo** | Zoom, swipe between shots, and four actions: details, text extraction (ML Kit, with copy and share), image editing and sharing. Swipe up or down to leave. |
 | **Archive** | List or grid with thumbnail, page count, size and date. Search, sorting, rename, share, **export**, print, details. A document made from photos is an **album** of page images; the PDF is built when you share, print or export it. |
 | **Export** | "Esporta" opens the system save dialog, or writes straight into a folder you chose once in Impostazioni. |
-| **Viewer** | Pages scroll vertically, one per screen, each with its own zoom. |
+| **Viewer** | Pages scroll vertically, one per screen, each with its own zoom. A tap sends both bars off their edges, and the system's with them, so the page is read at the size it was scanned. |
 | **Page editor** | The whole page on screen, a filmstrip above the dock for drag-and-drop reordering, and four actions: add (from the app's camera or the phone's photos; PDFs also take a blank page), edit the page as an image, duplicate, delete. |
 | **Folders** | One level of folders for documents and for images, moved by dragging or from the "Sposta in" (move to) menu. The folder rail stays pinned while you scroll. |
 | **Bin** | Deletion is reversible for 30 days, with immediate undo; deleting for good removes the files from storage. |
@@ -112,11 +112,14 @@ Every detail answers a concrete problem:
   files: creating one is a file copy, reordering is a column of integers, and
   reading shows the images at the size they are drawn. The PDF is built once,
   on the way out — share, print, export — and thrown away after.
-- **The camera's dials are the lens's own.** Every stop on every dial comes from
-  what Camera2 reports for that lens — ISO range, exposure range, closest
-  focus, white balance presets, compensation steps. A dial the lens cannot
-  turn stays in its place, dimmed, and says why when tapped, so switching
-  lenses never makes the controls jump around.
+- **The camera only offers what the lens has.** When a lens opens, it is asked
+  what it can do — how far the zoom goes, how much exposure it can compensate
+  and in what steps, whether it can meter a point, whether it has a flash —
+  and only that is drawn. A control the phone does not have is absent, not
+  greyed out. Exposure is the one place where this needs care: compensation is
+  quantised, a drag arrives a pixel at a time, and the dial keeps the raw
+  position underneath the stepped one so small movements add up instead of
+  rounding back to nothing.
 - **The camera stays open.** A roll of pages is shot without leaving the
   viewfinder; each shot is confirmed on screen and filed into the folder that
   was open. The confirmation sits at the top: the bottom belongs to the
@@ -202,8 +205,6 @@ lib/
     ├── shell/ documents/ gallery/ camera/ scanner/
     ├── viewer/ editor/ folders/ trash/
     └── settings/ tutorial/ splash/
-packages/
-└── manual_camera_pro/        # the camera plugin, vendored with patches
 ```
 
 Every feature has `application/` (Riverpod controllers) and `presentation/`
@@ -211,19 +212,19 @@ Every feature has `application/` (Riverpod controllers) and `presentation/`
 metadata, the file system is the source of truth for what actually exists:
 every read reconciles the two.
 
-### The camera plugin
+### The camera
 
-The camera is [`manual_camera_pro`](https://pub.dev/packages/manual_camera_pro),
-whose last release (0.1.0, May 2023) no longer builds with current Flutter,
-Gradle 9 or AGP 8+. `pubspec.yaml` depends on it as usual and overrides it with
-a local copy in `packages/manual_camera_pro`, patched to build (namespace,
-modern Gradle, no v1 embedding) and to work: the still capture now applies the
-manual settings (0.1.0 only applied them to the preview), `focusDistance: 0`
-really means autofocus, `dispose()` survives a failed `initialize()`, and the
-settings, exposure compensation and zoom can change on a running session.
-Every change is listed in
-[its CHANGELOG](packages/manual_camera_pro/CHANGELOG.md) and marked
-"PixelPaper patch" in the source.
+The camera is the official [`camera`](https://pub.dev/packages/camera) plugin,
+which runs on CameraX on Android. A vendored Camera2 plugin lived here before,
+kept alive with local patches for manual ISO, shutter and white balance dials;
+most phones decline those controls outright — without `MANUAL_SENSOR` the back
+lens showed a row of dials that could not do anything — so the screen was
+rebuilt around what every device really has.
+
+`CameraCapabilities` asks the lens once, when it opens, and the screen draws
+only what came back. `ExposureDial` keeps the finger's position apart from the
+stepped value the camera takes, and the drag reports how far to move rather
+than where to land; both are covered by `test/camera_settings_test.dart`.
 
 ---
 
@@ -235,7 +236,7 @@ Every change is listed in
 | Navigation | `go_router` 18 (every route declares its own transition), `animations` (Material motion) |
 | Language | `flutter_localizations` (locale fixed to `it`) + `assets/lang.json` |
 | Database | `sqflite` (schema v4, idempotent migrations) |
-| Capture | `google_mlkit_document_scanner`, `manual_camera_pro` (vendored), `permission_handler`, `image_picker` |
+| Capture | `google_mlkit_document_scanner`, `camera` (CameraX), `permission_handler`, `image_picker` |
 | PDF | `pdf`, `printing`, `syncfusion_flutter_pdf`, `pdfrx` |
 | Images | `pro_image_editor`, `google_mlkit_text_recognition` |
 | Export | `flutter_file_dialog`, `saf_util`, `saf_stream` |

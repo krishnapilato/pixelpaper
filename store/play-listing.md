@@ -25,7 +25,7 @@ SCANSIONE
 Il rilevamento dei bordi di Google ML Kit trova il foglio, raddrizza la prospettiva e pulisce ombre e riflessi. Più pagine di seguito diventano un unico PDF, e il nome lo scegli alla fine, quando hai già visto cosa hai acquisito.
 
 FOTOCAMERA A PIENA RISOLUZIONE
-Per le pagine che il ritaglio automatico rovinerebbe — inchiostri sbiaditi, carte fragili, testi antichi — c'è la fotocamera manuale: nessun ritaglio, nessuna correzione, il file resta come l'ha visto il sensore. Esposizione, ISO, tempo, bilanciamento del bianco e messa a fuoco si regolano a mano quando l'automatico sbaglia, e la fotocamera resta aperta finché scatti. Puoi anche importare foto già sul telefono e unirle in un unico PDF.
+Per le pagine che il ritaglio automatico rovinerebbe — inchiostri sbiaditi, carte fragili, testi antichi — c'è la fotocamera della Galleria: nessun ritaglio, nessuna correzione, il file resta come l'ha visto il sensore. Un tocco sceglie dove mettere a fuoco e dove misurare la luce, un trascinamento schiarisce o scurisce quando l'automatico sbaglia, e la fotocamera resta aperta finché scatti. Puoi anche importare foto già sul telefono e unirle in un unico PDF.
 
 ARCHIVIO ED EDITOR
 Elenco o griglia con anteprima, numero di pagine, dimensione e data; ricerca, ordinamento, rinomina, condivisione e stampa. Nell'editor la pagina occupa tutto lo schermo e si cambia scorrendo in orizzontale: trascini una miniatura per riordinare le pagine, ne aggiungi da fotocamera o galleria, duplichi, elimini. Puoi aprire una singola pagina come immagine per ritagliarla, ruotarla, disegnarci sopra o oscurare un dato sensibile, senza toccare le altre.
@@ -37,12 +37,12 @@ CARTELLE E CESTINO
 Un livello di cartelle per i documenti e uno per le immagini: trascini un elemento su una cartella per spostarlo. Eliminare è reversibile — compare subito Annulla, e il cestino conserva tutto per 30 giorni prima di liberare lo spazio.
 
 PRIVACY
-L'unico permesso richiesto è la fotocamera, e serve solo per gli scatti manuali. Lo scanner automatico usa la fotocamera dei servizi Google Play e non chiede permessi all'app; l'importazione passa dal selettore foto di sistema, quindi scegli tu una per una le immagini da condividere. I documenti restano nello spazio privato dell'app: nessun'altra app li vede e niente viene caricato da nessuna parte. Disinstallando l'app, i file vengono rimossi con lei.
+L'unico permesso richiesto è la fotocamera, e serve solo per gli scatti della Galleria. Lo scanner automatico usa la fotocamera dei servizi Google Play e non chiede permessi all'app; l'importazione passa dal selettore foto di sistema, quindi scegli tu una per una le immagini da condividere. I documenti restano nello spazio privato dell'app: nessun'altra app li vede e niente viene caricato da nessuna parte. Disinstallando l'app, i file vengono rimossi con lei.
 
 NOTE
 • Interfaccia disponibile solo in italiano.
 • Richiede Android 7.0 o versioni successive.
-• Lo scanner automatico richiede i servizi Google Play; dove non sono presenti, resta la fotocamera manuale.
+• Lo scanner automatico richiede i servizi Google Play; dove non sono presenti, resta la fotocamera della Galleria.
 
 Guida completa: https://krishnapilato.github.io/pixelpaper/
 
