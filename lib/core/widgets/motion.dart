@@ -147,6 +147,54 @@ class _EntranceState extends State<Entrance>
   }
 }
 
+/// Puts a fixed set of children into one cascade: the sections of a settings
+/// page, the rows of a sheet, the actions of a bar. Collections whose items
+/// come and go want [EntranceGroup] with their own ids; this is for the ones
+/// that are simply there when the screen opens.
+///
+/// The result still needs an [EntranceGroup] above it, which is what decides
+/// whether the cascade plays at all.
+List<Widget> cascade(List<Widget> children) => [
+  for (var i = 0; i < children.length; i++)
+    Entrance(id: i, index: i, child: children[i]),
+];
+
+/// A number or a short label that is replaced rather than edited — "3 di 12",
+/// a count of selected items — swapped with a small upward slide so the eye
+/// catches that it moved.
+class Swapped extends StatelessWidget {
+  const Swapped({super.key, required this.value, required this.child});
+
+  /// What the child stands for; a new value plays the swap.
+  final Object value;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: Motion.quick,
+      switchInCurve: Motion.enter,
+      switchOutCurve: Motion.exit,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.4),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.centerLeft,
+        children: [...previous, ?current],
+      ),
+      child: KeyedSubtree(key: ValueKey(value), child: child),
+    );
+  }
+}
+
 /// `Image.frameBuilder` that fades a picture in once it is decoded, instead
 /// of letting it pop into an empty tile. Synchronous frames (already in the
 /// image cache) are shown as they are: there is nothing to wait for.
