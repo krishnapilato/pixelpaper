@@ -5,10 +5,10 @@
         La fotocamera e' opzionale: senza di essa restano archivio, galleria e
         importazione dalle foto gia' presenti.
 
-        tools:replace resta anche se manual_camera_pro non dichiara feature:
-        per uses-feature il merger fa un OR, e basta una libreria che la
-        dichiari con required="true" perche' il bundle finisca su Play come
-        "fotocamera richiesta" e centinaia di dispositivi spariscano dalla
+        tools:replace e' obbligatorio, non decorativo: camera_android_camerax
+        dichiara la stessa feature con required="true" e per uses-feature il
+        merger fa un OR, quindi senza questo il bundle finisce su Play come
+        "fotocamera richiesta" e centinaia di dispositivi spariscono dalla
         compatibilita'.
 
         Le tre feature sono elencate tutte perche' il permesso CAMERA, da solo,
@@ -33,7 +33,7 @@
         Lo scanner ML Kit usa la fotocamera dei servizi Google Play, quindi non
         richiede permessi. image_picker usa il Photo Picker di sistema: nessun
         permesso di lettura serve. La registrazione audio arriva dal manifest di
-        manual_camera_pro (che sa anche registrare video) e viene rimossa:
+        camera_android_camerax, che sa anche registrare video, e viene rimossa:
         l'app scatta solo foto e non registra audio.
     -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
