@@ -9,14 +9,14 @@
    bordo destro. */
 
 :root {
-  --surface: #111318;
-  --surface-1: #191c20;
-  --surface-2: #1e2126;
-  --surface-3: #282a2f;
-  --outline: #2f3238;
-  --outline-soft: #24272c;
-  --on-surface: #e2e2e9;
-  --on-surface-variant: #a9adb8;
+  --surface: #0a0b0e;
+  --surface-1: #101217;
+  --surface-2: #161a20;
+  --surface-3: #1e232b;
+  --outline: #272c34;
+  --outline-soft: #1b1f25;
+  --on-surface: #e7e9ef;
+  --on-surface-variant: #a0a6b3;
   --primary: #4c8dff;
   --primary-dim: #1b3358;
   --on-primary: #00315c;
@@ -35,7 +35,14 @@
 
   /* Distanza tra due blocchi del testo, e respiro di una sezione. */
   --block: 28px;
-  --section: var(--s8);
+  --section: var(--s9);
+
+  /* Il tempo e la curva di tutto quello che si muove: lento, deciso, senza
+     rimbalzi. Una curva sola tiene insieme pagina e app, che usa la stessa
+     famiglia di movimenti. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --mid: 620ms;
+  --slow: 900ms;
 
   --radius: 16px;
   --radius-sm: 10px;
@@ -53,11 +60,12 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--bar) + var(--s6))
 
 body {
   margin: 0;
+  overflow-x: clip;
   background: var(--surface);
   color: var(--on-surface);
   font-family: var(--font);
   font-size: 17px;
-  line-height: 1.65;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -71,8 +79,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-radius: 6px;
 }
 
-h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
-h2 { font-size: clamp(1.6rem, 3.2vw, 2.05rem); }
+h1, h2, h3 { line-height: 1.16; letter-spacing: -0.028em; margin: 0; text-wrap: balance; }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.25rem); }
 h3 { font-size: 1.12rem; }
 p { margin: 0 0 var(--s4); text-wrap: pretty; }
 
@@ -82,9 +90,9 @@ header.bar {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(17, 19, 24, 0.86);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(10, 11, 14, 0.66);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border-bottom: 1px solid var(--outline);
 }
 
@@ -138,10 +146,23 @@ header.bar {
 }
 
 .hero .motto {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
   color: var(--primary);
-  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
-  font-weight: 600;
-  margin-bottom: var(--s5);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin: 0 0 var(--s4);
+}
+.hero .motto::after {
+  content: "";
+  flex: 1;
+  max-width: 160px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--primary), transparent);
+  opacity: 0.55;
 }
 
 .hero p.lead {
@@ -153,15 +174,28 @@ header.bar {
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s5); }
 .chip {
-  border: 1px solid var(--outline);
-  background: var(--surface-1);
+  border: 1px solid var(--outline-soft);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--on-surface-variant);
   border-radius: 999px;
-  padding: var(--s1) 14px;
-  font-size: 0.86rem;
+  padding: 5px 13px;
+  font-size: 0.79rem;
+  letter-spacing: 0.03em;
 }
 
-.hero-art { display: flex; justify-content: center; align-items: start; }
+.hero-art {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: start;
+}
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: -14% -20%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(76, 141, 255, 0.18), transparent 74%);
+}
 
 /* Una cornice, non un rendering di telefono: bordo sottile, angoli larghi e
    un alone tenue nel blu del marchio, così lo scatto si stacca dal fondo
@@ -222,8 +256,19 @@ header.bar {
 /* ---------- Schermate ---------- */
 
 .shots {
+  position: relative;
   width: var(--page);
   margin: 0 auto var(--s8);
+  padding-top: var(--s8);
+}
+.shots::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--outline), transparent);
 }
 
 .shots-head {
@@ -347,7 +392,11 @@ nav.toc a::before {
   font-variant-numeric: tabular-nums;
 }
 nav.toc a:hover { background: var(--surface-1); color: var(--on-surface); text-decoration: none; }
-nav.toc a.active { background: var(--primary-dim); color: #dbe6ff; }
+nav.toc a.active {
+  background: linear-gradient(90deg, rgba(76, 141, 255, 0.14), transparent 70%);
+  box-shadow: inset 2px 0 0 var(--primary);
+  color: #dbe6ff;
+}
 nav.toc a.active::before { color: var(--primary); }
 
 main { min-width: 0; }
@@ -362,9 +411,9 @@ section.step:first-child { border-top: none; padding-top: var(--s6); }
 
 .eyebrow {
   color: var(--primary);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   margin-bottom: var(--s2);
 }
@@ -653,4 +702,187 @@ footer {
   html { scroll-behavior: auto; }
   .shots-track { scroll-behavior: auto; }
   .shots-dots button { transition: none; }
+}
+
+/* ---------- Cinema ------------------------------------------------------
+
+   Lo stesso contenuto, inquadrato meglio. Tre piani: il fondo, che si muove
+   a un ventesimo della pagina; il piano di mezzo, dove stanno il numero
+   della sezione e la riga di luce che la apre; il testo, che resta dov'è.
+   È il distacco fra una sezione e l'altra a diventare visibile, e lo si
+   vede prima ancora di leggerne il titolo.
+
+   Niente di tutto questo nasconde qualcosa. Le regole che muovono usano
+   --sy (i pixel scorsi) e --vp (dove si trova la sezione rispetto al centro
+   dello schermo): senza JavaScript restano a zero e la pagina è quella di
+   sempre. Il movimento d'entrata si accende solo sulle sezioni che lo
+   script ha marcato, e l'ultima regola del file lo spegne per chi ha
+   chiesto meno movimento.
+   ---------------------------------------------------------------------- */
+
+/* Il fondo: tre luci lontane, ferme rispetto a chi legge. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20vh -20vw;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(44vw 44vw at 6% -10%, rgba(76, 141, 255, 0.2), transparent 62%),
+    radial-gradient(34vw 34vw at 80% 14%, rgba(76, 141, 255, 0.13), transparent 64%),
+    radial-gradient(80vw 46vw at 50% 114%, rgba(76, 141, 255, 0.07), transparent 72%);
+  transform: translate3d(0, calc(var(--sy, 0) * 0.05px), 0);
+}
+
+/* Grana e vignettatura: due dettagli da pellicola, appena percepibili, che
+   tolgono alla pagina l'aria di foglio stampato. Stanno sotto la barra, che
+   ha uno z-index più alto, quindi l'intestazione non si scurisce. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(150vw 135vh at 50% 50%, transparent 62%, rgba(0, 0, 0, 0.3) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+  background-size: cover, 180px 180px;
+  opacity: 0.5;
+}
+
+/* --- Barra: vetro, e quanto manca alla fine della guida ----------------- */
+
+header.bar {
+  transition: background-color var(--mid) var(--ease),
+              box-shadow var(--mid) var(--ease);
+}
+header.bar.scrolled {
+  background: rgba(10, 11, 14, 0.78);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+header.bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), #9cc0ff);
+  transform: scaleX(var(--progress, 0));
+  transform-origin: left;
+}
+
+/* --- Copertina ---------------------------------------------------------- */
+
+.hero { padding: var(--s9) 0 var(--s9); }
+
+/* Il titolo si spegne verso il basso, come una scritta d'apertura. */
+.hero h1 {
+  font-size: clamp(2.7rem, 7vw, 4.4rem);
+  letter-spacing: -0.035em;
+  background: linear-gradient(180deg, #ffffff 26%, #a7b0c2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero .motto { letter-spacing: 0.01em; }
+
+/* Lo scatto sta un po' più indietro: scorre più lentamente della colonna. */
+.hero-art .phone {
+  transform: translate3d(0, calc(var(--sy, 0) * 0.08px), 0);
+  box-shadow:
+    0 44px 96px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(76, 141, 255, 0.1),
+    0 0 90px rgba(76, 141, 255, 0.1);
+}
+
+/* --- Sezioni ------------------------------------------------------------ */
+
+main { counter-reset: step -1; }
+
+section.step { position: relative; }
+
+/* La riga che separa due sezioni si apre quando la sezione entra. */
+section.step::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0;
+  transform: scaleX(0.15);
+  transform-origin: left;
+  transition: opacity var(--mid) var(--ease), transform var(--slow) var(--ease);
+}
+section.step.in::before { opacity: 0.5; transform: scaleX(1); }
+section.step:first-child::before { content: none; }
+
+/* Il numero della sezione, sul piano di mezzo: grande, vuoto, e più lento
+   del testo che gli scorre accanto. */
+section.step::after {
+  counter-increment: step;
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  top: var(--s6);
+  right: calc(var(--s7) * -1);
+  z-index: -1;
+  font-size: clamp(72px, 9vw, 128px);
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--outline);
+  opacity: 0.8;
+  pointer-events: none;
+  transform: translate3d(0, calc(var(--vp, 0) * 38px), 0);
+}
+
+/* Le sezioni arrivano invece di essere già lì. Solo quelle che lo script ha
+   marcato: senza di lui non c'è niente da rivelare. */
+section.step.reveal > * {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity var(--mid) var(--ease), transform var(--slow) var(--ease);
+}
+section.step.reveal.in > * { opacity: 1; transform: none; }
+section.step.reveal.in > :nth-child(2) { transition-delay: 70ms; }
+section.step.reveal.in > :nth-child(3) { transition-delay: 140ms; }
+section.step.reveal.in > :nth-child(4) { transition-delay: 200ms; }
+section.step.reveal.in > :nth-child(n + 5) { transition-delay: 250ms; }
+
+/* --- Superfici ---------------------------------------------------------- */
+
+/* Riquadri e consigli smettono di essere schede su un fondo e diventano
+   parti del fondo, appena sollevate. */
+.card {
+  background: linear-gradient(180deg, var(--surface-1), rgba(16, 18, 23, 0.35));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.phone, .screen { box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5); }
+
+@media (max-width: 900px) {
+  /* Sui telefoni il numero finirebbe sotto il testo: resta fuori. */
+  section.step::after { content: none; }
+  .hero { padding: var(--s8) 0 var(--s7); }
+}
+
+@media print {
+  body::before, body::after, section.step::after, header.bar::after { display: none; }
+  section.step.reveal > * { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, .hero-art .phone, section.step::after { transform: none; }
+  section.step.reveal > *,
+  section.step.reveal.in > * {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  /* La riga fra due sezioni resta accesa: è un segno, non un movimento. */
+  section.step::before { opacity: 0.5; transform: none; transition: none; }
+  header.bar { transition: none; }
 }
