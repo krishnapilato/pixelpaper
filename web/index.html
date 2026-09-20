@@ -31,8 +31,8 @@
 
 <div class="hero">
   <div>
-    <h1>Guida a PixelPaper</h1>
     <p class="motto">I tuoi dati restano con te.</p>
+    <h1>Guida a PixelPaper</h1>
     <p class="lead">
       Scanner di documenti e archivio PDF per Android. Questa guida percorre
       l'app schermata per schermata: cosa fa ogni pulsante, quale gesto serve,
@@ -898,6 +898,62 @@
     links.forEach((a, id) => a.classList.toggle('active', id === first));
   }, { rootMargin: '-80px 0px -70% 0px' });
   document.querySelectorAll('section.step').forEach((s) => spy.observe(s));
+
+  /* ------------------------------------------------------------------
+     Movimento.
+
+     Tre numeri per fotogramma, e nient'altro: quanto si è scorso (--sy),
+     quanto manca alla fine della guida (--progress) e, per le sole sezioni
+     in vista, quanto distano dal centro dello schermo (--vp, fra -1 e 1).
+     A muovere qualcosa è il foglio di stile; qui si misura soltanto.
+
+     Chi ha chiesto meno movimento non entra nemmeno: senza queste classi e
+     senza queste variabili la pagina resta ferma, e leggibile per intero.
+     ------------------------------------------------------------------ */
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const bar = document.querySelector('header.bar');
+  const root = document.documentElement;
+  const steps = [...document.querySelectorAll('section.step')];
+  let queued = false;
+
+  /* Una sola passata per fotogramma, e fa tutto: quanto si è scorso, quanto
+     manca alla fine, quali sezioni sono entrate e dove si trovano rispetto
+     al centro dello schermo.
+
+     Le sezioni si scoprono qui e non con un IntersectionObserver di
+     proposito: sono tredici, misurarle costa niente, e il contenuto non
+     dipende dal fatto che una callback asincrona arrivi davvero. Se questo
+     giro parte, quello che è in pagina si vede. */
+  const measure = () => {
+    queued = false;
+    const y = window.scrollY;
+    const tall = window.innerHeight;
+    const runway = document.body.scrollHeight - tall;
+    root.style.setProperty('--sy', y.toFixed(0));
+    root.style.setProperty('--progress', runway > 0 ? (y / runway).toFixed(4) : '0');
+    bar.classList.toggle('scrolled', y > 8);
+
+    for (const section of steps) {
+      const box = section.getBoundingClientRect();
+      // Entrata una volta, entrata per sempre: tornare indietro non deve
+      // far sparire quello che si è già letto.
+      if (box.top < tall * 0.92) section.classList.add('in');
+      if (box.bottom > 0 && box.top < tall) {
+        const away = (tall / 2 - (box.top + box.height / 2)) / tall;
+        section.style.setProperty('--vp', Math.max(-1.5, Math.min(1.5, away)).toFixed(3));
+      }
+    }
+  };
+  const tick = () => { if (!queued) { queued = true; requestAnimationFrame(measure); } };
+
+  if (!calm.matches) {
+    steps.forEach((s) => s.classList.add('reveal'));
+    window.addEventListener('scroll', tick, { passive: true });
+    window.addEventListener('resize', tick);
+    // Le immagini che arrivano dopo spostano il resto: si rimisura.
+    window.addEventListener('load', tick);
+    measure();
+  }
 </script>
 
 </body>
