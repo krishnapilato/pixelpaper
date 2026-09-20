@@ -12,8 +12,6 @@ analyzer:
     - build/**
     - android/**
     - web/**
-    # Vendored third-party plugin, kept in its original style (see its CHANGELOG).
-    - packages/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

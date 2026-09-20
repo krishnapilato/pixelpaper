@@ -2,12 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:animations/animations.dart';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:manual_camera_pro/camera.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -16,7 +14,7 @@ import '../../../data/models/capture.dart';
 import '../../../data/models/folder.dart';
 import '../../folders/application/folders_controller.dart';
 import '../../gallery/application/gallery_controller.dart';
-import '../application/manual_settings.dart';
+import '../application/camera_settings.dart';
 import 'widgets/camera_controls.dart';
 import 'widgets/camera_toast.dart';
 
@@ -31,14 +29,15 @@ enum CameraPurpose {
   page,
 }
 
-/// Module B: a manual camera, on manual_camera_pro.
+/// Module B: the camera, on Flutter's own plugin (CameraX on Android).
 ///
-/// Automatic by default, because most pages are shot in a hurry; the dials
-/// of a real camera — exposure, ISO, shutter, white balance, focus — are one
-/// tap away for the pages automatic gets wrong: glossy paper under a lamp,
-/// faded pencil, a spread that needs the focus pinned. Every dial offers only
-/// the stops the lens actually reports, so nothing on screen is a lie; a dial
-/// the lens cannot turn stays in its place, dimmed, and says why when tapped.
+/// It is built around the one thing that decides whether a page comes out
+/// readable: where the camera focuses and meters. Tap the page and it focuses
+/// there, meters there, and offers a slider to lift or drop the exposure —
+/// the gesture every phone camera has taught people, and the answer to a
+/// white sheet under a lamp. Everything else is one tap away: flash, zoom,
+/// self-timer, grid, the other lens. Shots are full sensor resolution, with
+/// the orientation pinned so pages are never saved sideways.
 class CameraScreen extends ConsumerStatefulWidget {
   const CameraScreen({super.key, this.purpose = CameraPurpose.gallery});
 
@@ -82,17 +81,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   CameraController? _controller;
   List<CameraDescription> _lenses = const [];
   CameraDescription? _lens;
+  CameraCapabilities _caps = const CameraCapabilities();
   _Phase _phase = _Phase.starting;
-  ManualSettings _settings = const ManualSettings();
-  ManualControl? _openDial;
-  bool _torch = false;
 
   /// Set while the app is in the background with a camera that was open, so
   /// coming back reopens the same lens.
   CameraDescription? _resumeLens;
 
-  /// Native open and close calls, one at a time: the plugin holds a single
-  /// camera, so two overlapping opens would release each other's session.
+  /// Native open and close calls, one at a time: two overlapping opens would
+  /// release each other's session.
   Future<void> _operations = Future.value();
 
   /// Shots already taken, being moved into the gallery one after another.
@@ -101,8 +98,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   Capture? _lastShot;
   int _shots = 0;
 
-  // Zoom: the value on screen moves with the fingers; the native side gets
-  // the latest value whenever the previous call has returned, never a queue.
+  // Zoom: the value on screen moves with the fingers; the camera gets the
+  // latest value whenever the previous call has returned, never a queue.
   double _zoom = 1;
   double _pinchFrom = 1;
   double? _zoomPending;
@@ -112,6 +109,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     duration: Motion.base,
   );
   Animation<double>? _zoomTween;
+
+  // Where the user last tapped, in the preview's own coordinates, and the
+  // exposure compensation that goes with it.
+  Offset? _focusAt;
+  int _focusId = 0;
+  Timer? _focusFade;
+
+  /// What the camera is set to, with the finger's own position kept
+  /// underneath it so that small movements add up.
+  final _exposure = ExposureDial();
+  double? _exposurePending;
+  bool _exposureSending = false;
 
   // Self-timer.
   Timer? _countdownTimer;
@@ -141,7 +150,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     _folderName = ref
         .read(currentFolderDetailProvider(FolderKind.capture))
         ?.name;
-    _settings = ref.read(cameraPreferencesProvider).settings;
     _zoomGlide.addListener(() {
       final tween = _zoomTween;
       if (tween != null) _setZoom(tween.value);
@@ -154,6 +162,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
+    _focusFade?.cancel();
     final controller = _controller;
     _controller = null;
     // Released even while a save is still running: the sensor must go the
@@ -237,7 +246,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final controller = _controller;
     if (controller == null) return;
     _controller = null;
-    if (mounted) setState(() => _torch = false);
     controller.removeListener(_onControllerChanged);
     await controller.dispose();
   }
@@ -246,37 +254,36 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     await _close();
     if (!mounted) return;
 
-    final settings = _settings.fittedTo(lens);
     final controller = CameraController(
       lens,
       // The whole point of this screen: the largest frame the sensor gives.
       ResolutionPreset.max,
       enableAudio: false,
-      iso: settings.iso,
-      shutterSpeed: settings.shutter,
-      whiteBalance: settings.whiteBalance,
-      focusDistance: settings.focusMeters,
+      imageFormatGroup: ImageFormatGroup.jpeg,
     );
 
+    final CameraCapabilities caps;
     try {
       await controller.initialize();
-      // The constructor has no compensation parameter: set it once open.
-      if (settings.exposure != 0) {
-        await controller.setManualSettings(
-          iso: settings.iso,
-          shutterSpeed: settings.shutter,
-          whiteBalance: settings.whiteBalance,
-          focusDistance: settings.focusMeters,
-          exposureCompensation: settings.exposureSteps(lens),
-        );
-      }
+      // The app is portrait-locked, so pinning the capture orientation keeps
+      // every saved page upright instead of trusting EXIF downstream.
+      await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
+      caps = await CameraCapabilities.of(controller);
+      await _applyFlash(
+        controller,
+        ref.read(cameraPreferencesProvider).flash,
+        silent: true,
+      );
     } on CameraException catch (error) {
       await controller.dispose();
       if (!mounted) return;
       setState(
-        () => _phase = error.code == 'cameraPermission'
-            ? _Phase.denied
-            : _Phase.failed,
+        () => _phase = switch (error.code) {
+          'CameraAccessDenied' || 'CameraAccessDeniedWithoutPrompt' =>
+            _Phase.denied,
+          'CameraAccessRestricted' => _Phase.blocked,
+          _ => _Phase.failed,
+        },
       );
       return;
     }
@@ -290,15 +297,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     setState(() {
       _controller = controller;
       _lens = lens;
-      _settings = settings;
-      // Every lens starts wide: a zoom carried over from the other side of
-      // the phone would be a surprise, not a convenience.
-      _zoom = 1;
+      _caps = caps;
+      // Every lens starts wide and neutral: a zoom or an exposure carried
+      // over from the other side of the phone would be a surprise.
+      _zoom = caps.minZoom;
+      _exposure.reset();
+      _focusAt = null;
       _phase = _Phase.ready;
-      if (_openDial != null &&
-          !ManualScale.isAvailable(_openDial!, lens, settings)) {
-        _openDial = null;
-      }
     });
   }
 
@@ -323,61 +328,128 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     _serial(() => _open(other));
   }
 
-  // --- Manual settings -----------------------------------------------------
+  // --- Flash ---------------------------------------------------------------
 
-  Future<void> _setValue(ManualControl control, Object value) async {
-    final next = _settings.withValue(control, value);
-    if (next == _settings) return;
-    await _applySettings(next);
-  }
-
-  Future<void> _applySettings(ManualSettings next) async {
-    setState(() {
-      _settings = next;
-      // Manual ISO or shutter fixes the exposure: its compensation dial has
-      // nothing left to move, so it closes.
-      if (_openDial == ManualControl.exposure && !next.automaticExposure) {
-        _openDial = null;
-      }
-    });
-    ref.read(cameraPreferencesProvider.notifier).setSettings(next);
-    final controller = _controller;
-    final lens = _lens;
-    if (controller == null || lens == null || !controller.value.isInitialized) {
-      return;
-    }
+  Future<void> _applyFlash(
+    CameraController controller,
+    CameraFlash flash, {
+    bool silent = false,
+  }) async {
     try {
-      await controller.setManualSettings(
-        iso: next.iso,
-        shutterSpeed: next.shutter,
-        whiteBalance: next.whiteBalance,
-        focusDistance: next.focusMeters,
-        exposureCompensation: next.exposureSteps(lens),
-      );
+      await controller.setFlashMode(flash.mode);
     } on CameraException {
-      // A value the driver refuses leaves the previous one in force; the
-      // dials only offer reported stops, so this is rare.
+      // A lens with no flash: say so once, and fall back to off.
+      if (!silent && mounted) {
+        _toast.show(
+          ref.read(stringsProvider)('camera_flash_unsupported'),
+          kind: CameraToastKind.info,
+        );
+        ref.read(cameraPreferencesProvider.notifier).setFlash(CameraFlash.off);
+      }
     }
   }
 
-  void _explainUnavailable(ManualControl control) {
-    final strings = ref.read(stringsProvider);
-    final lens = _lens;
-    final locked = control == ManualControl.exposure &&
-        lens != null &&
-        ManualScale.isAdjustable(control, lens);
-    _toast.show(
-      strings(locked ? 'camera_exposure_locked' : 'camera_unsupported'),
-      kind: CameraToastKind.info,
+  Future<void> _cycleFlash() async {
+    final controller = _controller;
+    if (controller == null) return;
+    ref.read(cameraPreferencesProvider.notifier).cycleFlash();
+    await _applyFlash(controller, ref.read(cameraPreferencesProvider).flash);
+  }
+
+  // --- Focus, metering and exposure ---------------------------------------
+
+  Future<void> _focusOn(Offset local, Size preview) async {
+    final controller = _controller;
+    if (controller == null || !_caps.canTapToFocus || preview.isEmpty) return;
+
+    final point = Offset(
+      (local.dx / preview.width).clamp(0.0, 1.0),
+      (local.dy / preview.height).clamp(0.0, 1.0),
     );
+    HapticFeedback.selectionClick();
+    setState(() {
+      _focusAt = local;
+      _focusId++;
+      // Metering starts again from the point: the slider goes back to
+      // neutral rather than stacking on top of a new reading.
+      _exposure.reset();
+    });
+    _armFocusFade();
+
+    try {
+      if (_caps.focusPoint) {
+        await controller.setFocusMode(FocusMode.auto);
+        await controller.setFocusPoint(point);
+      }
+      if (_caps.exposurePoint) {
+        await controller.setExposureMode(ExposureMode.auto);
+        await controller.setExposurePoint(point);
+        await controller.setExposureOffset(0);
+      }
+    } on CameraException {
+      if (mounted) setState(() => _focusAt = null);
+    }
+  }
+
+  /// The ring and its slider fade out on their own, like every camera app;
+  /// touching them again puts the clock back.
+  void _armFocusFade() {
+    _focusFade?.cancel();
+    _focusFade = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _focusAt = null);
+    });
+  }
+
+  Future<void> _resetFocus() async {
+    final controller = _controller;
+    if (controller == null || _focusAt == null) return;
+    HapticFeedback.mediumImpact();
+    _focusFade?.cancel();
+    setState(() {
+      _focusAt = null;
+      _exposure.reset();
+    });
+    try {
+      if (_caps.focusPoint) await controller.setFocusPoint(null);
+      if (_caps.exposurePoint) await controller.setExposurePoint(null);
+      if (_caps.canCompensate) await controller.setExposureOffset(0);
+    } on CameraException {
+      // Back to whatever the camera was doing before: nothing to report.
+    }
+  }
+
+  void _nudgeExposure(double stops) {
+    if (_controller == null) return;
+    // Any movement counts as touching the controls, so the ring stays put.
+    _armFocusFade();
+    if (!_exposure.nudge(stops, _caps)) return;
+    // One tick per step: the scale feels like a dial with detents.
+    HapticFeedback.selectionClick();
+    setState(() {});
+    _exposurePending = _exposure.value;
+    if (!_exposureSending) _sendExposure();
+  }
+
+  /// Steps arrive faster than the camera can take them, so only the newest
+  /// one is ever in flight and the rest are dropped.
+  Future<void> _sendExposure() async {
+    _exposureSending = true;
+    while (_exposurePending != null) {
+      final next = _exposurePending!;
+      _exposurePending = null;
+      try {
+        await _controller?.setExposureOffset(next);
+      } on CameraException {
+        break;
+      }
+    }
+    _exposureSending = false;
   }
 
   // --- Zoom ----------------------------------------------------------------
 
   void _setZoom(double value) {
-    final lens = _lens;
-    if (lens == null) return;
-    final zoom = value.clamp(1.0, lens.maxZoom);
+    final zoom = value.clamp(_caps.minZoom, _caps.maxZoom);
     if ((zoom - _zoom).abs() < 0.005) return;
     setState(() => _zoom = zoom);
     _zoomPending = zoom;
@@ -390,7 +462,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       final next = _zoomPending!;
       _zoomPending = null;
       try {
-        await _controller?.setZoom(next);
+        await _controller?.setZoomLevel(next);
       } on CameraException {
         break;
       }
@@ -460,14 +532,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 
     final File shot;
     try {
-      final dir = Directory(
-        p.join((await getTemporaryDirectory()).path, 'camera'),
-      );
-      await dir.create(recursive: true);
-      shot = File(
-        p.join(dir.path, 'shot_${DateTime.now().microsecondsSinceEpoch}.jpg'),
-      );
-      await controller.takePicture(shot.path);
+      final taken = await controller.takePicture();
+      shot = File(taken.path);
     } on Object {
       if (!mounted) return;
       setState(() => _capturing = false);
@@ -521,7 +587,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final strings = ref.watch(stringsProvider);
     final preferences = ref.watch(cameraPreferencesProvider);
     final controller = _controller;
-    final lens = _lens;
     final padding = MediaQuery.paddingOf(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -535,9 +600,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             // see is the frame that gets saved, which matters when lining up
             // the edge of a page.
             Padding(
-              padding: EdgeInsets.only(top: padding.top),
-              child: Align(
-                alignment: Alignment.topCenter,
+              padding: EdgeInsets.only(
+                top: padding.top + 56,
+                bottom: padding.bottom + 150,
+              ),
+              child: Center(
                 child: PageTransitionSwitcher(
                   duration: Motion.slow,
                   transitionBuilder: (child, primary, secondary) =>
@@ -548,21 +615,25 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                     child: child,
                   ),
                   child: switch (_phase) {
-                    _Phase.ready when controller != null => GestureDetector(
+                    _Phase.ready when controller != null => Viewfinder(
                         key: ValueKey(controller),
-                        // Two fingers zoom, as in every camera app.
-                        onScaleStart: (_) => _pinchFrom = _zoom,
-                        onScaleUpdate: (details) {
-                          if (details.pointerCount < 2) return;
+                        controller: controller,
+                        grid: preferences.grid,
+                        blink: _blink,
+                        countdown: _countdown,
+                        focusAt: _focusAt,
+                        focusId: _focusId,
+                        exposure: _exposure.value,
+                        capabilities: _caps,
+                        strings: strings,
+                        onFocus: _focusOn,
+                        onResetFocus: _resetFocus,
+                        onExposureNudge: _nudgeExposure,
+                        onPinchStart: () => _pinchFrom = _zoom,
+                        onPinch: (scale) {
                           _zoomGlide.stop();
-                          _setZoom(_pinchFrom * details.scale);
+                          _setZoom(_pinchFrom * scale);
                         },
-                        child: _Viewfinder(
-                          controller: controller,
-                          grid: preferences.grid,
-                          blink: _blink,
-                          countdown: _countdown,
-                        ),
                       ),
                     _Phase.starting || _Phase.ready => const SizedBox(
                         key: ValueKey('starting'),
@@ -593,13 +664,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               right: 0,
               child: CameraTopBar(
                 strings: strings,
+                flash: preferences.flash,
                 timer: preferences.timer,
-                torch: _torch,
-                torchAvailable: lens?.hasFlash == true && controller != null,
                 grid: preferences.grid,
+                ready: controller != null,
                 onClose: () => Navigator.of(context).maybePop(),
+                onFlash: _cycleFlash,
                 onTimer: ref.read(cameraPreferencesProvider.notifier).cycleTimer,
-                onTorch: _toggleTorch,
                 onGrid: ref.read(cameraPreferencesProvider.notifier).toggleGrid,
               ),
             ),
@@ -615,10 +686,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               bottom: 0,
               child: CameraBottomPanel(
                 strings: strings,
-                lens: lens,
-                settings: _settings,
-                openDial: _openDial,
                 zoom: _zoom,
+                stops: _caps.zoomStops,
+                canZoom: _caps.canZoom,
                 ready: controller != null,
                 capturing: _capturing,
                 counting: _countdown != null,
@@ -628,18 +698,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                 shots: _shots,
                 canSwitch: _lenses.length > 1,
                 bottomInset: padding.bottom,
-                onDial: (control) {
-                  HapticFeedback.selectionClick();
-                  setState(
-                    () => _openDial = _openDial == control ? null : control,
-                  );
-                },
-                onUnavailable: _explainUnavailable,
-                onValue: _setValue,
-                onReset: () {
-                  HapticFeedback.selectionClick();
-                  _applySettings(const ManualSettings());
-                },
                 onZoom: _glideZoomTo,
                 onShoot: _onShutter,
                 onSwitch: _switchLens,
@@ -651,122 +709,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       ),
     );
   }
-
-  Future<void> _toggleTorch() async {
-    final controller = _controller;
-    if (controller == null) return;
-    final next = !_torch;
-    try {
-      final applied = await controller.flash(next);
-      if (applied && mounted) setState(() => _torch = next);
-    } on CameraException {
-      // No torch after all: the button simply stays as it was.
-    }
-  }
-}
-
-class _Viewfinder extends StatelessWidget {
-  const _Viewfinder({
-    required this.controller,
-    required this.grid,
-    required this.blink,
-    required this.countdown,
-  });
-
-  final CameraController controller;
-  final bool grid;
-  final Animation<double> blink;
-  final int? countdown;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return AspectRatio(
-      // manual_camera_pro reports height / width of the landscape sensor
-      // frame, which is already the portrait ratio of the screen.
-      aspectRatio: controller.value.aspectRatio,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // A texture repaints every frame; isolating it keeps the controls
-          // above it from being repainted with it.
-          RepaintBoundary(child: CameraPreview(controller)),
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: grid ? 1 : 0,
-              duration: Motion.base,
-              curve: Motion.standard,
-              child: const CustomPaint(painter: _ThirdsPainter()),
-            ),
-          ),
-          // The self-timer, counting down where the eye already is.
-          IgnorePointer(
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: Motion.base,
-                switchInCurve: Motion.enter,
-                switchOutCurve: Motion.exit,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 1.4, end: 1).animate(animation),
-                    child: child,
-                  ),
-                ),
-                child: countdown == null
-                    ? const SizedBox.shrink()
-                    : Text(
-                        '$countdown',
-                        key: ValueKey(countdown),
-                        style: theme.textTheme.displayLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 96,
-                          fontWeight: FontWeight.w300,
-                          shadows: const [
-                            Shadow(color: Colors.black54, blurRadius: 24),
-                          ],
-                        ),
-                      ),
-              ),
-            ),
-          ),
-          IgnorePointer(
-            child: FadeTransition(
-              opacity: TweenSequence<double>([
-                TweenSequenceItem(tween: Tween(begin: 0, end: 0.85), weight: 30),
-                TweenSequenceItem(tween: Tween(begin: 0.85, end: 0), weight: 70),
-              ]).animate(blink),
-              child: const ColoredBox(color: Colors.black),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Rule-of-thirds lines: enough to square a page against, faint enough not
-/// to be mistaken for part of the photo.
-class _ThirdsPainter extends CustomPainter {
-  const _ThirdsPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.35)
-      ..strokeWidth = 1;
-    for (var i = 1; i < 3; i++) {
-      final x = size.width * i / 3;
-      final y = size.height * i / 3;
-      canvas
-        ..drawLine(Offset(x, 0), Offset(x, size.height), paint)
-        ..drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ThirdsPainter oldDelegate) => false;
 }
 
 class _CameraMessage extends StatelessWidget {
@@ -808,7 +750,7 @@ class _CameraMessage extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.xl, 120, Space.xl, 0),
+      padding: const EdgeInsets.symmetric(horizontal: Space.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
