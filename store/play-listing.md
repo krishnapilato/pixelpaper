@@ -49,6 +49,38 @@ Guida completa: https://krishnapilato.github.io/pixelpaper/
 Sviluppata da Khova Krishna Pilato, da un'idea di Stefano Pilato.
 ```
 
+## Novità della versione (max 500 per lingua)
+
+Version 3.2.0, version code 26092001. Il campo "Novità" è per lingua: la
+scheda è pubblicata in it-IT, quindi è quello il testo che vedono gli utenti.
+L'inglese serve se aggiungi en-US alla scheda.
+
+### en-US (481)
+
+```
+NEW CAMERA
+Tap the viewfinder to focus and meter exactly where the page is. Drag up or down to brighten or darken, long-press to go back to automatic. Pinch or 1x/2x/5x to zoom, plus flash, self-timer and a thirds grid — and only the controls your lens really has.
+
+READING MODE
+In the viewer, one tap sends every bar away and the page fills the screen.
+
+SMOOTHER THROUGHOUT
+Settings, bin and the action sheets now arrive instead of appearing, and counters slide rather than flick.
+```
+
+### it-IT (481)
+
+```
+NUOVA FOTOCAMERA
+Tocca l'anteprima per mettere a fuoco e misurare la luce dove sta la pagina. Trascina in su o in giù per schiarire o scurire, tieni premuto per tornare in automatico. Zoom con due dita o 1x/2x/5x, flash, autoscatto e griglia — solo i comandi che il tuo obiettivo ha davvero.
+
+MODALITÀ LETTURA
+Nel visualizzatore un tocco manda via le barre e la pagina riempie lo schermo.
+
+PIÙ FLUIDA
+Impostazioni, cestino e i fogli delle azioni ora arrivano invece di esserci già.
+```
+
 ## Risorse grafiche
 
 | Elemento | File | Formato |
