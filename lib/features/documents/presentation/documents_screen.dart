@@ -186,7 +186,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           icon: const Icon(Icons.close_rounded),
           tooltip: strings('common_close'),
         ),
-        title: Text(strings.plural('documents_selected', selection.length)),
+        title: Swapped(
+          value: selection.length,
+          child: Text(strings.plural('documents_selected', selection.length)),
+        ),
         actions: [
           IconButton(
             onPressed: () => DocumentActions.share(context, ref, selected),

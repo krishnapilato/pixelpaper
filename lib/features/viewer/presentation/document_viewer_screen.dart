@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +7,7 @@ import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/feedback.dart';
+import '../../../core/widgets/motion.dart';
 import '../../documents/application/document_actions.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../documents/presentation/widgets/document_actions_sheet.dart';
@@ -26,6 +28,27 @@ class DocumentViewerScreen extends ConsumerStatefulWidget {
 class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
   int _page = 0;
   String? _signature;
+
+  /// Reading mode: false once the two bars have been sent away.
+  bool _chrome = true;
+
+  @override
+  void dispose() {
+    // Whatever the reader did with the system bars, the rest of the app gets
+    // them back.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  /// A tap on the page puts the bars away, and the system's own bars with
+  /// them, so a scan can be read at the size it was scanned. Another tap
+  /// brings everything back.
+  void _toggleChrome() {
+    setState(() => _chrome = !_chrome);
+    SystemChrome.setEnabledSystemUIMode(
+      _chrome ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,33 +79,43 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
     }
 
     return Scaffold(
+      // The page runs the whole height: the bars float over it and leave
+      // nothing behind when they go.
+      extendBody: true,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: scheme.surface.withValues(alpha: 0.86),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              document.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
+      appBar: _Chrome(
+        visible: _chrome,
+        from: const Offset(0, -1),
+        child: AppBar(
+          backgroundColor: scheme.surface.withValues(alpha: 0.86),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                document.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Swapped(
+                value: _page,
+                child: Text(
+                  strings('viewer_page_of', {'a': _page + 1, 'b': pageCount}),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              onPressed: () => showDocumentActions(context, ref, document),
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: strings('common_details'),
             ),
-            Text(
-              strings('viewer_page_of', {'a': _page + 1, 'b': pageCount}),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            const SizedBox(width: Space.xxs),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () => showDocumentActions(context, ref, document),
-            icon: const Icon(Icons.more_vert_rounded),
-            tooltip: strings('common_details'),
-          ),
-          const SizedBox(width: Space.xxs),
-        ],
       ),
       // Two readers, one archive. An album's pages are already images, so it
       // gets the image path; a PDF gets PDFium. The user is not supposed to be
@@ -102,48 +135,58 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
       // rasterised yet, so the thumbnail flew into a blank sheet. A Hero wants
       // a subtree that holds still, which is the opposite of what a reader that
       // loads its own content can offer.
-      body: document.isAlbum
-          ? switch (ref.watch(documentPagesProvider(document.id))) {
-              AsyncData(:final value) when value.isNotEmpty => AlbumPager(
-                  key: ValueKey(document.signature),
-                  document: document,
-                  pages: value,
-                  padding: readerPadding(context),
-                  onPageChanged: (index) => setState(() => _page = index),
-                ),
-              AsyncData() => EmptyState(
-                  icon: Icons.description_outlined,
-                  title: strings('viewer_open_failed'),
-                  body: strings('documents_empty_body'),
-                ),
-              AsyncError() => EmptyState(
-                  icon: Icons.error_outline_rounded,
-                  title: strings('common_error'),
-                  body: strings('viewer_open_failed'),
-                ),
-              _ => const Center(child: CircularProgressIndicator()),
-            }
-          : PdfPager(
-              // Keyed on the signature, not on the id: coming back from the
-              // editor the path is unchanged but the bytes are not, and
-              // without a new key the reader would keep showing the pages it
-              // read on the way in.
-              key: ValueKey(document.signature),
-              file: document.path,
-              pageCount: pageCount,
-              padding: readerPadding(context),
-              onPageChanged: (index) => setState(() => _page = index),
-            ),
-      bottomNavigationBar: _ViewerBar(
-        onEdit: () => context.push(Routes.editor(document.id)),
-        onShare: () => DocumentActions.share(context, ref, [document]),
-        onPrint: () => DocumentActions.print(context, ref, document),
-        onDelete: () async {
-          final deleted = await DocumentActions.delete(context, ref, [
-            document,
-          ]);
-          if (deleted && context.mounted) context.pop();
-        },
+      body: GestureDetector(
+        // One tap puts the bars away and brings them back. The pager keeps
+        // its own gestures: this claims only the taps nothing else wanted.
+        behavior: HitTestBehavior.translucent,
+        onTap: _toggleChrome,
+        child: document.isAlbum
+            ? switch (ref.watch(documentPagesProvider(document.id))) {
+                AsyncData(:final value) when value.isNotEmpty => AlbumPager(
+                    key: ValueKey(document.signature),
+                    document: document,
+                    pages: value,
+                    padding: readerPadding(context),
+                    onPageChanged: (index) => setState(() => _page = index),
+                  ),
+                AsyncData() => EmptyState(
+                    icon: Icons.description_outlined,
+                    title: strings('viewer_open_failed'),
+                    body: strings('documents_empty_body'),
+                  ),
+                AsyncError() => EmptyState(
+                    icon: Icons.error_outline_rounded,
+                    title: strings('common_error'),
+                    body: strings('viewer_open_failed'),
+                  ),
+                _ => const Center(child: CircularProgressIndicator()),
+              }
+            : PdfPager(
+                // Keyed on the signature, not on the id: coming back from the
+                // editor the path is unchanged but the bytes are not, and
+                // without a new key the reader would keep showing the pages it
+                // read on the way in.
+                key: ValueKey(document.signature),
+                file: document.path,
+                pageCount: pageCount,
+                padding: readerPadding(context),
+                onPageChanged: (index) => setState(() => _page = index),
+              ),
+      ),
+      bottomNavigationBar: _Chrome(
+        visible: _chrome,
+        from: const Offset(0, 1),
+        child: _ViewerBar(
+          onEdit: () => context.push(Routes.editor(document.id)),
+          onShare: () => DocumentActions.share(context, ref, [document]),
+          onPrint: () => DocumentActions.print(context, ref, document),
+          onDelete: () async {
+            final deleted = await DocumentActions.delete(context, ref, [
+              document,
+            ]);
+            if (deleted && context.mounted) context.pop();
+          },
+        ),
       ),
     );
   }
@@ -227,6 +270,47 @@ class _BarAction extends StatelessWidget {
             Text(label, style: theme.textTheme.labelMedium),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A bar that gets out of the way while the page is being read: it slides off
+/// its own edge, fades, and stops taking taps while it is gone. The size it
+/// promises never changes, so nothing under it moves.
+class _Chrome extends StatelessWidget implements PreferredSizeWidget {
+  const _Chrome({
+    required this.visible,
+    required this.from,
+    required this.child,
+  });
+
+  final bool visible;
+
+  /// Where it goes when it leaves, in fractions of its own height.
+  final Offset from;
+
+  final Widget child;
+
+  @override
+  Size get preferredSize {
+    final bar = child;
+    return bar is PreferredSizeWidget
+        ? bar.preferredSize
+        : const Size.fromHeight(kToolbarHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      offset: visible ? Offset.zero : from,
+      duration: Motion.base,
+      curve: visible ? Motion.enter : Motion.exit,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: Motion.base,
+        curve: Motion.standard,
+        child: IgnorePointer(ignoring: !visible, child: child),
       ),
     );
   }

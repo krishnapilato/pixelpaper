@@ -7,6 +7,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/dimens.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_sheet.dart';
+import '../../../../core/widgets/motion.dart';
 import '../../../../data/models/scanned_document.dart';
 import '../../application/document_actions.dart';
 import 'document_tile.dart';
@@ -25,77 +26,81 @@ Future<void> showDocumentActions(
 
   return showAppSheet<void>(
     context: context,
-    child: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SheetHeader(
-            title: document.title,
-            subtitle: documentSubtitle(strings, document),
-          ),
-          SheetAction(
-            icon: Icons.auto_awesome_motion_outlined,
-            label: strings('common_edit'),
-            detail: strings('editor_hint'),
-            emphasised: true,
-            onTap: () {
-              Navigator.pop(context);
-              context.push(Routes.editor(document.id));
-            },
-          ),
-          SheetAction(
-            icon: Icons.drive_file_rename_outline_rounded,
-            label: strings('common_rename'),
-            onTap: () {
-              Navigator.pop(context);
-              DocumentActions.rename(context, ref, document);
-            },
-          ),
-          SheetAction(
-            icon: Icons.ios_share_rounded,
-            label: strings('common_share'),
-            onTap: () {
-              Navigator.pop(context);
-              DocumentActions.share(context, ref, [document]);
-            },
-          ),
-          SheetAction(
-            icon: Icons.save_alt_rounded,
-            label: strings('common_export'),
-            detail: strings('common_export_detail'),
-            onTap: () {
-              Navigator.pop(context);
-              DocumentActions.export(context, ref, document);
-            },
-          ),
-          SheetAction(
-            icon: Icons.print_outlined,
-            label: strings('common_print'),
-            onTap: () {
-              Navigator.pop(context);
-              DocumentActions.print(context, ref, document);
-            },
-          ),
-          SheetAction(
-            icon: Icons.info_outline_rounded,
-            label: strings('common_details'),
-            onTap: () {
-              Navigator.pop(context);
-              showDocumentDetails(context, ref, document);
-            },
-          ),
-          SheetAction(
-            icon: Icons.delete_outline_rounded,
-            label: strings('common_delete'),
-            destructive: true,
-            onTap: () {
-              Navigator.pop(context);
-              DocumentActions.delete(context, ref, [document]);
-            },
-          ),
-          const SheetFooterSpace(),
-        ],
+    child: EntranceGroup(
+      epoch: 'doc-actions',
+      ids: const <Object>[],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: cascade([
+            SheetHeader(
+              title: document.title,
+              subtitle: documentSubtitle(strings, document),
+            ),
+            SheetAction(
+              icon: Icons.auto_awesome_motion_outlined,
+              label: strings('common_edit'),
+              detail: strings('editor_hint'),
+              emphasised: true,
+              onTap: () {
+                Navigator.pop(context);
+                context.push(Routes.editor(document.id));
+              },
+            ),
+            SheetAction(
+              icon: Icons.drive_file_rename_outline_rounded,
+              label: strings('common_rename'),
+              onTap: () {
+                Navigator.pop(context);
+                DocumentActions.rename(context, ref, document);
+              },
+            ),
+            SheetAction(
+              icon: Icons.ios_share_rounded,
+              label: strings('common_share'),
+              onTap: () {
+                Navigator.pop(context);
+                DocumentActions.share(context, ref, [document]);
+              },
+            ),
+            SheetAction(
+              icon: Icons.save_alt_rounded,
+              label: strings('common_export'),
+              detail: strings('common_export_detail'),
+              onTap: () {
+                Navigator.pop(context);
+                DocumentActions.export(context, ref, document);
+              },
+            ),
+            SheetAction(
+              icon: Icons.print_outlined,
+              label: strings('common_print'),
+              onTap: () {
+                Navigator.pop(context);
+                DocumentActions.print(context, ref, document);
+              },
+            ),
+            SheetAction(
+              icon: Icons.info_outline_rounded,
+              label: strings('common_details'),
+              onTap: () {
+                Navigator.pop(context);
+                showDocumentDetails(context, ref, document);
+              },
+            ),
+            SheetAction(
+              icon: Icons.delete_outline_rounded,
+              label: strings('common_delete'),
+              destructive: true,
+              onTap: () {
+                Navigator.pop(context);
+                DocumentActions.delete(context, ref, [document]);
+              },
+            ),
+            const SheetFooterSpace(),
+          ]),
+        ),
       ),
     ),
   );
@@ -110,36 +115,40 @@ Future<void> showDocumentDetails(
 
   return showAppSheet<void>(
     context: context,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SheetHeader(
-          title: strings('doc_details_title'),
-          subtitle: document.title,
-        ),
-        _DetailRow(
-          label: strings('doc_detail_pages'),
-          value: document.pageCount > 0 ? '${document.pageCount}' : '—',
-        ),
-        _DetailRow(
-          label: strings('doc_detail_size'),
-          value: Fmt.bytes(document.sizeBytes),
-        ),
-        _DetailRow(
-          label: strings('doc_detail_type'),
-          value: strings('doc_detail_type_value'),
-        ),
-        _DetailRow(
-          label: strings('doc_detail_created'),
-          value: Fmt.dateTime(document.createdAt),
-        ),
-        _DetailRow(
-          label: strings('doc_detail_modified'),
-          value: Fmt.dateTime(document.updatedAt),
-        ),
-        const SheetFooterSpace(),
-      ],
+    child: EntranceGroup(
+      epoch: 'doc-details',
+      ids: const <Object>[],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: cascade([
+          SheetHeader(
+            title: strings('doc_details_title'),
+            subtitle: document.title,
+          ),
+          _DetailRow(
+            label: strings('doc_detail_pages'),
+            value: document.pageCount > 0 ? '${document.pageCount}' : '—',
+          ),
+          _DetailRow(
+            label: strings('doc_detail_size'),
+            value: Fmt.bytes(document.sizeBytes),
+          ),
+          _DetailRow(
+            label: strings('doc_detail_type'),
+            value: strings('doc_detail_type_value'),
+          ),
+          _DetailRow(
+            label: strings('doc_detail_created'),
+            value: Fmt.dateTime(document.createdAt),
+          ),
+          _DetailRow(
+            label: strings('doc_detail_modified'),
+            value: Fmt.dateTime(document.updatedAt),
+          ),
+          const SheetFooterSpace(),
+        ]),
+      ),
     ),
   );
 }

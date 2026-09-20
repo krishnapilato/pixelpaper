@@ -265,22 +265,9 @@ class _GalleryAppBar extends ConsumerWidget {
           icon: const Icon(Icons.close_rounded),
           tooltip: strings('common_close'),
         ),
-        title: AnimatedSwitcher(
-          duration: Motion.quick,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.3),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          ),
-          child: Text(
-            strings.plural('gallery_selected', selection.length),
-            key: ValueKey(selection.length),
-          ),
+        title: Swapped(
+          value: selection.length,
+          child: Text(strings.plural('gallery_selected', selection.length)),
         ),
         actions: [
           IconButton(
