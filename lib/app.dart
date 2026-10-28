@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'core/l10n/strings.dart';
 import 'core/router/app_router.dart';
@@ -9,7 +11,6 @@ import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 import 'features/gallery/application/capture_flow.dart';
 
-/// The router outlives every rebuild of the app widget.
 final routerProvider = Provider<GoRouter>((ref) {
   final router = createRouter();
   ref.onDispose(router.dispose);
@@ -27,16 +28,9 @@ class _PixelPaperAppState extends ConsumerState<PixelPaperApp> {
   @override
   void initState() {
     super.initState();
-    // Trim the preview cache once the first frame is on screen, never before.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(storageServiceProvider).prunePreviewCache();
-      // Anything sitting in the bin past its 30 days goes now, files included.
-      ref.read(libraryRepositoryProvider).purgeExpired();
-      // Photos picked while Android had closed the app are not lost; then
-      // what the picker and the camera left in the cache goes.
-      CaptureFlow.recoverLostPhotos(ref)
-          .whenComplete(CaptureFlow.clearLeftovers);
-    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(runStartupMaintenance(ref)),
+    );
   }
 
   @override
@@ -46,26 +40,34 @@ class _PixelPaperAppState extends ConsumerState<PixelPaperApp> {
     return MaterialApp.router(
       title: strings('app_name'),
       debugShowCheckedModeBanner: false,
-      // Dark only, by product decision: this is a capture tool used on paper
-      // under a lamp, and a light UI at night is the complaint that started
-      // the redesign. No `theme`, no `themeMode` — nothing can flip it.
       theme: AppTheme.dark(),
-      // Italian everywhere, including the parts Flutter draws itself: the
-      // text-selection menu, the date pickers, the licence page. Without this
-      // they would come up in English inside an all-Italian app.
       locale: const Locale('it'),
       supportedLocales: const [Locale('it')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) => MediaQuery.withClampedTextScaling(
-        // Respect the system font size, but stop before the layout breaks.
         maxScaleFactor: 1.4,
         child: child ?? const SizedBox.shrink(),
       ),
     );
   }
+}
+
+/// Housekeeping after the first frame, each step independent of the others:
+/// photos the picker handed over while the app was dead are kept, then every
+/// temporary copy of the user's files is removed and the bin is expired.
+Future<void> runStartupMaintenance(WidgetRef ref) async {
+  Future<void> step(Future<void> Function() run) async {
+    try {
+      await run();
+    } on Object catch (error) {
+      if (kDebugMode) debugPrint('Manutenzione: $error');
+    }
+  }
+
+  await step(() => CaptureFlow.recoverLostPhotos(ref));
+  await step(CaptureFlow.clearLeftovers);
+  await step(ref.read(storageServiceProvider).clearTransient);
+  await step(ref.read(libraryRepositoryProvider).purgeExpired);
+  await step(ref.read(storageServiceProvider).prunePreviewCache);
 }

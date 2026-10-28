@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
@@ -51,7 +53,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   void _open(ScannedDocument document) {
     final selection = ref.read(documentSelectionProvider);
     if (selection.isEmpty) {
-      context.push(Routes.viewer(document.id));
+      unawaited(context.push(Routes.viewer(document.id)));
     } else {
       ref.read(documentSelectionProvider.notifier).toggle(document.id);
     }
@@ -66,8 +68,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final strings = ref.read(stringsProvider);
     await ref.read(documentsControllerProvider.notifier).move(ids, folderId);
     if (!mounted) return;
-    showSnack(context, strings('folders_moved'),
-        icon: Icons.drive_file_move_outline);
+    showSnack(
+      context,
+      strings('folders_moved'),
+      icon: Icons.drive_file_move_outline,
+    );
   }
 
   @override
@@ -118,50 +123,50 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 PinnedFolderStrip(kind: FolderKind.document, onMove: _move),
               ...switch (documents) {
                 AsyncData(:final value) when value.isEmpty => [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        icon: ref.watch(documentQueryProvider).isEmpty
-                            ? Icons.folder_open_outlined
-                            : Icons.search_off_rounded,
-                        title: ref.watch(documentQueryProvider).isEmpty
-                            ? strings('documents_empty_title')
-                            : strings('documents_search_empty_title'),
-                        body: ref.watch(documentQueryProvider).isEmpty
-                            ? strings('documents_empty_body')
-                            : strings('documents_search_empty_body'),
-                      ),
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: ref.watch(documentQueryProvider).isEmpty
+                          ? Icons.folder_open_outlined
+                          : Icons.search_off_rounded,
+                      title: ref.watch(documentQueryProvider).isEmpty
+                          ? strings('documents_empty_title')
+                          : strings('documents_search_empty_title'),
+                      body: ref.watch(documentQueryProvider).isEmpty
+                          ? strings('documents_empty_body')
+                          : strings('documents_search_empty_body'),
                     ),
-                  ],
+                  ),
+                ],
                 AsyncData(:final value) => [
-                    EntranceGroup(
-                      // Another folder, order or layout is another list: it
-                      // cascades in again. Search results just appear, since
-                      // they change on every keystroke.
-                      epoch: _searching ? null : (folderId, sort, isGrid),
-                      ids: value.map((d) => d.id),
-                      child: isGrid ? _grid(value) : _list(value),
-                    ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: Space.bottomInset),
-                    ),
-                  ],
+                  EntranceGroup(
+                    // Another folder, order or layout is another list: it
+                    // cascades in again. Search results just appear, since
+                    // they change on every keystroke.
+                    epoch: _searching ? null : (folderId, sort, isGrid),
+                    ids: value.map((d) => d.id),
+                    child: isGrid ? _grid(value) : _list(value),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: Space.bottomInset),
+                  ),
+                ],
                 AsyncError() => [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        icon: Icons.error_outline_rounded,
-                        title: strings('common_error'),
-                        body: strings('documents_empty_body'),
-                      ),
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: Icons.error_outline_rounded,
+                      title: strings('common_error'),
+                      body: strings('documents_empty_body'),
                     ),
-                  ],
+                  ),
+                ],
                 _ => const [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ],
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
               },
             ],
           ),
@@ -268,7 +273,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
 
     return SliverAppBar.large(
-      pinned: true,
       leading: folder == null
           ? null
           : IconButton(

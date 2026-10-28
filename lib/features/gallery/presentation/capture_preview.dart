@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
@@ -14,6 +14,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/image_editor_config.dart';
 import '../../../data/models/capture.dart';
 import '../../../data/providers.dart';
+import '../application/capture_flow.dart';
 import '../application/gallery_controller.dart';
 import 'ocr_sheet.dart';
 
@@ -191,7 +192,7 @@ class _CapturePreviewState extends ConsumerState<CapturePreview>
   Future<void> _edit() async {
     final strings = ref.read(stringsProvider);
     final capture = _capture;
-    Future<void>? write;
+    Uint8List? edited;
 
     await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
@@ -199,48 +200,37 @@ class _CapturePreviewState extends ConsumerState<CapturePreview>
           capture.file,
           configs: italianImageEditor,
           callbacks: ProImageEditorCallbacks(
-            // Overwrite in place: the gallery is a working set, and a second
-            // near-identical copy per tweak is how photo libraries rot.
-            onImageEditingComplete: (bytes) async {
-              write = capture.file.writeAsBytes(bytes, flush: true);
-              await write;
-            },
+            onImageEditingComplete: (bytes) async => edited = bytes,
             onCloseEditor: (mode) => Navigator.of(editorContext).pop(),
           ),
         ),
       ),
     );
 
-    // The editor closes as soon as it hands the bytes over, so the write can
-    // still be in flight; re-reading now would show the old picture again.
-    await write;
-    if (write == null || !mounted) return; // closed without saving
-
-    await forgetCachedImage(capture.file);
-    await ref.read(galleryControllerProvider.notifier).remeasure(capture);
+    final bytes = edited;
+    if (bytes == null || !mounted) return;
+    try {
+      final updated = await ref
+          .read(galleryControllerProvider.notifier)
+          .replaceContent(capture, bytes);
+      await forgetCachedImage(capture.file);
+      await forgetCachedImage(updated.file);
+    } on Object {
+      if (mounted) {
+        showSnack(
+          context,
+          strings('common_error'),
+          icon: Icons.error_outline_rounded,
+        );
+      }
+      return;
+    }
     if (!mounted) return;
-    // A new key on the image forces a fresh decode of the same path.
     setState(() => _revision++);
     showSnack(context, strings('image_edited'), icon: Icons.check_rounded);
   }
 
-  Future<void> _share() async {
-    final strings = ref.read(stringsProvider);
-    try {
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(_capture.path, mimeType: _capture.mimeType)],
-        ),
-      );
-    } on Object {
-      if (!mounted) return;
-      showSnack(
-        context,
-        strings('share_failed'),
-        icon: Icons.error_outline_rounded,
-      );
-    }
-  }
+  Future<void> _share() => CaptureFlow.share(context, ref, [_capture]);
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +292,6 @@ class _CapturePreviewState extends ConsumerState<CapturePreview>
                         // zoom, while a 12 MP original decoded at full size would
                         // cost ~48 MB per page and three pages can be alive at once.
                         cacheWidth: decodeWidth,
-                        filterQuality: FilterQuality.medium,
                         gaplessPlayback: true,
                         errorBuilder: (context, error, stack) => Center(
                           child: Text(

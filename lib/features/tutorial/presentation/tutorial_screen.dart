@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
@@ -80,7 +80,7 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
               itemBuilder: (context, index) {
                 final step = _steps[index];
                 return SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     Space.page,
                     Space.md,
                     Space.page,

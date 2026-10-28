@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/dimens.dart';
 
@@ -125,7 +125,7 @@ class ScanIllustration extends StatelessWidget {
                 borderRadius: BorderRadius.circular(Radii.md),
               ),
             ),
-            const PaperPlaceholder(width: 96, tilt: -0.06),
+            const PaperPlaceholder(tilt: -0.06),
             // Corner brackets: the visual language of automatic edge detection.
             for (final alignment in const [
               Alignment(-0.62, -0.66),
@@ -260,7 +260,6 @@ class EditorIllustration extends StatelessWidget {
       child: Center(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const PaperPlaceholder(width: 62, lines: 3),
             const SizedBox(width: Space.xs),

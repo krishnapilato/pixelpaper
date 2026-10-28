@@ -75,9 +75,9 @@ class CameraCapabilities {
 
   /// The zoom stops worth offering as buttons, inside what the lens has.
   List<double> get zoomStops => [
-        for (final stop in const [1.0, 2.0, 5.0, 10.0])
-          if (stop >= minZoom - 0.01 && stop <= maxZoom + 0.01) stop,
-      ];
+    for (final stop in const [1.0, 2.0, 5.0, 10.0])
+      if (stop >= minZoom - 0.01 && stop <= maxZoom + 0.01) stop,
+  ];
 }
 
 /// The exposure dial: where the finger has got to, and the step the camera

@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/l10n/strings.dart';
 import '../../../../core/theme/dimens.dart';
@@ -92,13 +94,13 @@ class Viewfinder extends StatelessWidget {
               // left the exposure pinned at zero however far the finger went.
               onVerticalDragUpdate:
                   focusAt == null || !capabilities.canCompensate
-                      ? null
-                      : (details) {
-                          final span = capabilities.maxExposure -
-                              capabilities.minExposure;
-                          final track = size.height * 0.7;
-                          onExposureNudge(-details.delta.dy / track * span);
-                        },
+                  ? null
+                  : (details) {
+                      final span =
+                          capabilities.maxExposure - capabilities.minExposure;
+                      final track = size.height * 0.7;
+                      onExposureNudge(-details.delta.dy / track * span);
+                    },
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -223,10 +225,15 @@ class FocusRing extends StatelessWidget {
     final ringTop = (at.dy - size / 2).clamp(4.0, bounds.height - size - 4);
     // The slider goes on the side with room for it.
     final onLeft = ringLeft + size + sliderWidth + 8 > bounds.width;
-    final sliderLeft = (onLeft ? ringLeft - sliderWidth - 8 : ringLeft + size + 8)
-        .clamp(4.0, bounds.width - sliderWidth - 4);
-    final sliderTop = (at.dy - sliderHeight / 2)
-        .clamp(4.0, bounds.height - sliderHeight - 4);
+    final sliderLeft =
+        (onLeft ? ringLeft - sliderWidth - 8 : ringLeft + size + 8).clamp(
+          4.0,
+          bounds.width - sliderWidth - 4,
+        );
+    final sliderTop = (at.dy - sliderHeight / 2).clamp(
+      4.0,
+      bounds.height - sliderHeight - 4,
+    );
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -492,7 +499,7 @@ class _BarButton extends StatelessWidget {
       onPressed: onPressed == null
           ? null
           : () {
-              HapticFeedback.selectionClick();
+              unawaited(HapticFeedback.selectionClick());
               onPressed!();
             },
       tooltip: tooltip,
@@ -674,7 +681,7 @@ class ZoomPills extends StatelessWidget {
                   onTap: onSelected == null
                       ? null
                       : () {
-                          HapticFeedback.selectionClick();
+                          unawaited(HapticFeedback.selectionClick());
                           onSelected!(stop);
                         },
                   child: AnimatedContainer(
@@ -791,8 +798,8 @@ class _ShutterButtonState extends State<ShutterButton> {
                     color: widget.busy || widget.counting
                         ? scheme.primary
                         : widget.enabled
-                            ? Colors.white
-                            : Colors.white38,
+                        ? Colors.white
+                        : Colors.white38,
                   ),
                 ),
                 if (widget.busy)
@@ -887,9 +894,7 @@ class _LastShot extends StatelessWidget {
                             ),
                             child: Text(
                               '$shots',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: scheme.onPrimary,
                                     letterSpacing: 0,

@@ -1,14 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:material_ui/material_ui.dart';
 
 import '../theme/dimens.dart';
 
-/// Coordinates the entrance of the items of one list or grid.
-///
-/// Items enter in a short cascade when the collection first appears or is
-/// swapped for another one (a different folder, a different sort), and an
-/// item that is added later — a photo just taken — enters on its own. Items
-/// scrolled into view afterwards simply appear: motion on every scroll is
-/// noise, not feedback.
+/// Coordinates the entrance of one list or grid: a short cascade when the
+/// collection appears or is replaced ([epoch] changes), a single entrance for
+/// an item added later, nothing for items merely scrolled into view.
 class EntranceGroup extends StatefulWidget {
   const EntranceGroup({
     super.key,
@@ -17,18 +15,11 @@ class EntranceGroup extends StatefulWidget {
     required this.child,
   });
 
-  /// Changes when the collection is replaced; the cascade then plays again.
   final Object? epoch;
-
-  /// The ids currently in the collection, to spot the ones just added.
   final Iterable<Object> ids;
-
   final Widget child;
 
-  /// How long after the collection appears items still join the cascade.
   static const Duration window = Duration(milliseconds: 450);
-
-  /// Items beyond this index appear without waiting for their turn.
   static const int maxStaggered = 14;
 
   @override
@@ -36,7 +27,7 @@ class EntranceGroup extends StatefulWidget {
 }
 
 class _EntranceGroupState extends State<EntranceGroup> {
-  late DateTime _since = DateTime.now();
+  final Stopwatch _since = Stopwatch()..start();
   late Set<Object> _known = widget.ids.toSet();
   Set<Object> _added = const {};
 
@@ -45,7 +36,7 @@ class _EntranceGroupState extends State<EntranceGroup> {
     super.didUpdateWidget(oldWidget);
     final ids = widget.ids.toSet();
     if (oldWidget.epoch != widget.epoch) {
-      _since = DateTime.now();
+      _since.reset();
       _added = const {};
     } else {
       _added = ids.difference(_known);
@@ -53,14 +44,13 @@ class _EntranceGroupState extends State<EntranceGroup> {
     _known = ids;
   }
 
-  /// The delay before [id] at [index] enters, or null when it should not
-  /// animate at all.
-  Duration? _delayFor(Object id, int index) {
+  /// Null when [id] should simply appear.
+  Duration? delayFor(Object id, int index) {
     if (_added.contains(id)) return Duration.zero;
-    final elapsed = DateTime.now().difference(_since);
+    final elapsed = _since.elapsed;
     if (elapsed > EntranceGroup.window) return null;
-    final slot = index.clamp(0, EntranceGroup.maxStaggered);
-    final delay = Motion.stagger * slot - elapsed;
+    final delay =
+        Motion.stagger * index.clamp(0, EntranceGroup.maxStaggered) - elapsed;
     return delay.isNegative ? Duration.zero : delay;
   }
 
@@ -78,8 +68,7 @@ class _EntranceScope extends InheritedWidget {
   bool updateShouldNotify(_EntranceScope oldWidget) => false;
 }
 
-/// One item of an [EntranceGroup]: fades in and rises a few pixels into
-/// place, on the emphasized-decelerate curve.
+/// One item of an [EntranceGroup]: fades in and rises a few pixels.
 class Entrance extends StatefulWidget {
   const Entrance({
     super.key,
@@ -99,90 +88,89 @@ class Entrance extends StatefulWidget {
 class _EntranceState extends State<Entrance>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _offset;
+  CurvedAnimation? _curve;
+  Timer? _start;
+
+  static final Animatable<Offset> _rise = Tween<Offset>(
+    begin: const Offset(0, 0.06),
+    end: Offset.zero,
+  );
 
   @override
-  void initState() {
-    super.initState();
-    final scope = context
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_controller != null || _start != null) return;
+    if (Motion.reduced(context)) return;
+    final delay = context
         .getInheritedWidgetOfExactType<_EntranceScope>()
-        ?.state;
-    final delay = scope?._delayFor(widget.id, widget.index);
+        ?.state
+        .delayFor(widget.id, widget.index);
     if (delay == null) return;
 
     final controller = _controller = AnimationController(
       vsync: this,
       duration: Motion.base,
     );
-    final curved = CurvedAnimation(parent: controller, curve: Motion.enter);
-    _opacity = curved;
-    _offset = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(curved);
-
+    _curve = CurvedAnimation(parent: controller, curve: Motion.enter);
     if (delay == Duration.zero) {
       controller.forward();
     } else {
-      Future<void>.delayed(delay, () {
-        if (mounted) controller.forward();
-      });
+      _start = Timer(delay, controller.forward);
     }
   }
 
   @override
   void dispose() {
+    _start?.cancel();
+    _curve?.dispose();
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null) return widget.child;
+    final curve = _curve;
+    if (curve == null) return widget.child;
     return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _offset, child: widget.child),
+      opacity: curve,
+      child: SlideTransition(
+        position: _rise.animate(curve),
+        child: widget.child,
+      ),
     );
   }
 }
 
-/// Puts a fixed set of children into one cascade: the sections of a settings
-/// page, the rows of a sheet, the actions of a bar. Collections whose items
-/// come and go want [EntranceGroup] with their own ids; this is for the ones
-/// that are simply there when the screen opens.
-///
-/// The result still needs an [EntranceGroup] above it, which is what decides
-/// whether the cascade plays at all.
+/// A fixed set of children entering as one cascade; needs an [EntranceGroup]
+/// above it.
 List<Widget> cascade(List<Widget> children) => [
   for (var i = 0; i < children.length; i++)
     Entrance(id: i, index: i, child: children[i]),
 ];
 
-/// A number or a short label that is replaced rather than edited — "3 di 12",
-/// a count of selected items — swapped with a small upward slide so the eye
-/// catches that it moved.
+/// A short label that is replaced rather than edited, swapped with a small
+/// upward slide.
 class Swapped extends StatelessWidget {
   const Swapped({super.key, required this.value, required this.child});
 
-  /// What the child stands for; a new value plays the swap.
   final Object value;
-
   final Widget child;
+
+  static final Animatable<Offset> _rise = Tween<Offset>(
+    begin: const Offset(0, 0.4),
+    end: Offset.zero,
+  );
 
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: Motion.quick,
+      duration: Motion.of(context, Motion.quick),
       switchInCurve: Motion.enter,
       switchOutCurve: Motion.exit,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.4),
-            end: Offset.zero,
-          ).animate(animation),
+          position: _rise.animate(animation),
           child: child,
         ),
       ),
@@ -195,16 +183,15 @@ class Swapped extends StatelessWidget {
   }
 }
 
-/// `Image.frameBuilder` that fades a picture in once it is decoded, instead
-/// of letting it pop into an empty tile. Synchronous frames (already in the
-/// image cache) are shown as they are: there is nothing to wait for.
+/// `Image.frameBuilder` that fades a decoded picture in; cached frames and
+/// reduced motion show it at once.
 Widget fadeInFrame(
   BuildContext context,
   Widget child,
   int? frame,
   bool wasSynchronouslyLoaded,
 ) {
-  if (wasSynchronouslyLoaded) return child;
+  if (wasSynchronouslyLoaded || Motion.reduced(context)) return child;
   return AnimatedOpacity(
     opacity: frame == null ? 0 : 1,
     duration: Motion.base,

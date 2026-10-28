@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:animations/animations.dart';
 import 'package:camera/camera.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -46,9 +46,10 @@ class CameraScreen extends ConsumerStatefulWidget {
   /// Opens the camera for a single page and returns the photo, or null when
   /// the user backed out.
   static Future<File?> takePage(BuildContext context) {
-    return Navigator.of(context, rootNavigator: true).push<File>(
-      cameraRoute(purpose: CameraPurpose.page),
-    );
+    return Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push<File>(cameraRoute(purpose: CameraPurpose.page));
   }
 
   @override
@@ -65,12 +66,12 @@ Route<T> cameraRoute<T>({CameraPurpose purpose = CameraPurpose.gallery}) {
         CameraScreen(purpose: purpose),
     transitionsBuilder: (context, animation, secondary, child) =>
         SharedAxisTransition(
-      animation: animation,
-      secondaryAnimation: secondary,
-      transitionType: SharedAxisTransitionType.scaled,
-      fillColor: Colors.black,
-      child: child,
-    ),
+          animation: animation,
+          secondaryAnimation: secondary,
+          transitionType: SharedAxisTransitionType.scaled,
+          fillColor: Colors.black,
+          child: child,
+        ),
   );
 }
 
@@ -155,7 +156,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       if (tween != null) _setZoom(tween.value);
     });
     WidgetsBinding.instance.addObserver(this);
-    _start();
+    unawaited(_start());
   }
 
   @override
@@ -195,7 +196,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
           _serial(() => _open(lens));
         } else if (_phase == _Phase.denied || _phase == _Phase.blocked) {
           // Back from Android's settings, perhaps with access granted.
-          _start();
+          unawaited(_start());
         }
       case AppLifecycleState.detached:
         break;
@@ -214,8 +215,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     if (!mounted) return;
     if (!status.isGranted) {
       setState(
-        () => _phase =
-            status.isPermanentlyDenied ? _Phase.blocked : _Phase.denied,
+        () => _phase = status.isPermanentlyDenied
+            ? _Phase.blocked
+            : _Phase.denied,
       );
       return;
     }
@@ -279,8 +281,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       if (!mounted) return;
       setState(
         () => _phase = switch (error.code) {
-          'CameraAccessDenied' || 'CameraAccessDeniedWithoutPrompt' =>
-            _Phase.denied,
+          'CameraAccessDenied' ||
+          'CameraAccessDeniedWithoutPrompt' => _Phase.denied,
           'CameraAccessRestricted' => _Phase.blocked,
           _ => _Phase.failed,
         },
@@ -319,7 +321,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   Future<void> _switchLens() async {
     final current = _lens;
     if (current == null || _lenses.length < 2) return;
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
     // Front and back alternate first; extra lenses follow in the list order.
     final other = _lenses.firstWhere(
       (l) => l.lensDirection != current.lensDirection,
@@ -366,7 +368,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       (local.dx / preview.width).clamp(0.0, 1.0),
       (local.dy / preview.height).clamp(0.0, 1.0),
     );
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
     setState(() {
       _focusAt = local;
       _focusId++;
@@ -403,7 +405,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   Future<void> _resetFocus() async {
     final controller = _controller;
     if (controller == null || _focusAt == null) return;
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
     _focusFade?.cancel();
     setState(() {
       _focusAt = null;
@@ -424,10 +426,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     _armFocusFade();
     if (!_exposure.nudge(stops, _caps)) return;
     // One tick per step: the scale feels like a dial with detents.
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
     setState(() {});
     _exposurePending = _exposure.value;
-    if (!_exposureSending) _sendExposure();
+    if (!_exposureSending) unawaited(_sendExposure());
   }
 
   /// Steps arrive faster than the camera can take them, so only the newest
@@ -453,7 +455,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     if ((zoom - _zoom).abs() < 0.005) return;
     setState(() => _zoom = zoom);
     _zoomPending = zoom;
-    if (!_zoomSending) _sendZoom();
+    if (!_zoomSending) unawaited(_sendZoom());
   }
 
   Future<void> _sendZoom() async {
@@ -472,9 +474,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 
   /// Glides to a zoom stop instead of jumping, like turning a lens.
   void _glideZoomTo(double target) {
-    _zoomTween = Tween<double>(begin: _zoom, end: target).animate(
-      CurvedAnimation(parent: _zoomGlide, curve: Motion.emphasized),
-    );
+    _zoomTween = Tween<double>(
+      begin: _zoom,
+      end: target,
+    ).animate(CurvedAnimation(parent: _zoomGlide, curve: Motion.emphasized));
     _zoomGlide.forward(from: 0);
   }
 
@@ -487,11 +490,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     }
     final timer = ref.read(cameraPreferencesProvider).timer;
     if (timer == CameraTimer.off) {
-      _shoot();
+      unawaited(_shoot());
       return;
     }
     var remaining = timer.delay.inSeconds;
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
     setState(() => _countdown = remaining);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (tick) {
       if (!mounted) {
@@ -503,9 +506,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         tick.cancel();
         _countdownTimer = null;
         setState(() => _countdown = null);
-        _shoot();
+        unawaited(_shoot());
       } else {
-        HapticFeedback.selectionClick();
+        unawaited(HapticFeedback.selectionClick());
         setState(() => _countdown = remaining);
       }
     });
@@ -526,7 +529,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       return;
     }
     setState(() => _capturing = true);
-    HapticFeedback.lightImpact();
+    unawaited(HapticFeedback.lightImpact());
     _blink.forward(from: 0);
     final strings = ref.read(stringsProvider);
 
@@ -537,10 +540,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     } on Object {
       if (!mounted) return;
       setState(() => _capturing = false);
-      _toast.show(
-        strings('camera_shot_failed'),
-        kind: CameraToastKind.failure,
-      );
+      _toast.show(strings('camera_shot_failed'), kind: CameraToastKind.failure);
       return;
     }
     if (!mounted) return;
@@ -575,10 +575,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       );
     } on Object {
       if (!mounted) return;
-      _toast.show(
-        strings('camera_save_failed'),
-        kind: CameraToastKind.failure,
-      );
+      _toast.show(strings('camera_save_failed'), kind: CameraToastKind.failure);
     }
   }
 
@@ -609,51 +606,51 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                   duration: Motion.slow,
                   transitionBuilder: (child, primary, secondary) =>
                       FadeThroughTransition(
-                    animation: primary,
-                    secondaryAnimation: secondary,
-                    fillColor: Colors.black,
-                    child: child,
-                  ),
+                        animation: primary,
+                        secondaryAnimation: secondary,
+                        fillColor: Colors.black,
+                        child: child,
+                      ),
                   child: switch (_phase) {
                     _Phase.ready when controller != null => Viewfinder(
-                        key: ValueKey(controller),
-                        controller: controller,
-                        grid: preferences.grid,
-                        blink: _blink,
-                        countdown: _countdown,
-                        focusAt: _focusAt,
-                        focusId: _focusId,
-                        exposure: _exposure.value,
-                        capabilities: _caps,
-                        strings: strings,
-                        onFocus: _focusOn,
-                        onResetFocus: _resetFocus,
-                        onExposureNudge: _nudgeExposure,
-                        onPinchStart: () => _pinchFrom = _zoom,
-                        onPinch: (scale) {
-                          _zoomGlide.stop();
-                          _setZoom(_pinchFrom * scale);
-                        },
-                      ),
+                      key: ValueKey(controller),
+                      controller: controller,
+                      grid: preferences.grid,
+                      blink: _blink,
+                      countdown: _countdown,
+                      focusAt: _focusAt,
+                      focusId: _focusId,
+                      exposure: _exposure.value,
+                      capabilities: _caps,
+                      strings: strings,
+                      onFocus: _focusOn,
+                      onResetFocus: _resetFocus,
+                      onExposureNudge: _nudgeExposure,
+                      onPinchStart: () => _pinchFrom = _zoom,
+                      onPinch: (scale) {
+                        _zoomGlide.stop();
+                        _setZoom(_pinchFrom * scale);
+                      },
+                    ),
                     _Phase.starting || _Phase.ready => const SizedBox(
-                        key: ValueKey('starting'),
-                        height: 240,
-                        child: Center(
-                          child: SizedBox.square(
-                            dimension: 28,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white70,
-                            ),
+                      key: ValueKey('starting'),
+                      height: 240,
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white70,
                           ),
                         ),
                       ),
+                    ),
                     final phase => _CameraMessage(
-                        key: ValueKey(phase),
-                        phase: phase,
-                        strings: strings,
-                        onRetry: _start,
-                      ),
+                      key: ValueKey(phase),
+                      phase: phase,
+                      strings: strings,
+                      onRetry: _start,
+                    ),
                   },
                 ),
               ),
@@ -670,7 +667,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                 ready: controller != null,
                 onClose: () => Navigator.of(context).maybePop(),
                 onFlash: _cycleFlash,
-                onTimer: ref.read(cameraPreferencesProvider.notifier).cycleTimer,
+                onTimer: ref
+                    .read(cameraPreferencesProvider.notifier)
+                    .cycleTimer,
                 onGrid: ref.read(cameraPreferencesProvider.notifier).toggleGrid,
               ),
             ),
@@ -728,25 +727,25 @@ class _CameraMessage extends StatelessWidget {
     final theme = Theme.of(context);
     final (icon, title, body) = switch (phase) {
       _Phase.denied => (
-          Icons.no_photography_outlined,
-          strings('camera_permission_title'),
-          strings('camera_permission_body'),
-        ),
+        Icons.no_photography_outlined,
+        strings('camera_permission_title'),
+        strings('camera_permission_body'),
+      ),
       _Phase.blocked => (
-          Icons.no_photography_outlined,
-          strings('camera_permission_title'),
-          strings('camera_permission_blocked'),
-        ),
+        Icons.no_photography_outlined,
+        strings('camera_permission_title'),
+        strings('camera_permission_blocked'),
+      ),
       _Phase.unavailable => (
-          Icons.no_photography_outlined,
-          strings('camera_unavailable'),
-          strings('camera_unavailable_body'),
-        ),
+        Icons.no_photography_outlined,
+        strings('camera_unavailable'),
+        strings('camera_unavailable_body'),
+      ),
       _ => (
-          Icons.error_outline_rounded,
-          strings('camera_failed'),
-          strings('camera_failed_body'),
-        ),
+        Icons.error_outline_rounded,
+        strings('camera_failed'),
+        strings('camera_failed_body'),
+      ),
     };
 
     return Padding(

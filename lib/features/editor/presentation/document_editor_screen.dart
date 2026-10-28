@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
@@ -13,7 +13,6 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/image_editor_config.dart';
-import '../../../data/providers.dart';
 import '../../../data/services/pdf_service.dart';
 import '../../camera/presentation/camera_screen.dart';
 import '../application/editor_controller.dart';
@@ -44,17 +43,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   bool _preparing = false;
 
   @override
-  void initState() {
-    super.initState();
-    // The canvas and every frame of the strip read the same document. Holding
-    // it once here is what keeps a 45 MB scan from being read a dozen times
-    // over in a single frame.
-    ref.read(pdfServiceProvider).retainDocument();
-  }
-
-  @override
   void dispose() {
-    ref.read(pdfServiceProvider).releaseDocument();
     _pager.dispose();
     _strip.dispose();
     super.dispose();
@@ -376,7 +365,10 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
             detail: strings('editor_add_gallery_detail'),
             onTap: () async {
               Navigator.pop(context);
-              final shot = await picker.pickImage(source: ImageSource.gallery);
+              final shot = await picker.pickImage(
+                source: ImageSource.gallery,
+                requestFullMetadata: false,
+              );
               if (shot == null) return;
               _controller.addImage(await shot.readAsBytes());
               await appended();
@@ -445,7 +437,7 @@ class _Editor extends StatelessWidget {
         title: strings('common_error'),
         body: strings('viewer_open_failed'),
       ),
-      builder: (context, document) => _body(context, document),
+      builder: _body,
     );
   }
 

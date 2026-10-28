@@ -1,39 +1,51 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
-/// Owns the single sqflite connection.
-///
-/// Opening is guarded by one cached Future, so concurrent callers during
-/// start-up share the same open operation instead of racing.
+/// Owns the single sqflite connection; concurrent callers share one open.
 class AppDatabase {
-  AppDatabase({this.fileName = 'pixelpaper.db'});
+  AppDatabase({
+    this.fileName = 'pixelpaper.db',
+    DatabaseFactory? factory,
+    this.path,
+  }) : _factory = factory;
 
   /// v1 archive + gallery, v2 folders and trash, v3 albums, v4 page origins.
   static const int schemaVersion = 4;
 
   final String fileName;
+
+  /// Full path, overriding [fileName]; tests pass `inMemoryDatabasePath`.
+  final String? path;
+  final DatabaseFactory? _factory;
   Future<Database>? _opening;
 
   Future<Database> get instance => _opening ??= _open();
 
   Future<Database> _open() async {
-    final path = p.join(await getDatabasesPath(), fileName);
-    return openDatabase(
-      path,
-      version: schemaVersion,
-      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: (db, version) async {
-        // onCreate already runs inside a transaction opened by sqflite.
-        await _createV1(db);
-        await _upgradeToV2(db);
-        await _upgradeToV3(db);
-        await _upgradeToV4(db);
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) await _upgradeToV2(db);
-        if (oldVersion < 3) await _upgradeToV3(db);
-        if (oldVersion < 4) await _upgradeToV4(db);
-      },
+    final factory = _factory ?? databaseFactory;
+    final target = path ?? p.join(await factory.getDatabasesPath(), fileName);
+    return factory.openDatabase(
+      target,
+      options: OpenDatabaseOptions(
+        version: schemaVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+          // Deleted rows are overwritten, not just unlinked: a removed title
+          // must not be recoverable from the file.
+          await db.execute('PRAGMA secure_delete = ON');
+        },
+        onCreate: (db, version) async {
+          await _createV1(db);
+          await _upgradeToV2(db);
+          await _upgradeToV3(db);
+          await _upgradeToV4(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) await _upgradeToV2(db);
+          if (oldVersion < 3) await _upgradeToV3(db);
+          if (oldVersion < 4) await _upgradeToV4(db);
+        },
+      ),
     );
   }
 

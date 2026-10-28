@@ -11,9 +11,6 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# Syncfusion PDF reflects over its own types while saving documents
--keep class com.syncfusion.** { *; }
--dontwarn com.syncfusion.**
 
 # Only the Latin recogniser is bundled; the plugin still references the other
 # scripts, so R8 must be told they are intentionally absent.

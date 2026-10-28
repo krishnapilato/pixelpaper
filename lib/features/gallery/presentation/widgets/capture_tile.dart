@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/dimens.dart';
 import '../../../../core/widgets/motion.dart';
@@ -66,7 +66,6 @@ class CaptureTile extends StatelessWidget {
                       key: ValueKey(capture.signature),
                       fit: BoxFit.cover,
                       cacheWidth: pixels,
-                      filterQuality: FilterQuality.medium,
                       gaplessPlayback: true,
                       frameBuilder: fadeInFrame,
                       errorBuilder: (context, error, stack) => Icon(

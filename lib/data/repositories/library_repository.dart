@@ -1,96 +1,111 @@
+import 'package:flutter/foundation.dart';
+
 import '../local/capture_dao.dart';
 import '../local/document_dao.dart';
 import '../local/folder_dao.dart';
 import '../models/capture.dart';
 import '../models/folder.dart';
 import '../models/scanned_document.dart';
-import '../services/storage_service.dart';
+import 'capture_repository.dart';
+import 'document_repository.dart';
 
-/// Everything in the bin, both kinds together.
+@immutable
 class TrashContents {
   const TrashContents({required this.documents, required this.captures});
+
+  static const TrashContents empty = TrashContents(documents: [], captures: []);
 
   final List<ScannedDocument> documents;
   final List<Capture> captures;
 
   bool get isEmpty => documents.isEmpty && captures.isEmpty;
   int get length => documents.length + captures.length;
+
+  int get sizeBytes =>
+      documents.fold(0, (sum, d) => sum + d.sizeBytes) +
+      captures.fold(0, (sum, c) => sum + c.sizeBytes);
+
+  @override
+  bool operator ==(Object other) =>
+      other is TrashContents &&
+      listEquals(other.documents, documents) &&
+      listEquals(other.captures, captures);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(documents), Object.hashAll(captures));
 }
 
-/// Folders and the recycle bin — the two concerns that span both libraries.
+/// Folders and the bin: the concerns that span both libraries.
 class LibraryRepository {
   LibraryRepository({
     required FolderDao folders,
-    required DocumentDao documents,
-    required CaptureDao captures,
-    required StorageService storage,
-  })  : _folders = folders,
-        _documents = documents,
-        _captures = captures,
-        _storage = storage;
+    required DocumentDao documentRows,
+    required CaptureDao captureRows,
+    required DocumentRepository documents,
+    required CaptureRepository captures,
+    DateTime Function()? clock,
+  }) : _folders = folders,
+       _documentRows = documentRows,
+       _captureRows = captureRows,
+       _documents = documents,
+       _captures = captures,
+       _clock = clock ?? DateTime.now;
 
   final FolderDao _folders;
-  final DocumentDao _documents;
-  final CaptureDao _captures;
-  final StorageService _storage;
+  final DocumentDao _documentRows;
+  final CaptureDao _captureRows;
+  final DocumentRepository _documents;
+  final CaptureRepository _captures;
+  final DateTime Function() _clock;
 
-  /// How long a trashed item is kept. Long enough to notice the mistake,
-  /// short enough that storage does not silently fill up.
   static const Duration retention = Duration(days: 30);
-
-  // --- Folders -------------------------------------------------------------
 
   Future<List<Folder>> folders(FolderKind kind) => _folders.all(kind);
 
-  Future<Folder?> createFolder(String name, FolderKind kind) =>
-      _folders.create(name, kind);
+  /// Null when the name is empty after cleaning or already used.
+  Future<Folder?> createFolder(String name, FolderKind kind) async {
+    final clean = Folder.cleanName(name);
+    return clean == null ? null : _folders.create(clean, kind);
+  }
 
-  Future<bool> renameFolder(Folder folder, String name) =>
-      _folders.rename(folder, name);
+  Future<bool> renameFolder(Folder folder, String name) async {
+    final clean = Folder.cleanName(name);
+    return clean != null && await _folders.rename(folder, clean);
+  }
 
+  /// Items inside go back to the root (`ON DELETE SET NULL`).
   Future<void> deleteFolder(Folder folder) => _folders.delete(folder.id);
 
   Future<void> moveDocuments(Iterable<int> ids, int? folderId) =>
-      _documents.moveToFolder(ids, folderId);
+      _documentRows.moveToFolder(ids, folderId);
 
   Future<void> moveCaptures(Iterable<int> ids, int? folderId) =>
-      _captures.moveToFolder(ids, folderId);
-
-  // --- Bin -----------------------------------------------------------------
+      _captureRows.moveToFolder(ids, folderId);
 
   Future<void> trashDocuments(Iterable<int> ids) =>
-      _documents.setTrashed(ids, true);
+      _documentRows.setTrashed(ids, trashed: true);
 
   Future<void> trashCaptures(Iterable<int> ids) =>
-      _captures.setTrashed(ids, true);
+      _captureRows.setTrashed(ids, trashed: true);
 
   Future<void> restoreDocuments(Iterable<int> ids) =>
-      _documents.setTrashed(ids, false);
+      _documentRows.setTrashed(ids, trashed: false);
 
   Future<void> restoreCaptures(Iterable<int> ids) =>
-      _captures.setTrashed(ids, false);
+      _captureRows.setTrashed(ids, trashed: false);
 
   Future<TrashContents> trash() async => TrashContents(
-        documents: await _documents.trashed(),
-        captures: await _captures.trashed(),
-      );
+    documents: await _documentRows.trashed(),
+    captures: await _captureRows.trashed(),
+  );
 
-  /// Deletes rows and files for good.
   Future<void> purge({
     Iterable<ScannedDocument> documents = const [],
     Iterable<Capture> captures = const [],
   }) async {
-    final documentList = documents.toList(growable: false);
-    final captureList = captures.toList(growable: false);
-    if (documentList.isEmpty && captureList.isEmpty) return;
-
-    await _documents.deleteIds(documentList.map((d) => d.id));
-    await _captures.deleteIds(captureList.map((c) => c.id));
-    await _storage.deleteFiles([
-      ...documentList.map((d) => d.path),
-      ...documentList.map((d) => d.thumbnailPath).whereType<String>(),
-      ...captureList.map((c) => c.path),
-    ]);
+    await _documents.deleteForever(documents);
+    await _captures.deleteForever(captures);
   }
 
   Future<void> emptyTrash() async {
@@ -98,13 +113,12 @@ class LibraryRepository {
     await purge(documents: contents.documents, captures: contents.captures);
   }
 
-  /// Drops anything trashed longer ago than [retention]. Runs at start-up so
-  /// the bin cannot quietly become permanent storage.
+  /// Drops anything trashed longer ago than [retention].
   Future<void> purgeExpired() async {
-    final cutoff = DateTime.now().subtract(retention);
+    final cutoff = _clock().subtract(retention);
     await purge(
-      documents: await _documents.expired(cutoff),
-      captures: await _captures.expired(cutoff),
+      documents: await _documentRows.expired(cutoff),
+      captures: await _captureRows.expired(cutoff),
     );
   }
 }

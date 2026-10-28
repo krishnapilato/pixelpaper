@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
@@ -43,62 +43,64 @@ class TrashScreen extends ConsumerWidget {
         ids: const <Object>[],
         child: switch (trash) {
           AsyncData(:final value) when value.isEmpty => EmptyState(
-              icon: Icons.delete_outline_rounded,
-              title: strings('trash_empty_title'),
-              body: strings('trash_empty_body'),
-            ),
+            icon: Icons.delete_outline_rounded,
+            title: strings('trash_empty_title'),
+            body: strings('trash_empty_body'),
+          ),
           AsyncData(:final value) => ListView(
-              padding: EdgeInsets.fromLTRB(
-                Space.md,
-                Space.xs,
-                Space.md,
-                MediaQuery.paddingOf(context).bottom + Space.xl,
-              ),
-              children: cascade([
-                _Notice(text: strings('trash_empty_body')),
-                if (value.documents.isNotEmpty) ...[
-                  _SectionLabel(label: strings('trash_section_documents')),
-                  for (final document in value.documents)
-                    _TrashRow(
-                      key: ValueKey('doc-${document.id}'),
-                      icon: Icons.picture_as_pdf_outlined,
-                      title: document.title,
-                      subtitle: _subtitle(
-                        strings,
-                        document.deletedAt,
-                        Fmt.bytes(document.sizeBytes),
-                      ),
-                      restoreLabel: strings('trash_restore'),
-                      deleteLabel: strings('trash_delete_forever'),
-                      onRestore: () => _restore(context, ref, documents: [document]),
-                      onDelete: () => _purge(context, ref, documents: [document]),
-                    ),
-                ],
-                if (value.captures.isNotEmpty) ...[
-                  _SectionLabel(label: strings('trash_section_images')),
-                  for (final capture in value.captures)
-                    _TrashRow(
-                      key: ValueKey('img-${capture.id}'),
-                      icon: Icons.image_outlined,
-                      title: Fmt.stem(capture.path),
-                      subtitle: _subtitle(
-                        strings,
-                        capture.deletedAt,
-                        Fmt.bytes(capture.sizeBytes),
-                      ),
-                      restoreLabel: strings('trash_restore'),
-                      deleteLabel: strings('trash_delete_forever'),
-                      onRestore: () => _restore(context, ref, captures: [capture]),
-                      onDelete: () => _purge(context, ref, captures: [capture]),
-                    ),
-                ],
-              ]),
+            padding: EdgeInsets.fromLTRB(
+              Space.md,
+              Space.xs,
+              Space.md,
+              MediaQuery.paddingOf(context).bottom + Space.xl,
             ),
+            children: cascade([
+              _Notice(text: strings('trash_empty_body')),
+              if (value.documents.isNotEmpty) ...[
+                _SectionLabel(label: strings('trash_section_documents')),
+                for (final document in value.documents)
+                  _TrashRow(
+                    key: ValueKey('doc-${document.id}'),
+                    icon: Icons.picture_as_pdf_outlined,
+                    title: document.title,
+                    subtitle: _subtitle(
+                      strings,
+                      document.deletedAt,
+                      Fmt.bytes(document.sizeBytes),
+                    ),
+                    restoreLabel: strings('trash_restore'),
+                    deleteLabel: strings('trash_delete_forever'),
+                    onRestore: () =>
+                        _restore(context, ref, documents: [document]),
+                    onDelete: () => _purge(context, ref, documents: [document]),
+                  ),
+              ],
+              if (value.captures.isNotEmpty) ...[
+                _SectionLabel(label: strings('trash_section_images')),
+                for (final capture in value.captures)
+                  _TrashRow(
+                    key: ValueKey('img-${capture.id}'),
+                    icon: Icons.image_outlined,
+                    title: Fmt.stem(capture.path),
+                    subtitle: _subtitle(
+                      strings,
+                      capture.deletedAt,
+                      Fmt.bytes(capture.sizeBytes),
+                    ),
+                    restoreLabel: strings('trash_restore'),
+                    deleteLabel: strings('trash_delete_forever'),
+                    onRestore: () =>
+                        _restore(context, ref, captures: [capture]),
+                    onDelete: () => _purge(context, ref, captures: [capture]),
+                  ),
+              ],
+            ]),
+          ),
           AsyncError() => EmptyState(
-              icon: Icons.error_outline_rounded,
-              title: strings('common_error'),
-              body: strings('trash_empty_body'),
-            ),
+            icon: Icons.error_outline_rounded,
+            title: strings('common_error'),
+            body: strings('trash_empty_body'),
+          ),
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),
@@ -107,7 +109,8 @@ class TrashScreen extends ConsumerWidget {
 
   String _subtitle(Strings strings, DateTime? deletedAt, String size) {
     if (deletedAt == null) return size;
-    final left = LibraryRepository.retention.inDays -
+    final left =
+        LibraryRepository.retention.inDays -
         DateTime.now().difference(deletedAt).inDays;
     return '$size · ${strings.plural('trash_days_left', left.clamp(0, 30))}';
   }
@@ -146,8 +149,11 @@ class TrashScreen extends ConsumerWidget {
         .read(trashControllerProvider.notifier)
         .purge(documents: documents, captures: captures);
     if (!context.mounted) return;
-    showSnack(context, strings('trash_deleted_forever'),
-        icon: Icons.delete_forever_outlined);
+    showSnack(
+      context,
+      strings('trash_deleted_forever'),
+      icon: Icons.delete_forever_outlined,
+    );
   }
 
   Future<void> _emptyAll(BuildContext context, WidgetRef ref) async {
@@ -163,8 +169,11 @@ class TrashScreen extends ConsumerWidget {
 
     await ref.read(trashControllerProvider.notifier).emptyAll();
     if (!context.mounted) return;
-    showSnack(context, strings('trash_emptied'),
-        icon: Icons.delete_sweep_outlined);
+    showSnack(
+      context,
+      strings('trash_emptied'),
+      icon: Icons.delete_sweep_outlined,
+    );
   }
 }
 
@@ -184,8 +193,11 @@ class _Notice extends StatelessWidget {
           padding: const EdgeInsets.all(Space.md),
           child: Row(
             children: [
-              Icon(Icons.schedule_rounded,
-                  size: 18, color: scheme.onSurfaceVariant),
+              Icon(
+                Icons.schedule_rounded,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: Space.sm),
               Expanded(
                 child: Text(text, style: Theme.of(context).textTheme.bodySmall),
@@ -206,7 +218,12 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.xs, Space.lg, Space.xs, Space.xs),
+      padding: const EdgeInsets.fromLTRB(
+        Space.xs,
+        Space.lg,
+        Space.xs,
+        Space.xs,
+      ),
       child: Text(
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall,

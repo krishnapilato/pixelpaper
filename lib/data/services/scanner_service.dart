@@ -66,7 +66,6 @@ class ScannerService {
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
         documentFormats: {DocumentFormat.pdf, DocumentFormat.jpeg},
-        mode: ScannerMode.full,
         pageLimit: pageLimit,
         isGalleryImport: true,
       ),
@@ -74,12 +73,12 @@ class ScannerService {
 
     try {
       final result = await scanner.scanDocument().timeout(
-            // The plugin can silently never complete if the host activity is
-            // recreated mid-scan; a timeout turns a permanent hang into an
-            // error the UI can recover from.
-            const Duration(minutes: 10),
-            onTimeout: () => throw const ScanException(ScanFailure.failed),
-          );
+        // The plugin can silently never complete if the host activity is
+        // recreated mid-scan; a timeout turns a permanent hang into an
+        // error the UI can recover from.
+        const Duration(minutes: 10),
+        onTimeout: () => throw const ScanException(ScanFailure.failed),
+      );
 
       final pdf = result.pdf;
       if (pdf == null) throw const ScanException(ScanFailure.failed);
@@ -98,8 +97,9 @@ class ScannerService {
       // message distinguishes them.
       throw switch (error.message) {
         'Operation cancelled' => const ScanException(ScanFailure.cancelled),
-        'Failed to start document scanner' =>
-          const ScanException(ScanFailure.unavailable),
+        'Failed to start document scanner' => const ScanException(
+          ScanFailure.unavailable,
+        ),
         _ => const ScanException(ScanFailure.failed),
       };
     } on MissingPluginException {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/theme/dimens.dart';
@@ -39,14 +39,14 @@ class EditorPageCanvas extends StatelessWidget {
           elevation: 2,
           child: switch (page) {
             EditorPageItem(blank: true) => const AspectRatio(
-                aspectRatio: 0.707,
-                child: SizedBox.expand(),
-              ),
+              aspectRatio: 0.707,
+              child: SizedBox.expand(),
+            ),
             EditorPageItem(:final imageBytes?) => Image.memory(
-                imageBytes,
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
-              ),
+              imageBytes,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+            ),
             EditorPageItem(:final sourceIndex?) when document != null =>
               PdfPageImage(
                 document: document!,
@@ -106,12 +106,12 @@ class EditorFilmstripThumb extends StatelessWidget {
               switch (page) {
                 EditorPageItem(blank: true) => const SizedBox.expand(),
                 EditorPageItem(:final imageBytes?) => Image.memory(
-                    imageBytes,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    cacheWidth: 180,
-                    gaplessPlayback: true,
-                  ),
+                  imageBytes,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  cacheWidth: 180,
+                  gaplessPlayback: true,
+                ),
                 EditorPageItem(:final sourceIndex?) when document != null =>
                   PdfPageImage(
                     document: document!,

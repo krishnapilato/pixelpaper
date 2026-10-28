@@ -1,10 +1,10 @@
 import 'package:animations/animations.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
-import '../../features/documents/presentation/documents_screen.dart';
 import '../../features/documents/application/documents_controller.dart';
+import '../../features/documents/presentation/documents_screen.dart';
 import '../../features/editor/presentation/album_editor_screen.dart';
 import '../../features/editor/presentation/document_editor_screen.dart';
 import '../../features/gallery/presentation/gallery_screen.dart';
@@ -14,7 +14,9 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/trash/presentation/trash_screen.dart';
 import '../../features/tutorial/presentation/tutorial_screen.dart';
 import '../../features/viewer/presentation/document_viewer_screen.dart';
+import '../l10n/strings.dart';
 import '../theme/dimens.dart';
+import '../widgets/feedback.dart';
 
 /// Route names, used instead of raw strings at call sites.
 abstract final class Routes {
@@ -30,7 +32,9 @@ abstract final class Routes {
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final _documentsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'archivio');
+final _documentsNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'archivio',
+);
 final _galleryNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'galleria');
 
 /// go_router 18 decides which `Page` to use by sniffing the app widget, and it
@@ -41,6 +45,8 @@ GoRouter createRouter() {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.splash,
+    errorPageBuilder: (context, state) =>
+        const NoTransitionPage(child: _NotFound()),
     routes: [
       // The opening animation owns the root path: it plays once per launch
       // and replaces itself with the archive, so nothing can navigate back
@@ -57,17 +63,19 @@ GoRouter createRouter() {
       StatefulShellRoute(
         pageBuilder: (context, state, navigationShell) =>
             CustomTransitionPage<void>(
-          key: state.pageKey,
-          transitionDuration: Motion.slow,
-          child: navigationShell,
-          transitionsBuilder: (context, animation, secondary, child) =>
-              FadeThroughTransition(
-            animation: animation,
-            secondaryAnimation: secondary,
-            fillColor: Theme.of(context).colorScheme.surface,
-            child: child,
-          ),
-        ),
+              key: state.pageKey,
+              transitionDuration: Motion.slow,
+              child: navigationShell,
+              transitionsBuilder: (context, animation, secondary, child) =>
+                  Motion.reduced(context)
+                  ? child
+                  : FadeThroughTransition(
+                      animation: animation,
+                      secondaryAnimation: secondary,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      child: child,
+                    ),
+            ),
         navigatorContainerBuilder: (context, navigationShell, children) =>
             HomeShell(navigationShell: navigationShell, children: children),
         branches: [
@@ -77,9 +85,8 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: Routes.documents,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: DocumentsScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: DocumentsScreen()),
               ),
             ],
           ),
@@ -89,9 +96,8 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: Routes.gallery,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: GalleryScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: GalleryScreen()),
               ),
             ],
           ),
@@ -100,10 +106,8 @@ GoRouter createRouter() {
       GoRoute(
         path: '/documento/:id',
         parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) => _fadeThrough(
-          state,
-          DocumentViewerScreen(documentId: _idOf(state)),
-        ),
+        pageBuilder: (context, state) =>
+            _fadeThrough(state, DocumentViewerScreen(documentId: _idOf(state))),
         routes: [
           GoRoute(
             path: 'modifica',
@@ -140,52 +144,51 @@ GoRouter createRouter() {
 int _idOf(GoRouterState state) =>
     int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
 
-/// Forward navigation (archive → document → editor): Material's shared axis
-/// on Z. The page grows in from slightly behind while the one it replaces
-/// recedes, and the Hero'd thumbnail flies on top, so the eye follows the
-/// document rather than a sliding panel.
-CustomTransitionPage<void> _fadeThrough(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    transitionDuration: Motion.transition,
-    reverseTransitionDuration: Motion.transition,
-    child: child,
-    transitionsBuilder: (context, animation, secondary, child) =>
-        SharedAxisTransition(
-      animation: animation,
-      secondaryAnimation: secondary,
-      transitionType: SharedAxisTransitionType.scaled,
-      fillColor: Theme.of(context).colorScheme.surface,
-      child: child,
-    ),
-  );
-}
+/// Forward navigation (archive → document → editor): shared axis on Z.
+CustomTransitionPage<void> _fadeThrough(GoRouterState state, Widget child) =>
+    _page(
+      state,
+      child,
+      (context, animation, secondary, child) => SharedAxisTransition(
+        animation: animation,
+        secondaryAnimation: secondary,
+        transitionType: SharedAxisTransitionType.scaled,
+        fillColor: Theme.of(context).colorScheme.surface,
+        child: child,
+      ),
+    );
 
-/// Temporary surfaces (settings, guide, bin) rise from below on Material's
-/// vertical shared axis: the gesture to dismiss them is "push it back down",
-/// which matches the motion.
-CustomTransitionPage<void> _slideUp(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    transitionDuration: Motion.transition,
-    reverseTransitionDuration: Motion.transition,
+/// Temporary surfaces (settings, guide, bin) rise from below.
+CustomTransitionPage<void> _slideUp(GoRouterState state, Widget child) => _page(
+  state,
+  child,
+  (context, animation, secondary, child) => SharedAxisTransition(
+    animation: animation,
+    secondaryAnimation: secondary,
+    transitionType: SharedAxisTransitionType.vertical,
+    fillColor: Theme.of(context).colorScheme.surface,
     child: child,
-    transitionsBuilder: (context, animation, secondary, child) =>
-        SharedAxisTransition(
-      animation: animation,
-      secondaryAnimation: secondary,
-      transitionType: SharedAxisTransitionType.vertical,
-      fillColor: Theme.of(context).colorScheme.surface,
-      child: child,
-    ),
-  );
-}
+  ),
+);
 
-/// Sends the route to the editor that matches the document.
-///
-/// The choice lives here rather than inside one of the editors so neither has
-/// to know the other exists, and so a document whose kind is not known yet
-/// shows a spinner instead of the wrong screen.
+CustomTransitionPage<void> _page(
+  GoRouterState state,
+  Widget child,
+  Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)
+  transition, {
+  Duration duration = Motion.transition,
+}) => CustomTransitionPage<void>(
+  key: state.pageKey,
+  transitionDuration: duration,
+  reverseTransitionDuration: duration,
+  child: child,
+  transitionsBuilder: (context, animation, secondary, child) =>
+      Motion.reduced(context)
+      ? child
+      : transition(context, animation, secondary, child),
+);
+
+/// Picks the editor that matches the document; leaves when it is gone.
 class _EditorForDocument extends ConsumerWidget {
   const _EditorForDocument({required this.id});
 
@@ -194,11 +197,33 @@ class _EditorForDocument extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final document = ref.watch(documentByIdProvider(id));
-    if (document == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (document != null) {
+      return document.isAlbum
+          ? AlbumEditorScreen(documentId: id)
+          : DocumentEditorScreen(documentId: id);
     }
-    return document.isAlbum
-        ? AlbumEditorScreen(documentId: id)
-        : DocumentEditorScreen(documentId: id);
+    if (ref.watch(documentMissingProvider(id))) return const _NotFound();
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class _NotFound extends ConsumerWidget {
+  const _NotFound();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
+    return Scaffold(
+      appBar: AppBar(),
+      body: EmptyState(
+        icon: Icons.description_outlined,
+        title: strings('viewer_open_failed'),
+        body: strings('documents_empty_body'),
+        action: FilledButton(
+          onPressed: () => context.go(Routes.documents),
+          child: Text(strings('tab_documents')),
+        ),
+      ),
+    );
   }
 }

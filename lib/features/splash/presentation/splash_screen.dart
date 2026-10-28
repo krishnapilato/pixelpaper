@@ -1,8 +1,8 @@
 import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
@@ -40,7 +40,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   // (0.1–1.25 s), its pixels come away (0.9–1.65 s), the name is written
   // (1.1–2.3 s), the motto arrives (2–2.6 s), everything rests, and the
   // whole dissolves into the archive (3.05–3.4 s).
-  static const Interval _settle = Interval(0.03, 0.28, curve: Motion.emphasized);
+  static const Interval _settle = Interval(
+    0.03,
+    0.28,
+    curve: Motion.emphasized,
+  );
   static const Interval _scan = Interval(0.07, 0.37, curve: Curves.easeInOut);
   static const Interval _firstPixel = Interval(0.26, 0.44);
   static const Interval _secondPixel = Interval(0.31, 0.49);
@@ -125,7 +129,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       child: Transform.translate(
                         offset: Offset(0, lerpDouble(0, -72, settle)!),
                         child: Transform.scale(
-                          scale: lerpDouble(1, 0.46, settle)!,
+                          scale: lerpDouble(1, 0.46, settle),
                           child: SizedBox.square(
                             dimension: _systemIconSize,
                             child: CustomPaint(
@@ -166,10 +170,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                 ),
                                 const SizedBox(height: Space.md),
                                 // The sheet edge: a rule that draws itself.
-                                FractionallySizedBox(
-                                  widthFactor: _rule.transform(t),
+                                Transform.scale(
+                                  scaleX: _rule.transform(t),
+                                  scaleY: 1,
                                   child: Container(
                                     height: 2,
+                                    width: double.infinity,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(1),
                                       gradient: LinearGradient(
@@ -192,10 +198,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                     child: Text(
                                       strings('app_motto'),
                                       textAlign: TextAlign.center,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: scheme.onSurfaceVariant,
-                                        letterSpacing: 1.2,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                            letterSpacing: 1.2,
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -276,7 +283,10 @@ class _MarkPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [accent.withValues(alpha: 0), accent.withValues(alpha: 0.35)],
+            colors: [
+              accent.withValues(alpha: 0),
+              accent.withValues(alpha: 0.35),
+            ],
           ).createShader(trail),
       );
       canvas.drawRect(
@@ -292,7 +302,13 @@ class _MarkPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawPixel(Canvas canvas, Rect rect, double radius, double scale, Paint paint) {
+  void _drawPixel(
+    Canvas canvas,
+    Rect rect,
+    double radius,
+    double scale,
+    Paint paint,
+  ) {
     final scaled = Rect.fromCenter(
       center: rect.center,
       width: rect.width * scale,
@@ -340,8 +356,6 @@ class _Wordmark extends StatelessWidget {
         ShaderMask(
           blendMode: BlendMode.dstIn,
           shaderCallback: (rect) => LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
             colors: const [
               Colors.white,
               Colors.white,

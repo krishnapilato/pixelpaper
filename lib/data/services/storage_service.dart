@@ -1,115 +1,112 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/utils/formatters.dart';
 
-/// Every path in the app is built here.
+/// The two roots the app may write to: private documents and private cache.
+class StorageRoots {
+  const StorageRoots({required this.documents, required this.temporary});
+
+  final Directory documents;
+  final Directory temporary;
+}
+
+typedef StorageRootsLoader = Future<StorageRoots> Function();
+
+Future<StorageRoots> _platformRoots() async => StorageRoots(
+  documents: await getApplicationDocumentsDirectory(),
+  temporary: await getTemporaryDirectory(),
+);
+
+/// Every path in the app is built and every file is removed here.
 ///
-/// Layout inside the app's private storage (no permissions required, invisible
-/// to other apps, removed on uninstall):
-///
-///   documents/pdf/       generated PDFs
-///   documents/albums/    one directory per album, holding its page images
+///   documents/pdf/       PDF documents
+///   documents/albums/    one directory per album, holding its pages
 ///   documents/captures/  full-resolution photos
-///   cache/previews/      rendered page images, safe to delete any time
+///   cache/previews/      rendered pages, regenerable
+///   cache/exports/       PDFs and photos on their way out, deleted after use
 ///
-/// Everything the user creates lives here and nowhere else. Exported copies go
-/// wherever the user points the system folder picker; the library itself stays
-/// private, which is why the app needs no storage permission and why a scanned
-/// document never turns up in Google Photos.
+/// Nothing outside the two roots is ever deleted, whatever a database row says.
 class StorageService {
-  StorageService();
+  StorageService({StorageRootsLoader? roots})
+    : _loadRoots = roots ?? _platformRoots;
 
-  Directory? _documents;
-  Directory? _albums;
-  Directory? _captures;
-  Directory? _previews;
-  Directory? _exports;
+  final StorageRootsLoader _loadRoots;
+  Future<StorageRoots>? _roots;
+  final Map<String, Future<Directory>> _dirs = {};
 
-  /// Cap on the preview cache. Beyond this the oldest files are dropped, so a
-  /// long session browsing large documents cannot grow storage without bound.
   static const int previewCacheBudgetBytes = 64 * 1024 * 1024;
+  static const int cacheNudgeBytes = 20 * 1024 * 1024;
 
-  Future<Directory> documentsDir() async =>
-      _documents ??= await _ensure(await getApplicationDocumentsDirectory(), 'pdf');
+  /// Cache folders other plugins leave copies of the user's files in.
+  static const List<String> _foreignCaches = ['share_plus', 'camera'];
 
-  Future<Directory> albumsDir() async =>
-      _albums ??= await _ensure(await getApplicationDocumentsDirectory(), 'albums');
+  Future<StorageRoots> get roots => _roots ??= _loadRoots();
 
-  Future<Directory> capturesDir() async =>
-      _captures ??= await _ensure(await getApplicationDocumentsDirectory(), 'captures');
+  Future<Directory> documentsDir() => _dir('pdf', temporary: false);
+  Future<Directory> albumsDir() => _dir('albums', temporary: false);
+  Future<Directory> capturesDir() => _dir('captures', temporary: false);
+  Future<Directory> previewsDir() => _dir('previews', temporary: true);
+  Future<Directory> exportsDir() => _dir('exports', temporary: true);
 
-  /// A fresh directory for one album.
-  ///
-  /// Named from the clock, not from the title: an album is renamed by editing
-  /// a row, and a title that changes must never mean files that move.
+  Future<Directory> _dir(String name, {required bool temporary}) =>
+      _dirs[name] ??= () async {
+        final base = await roots;
+        final dir = Directory(
+          p.join((temporary ? base.temporary : base.documents).path, name),
+        );
+        await dir.create(recursive: true);
+        return dir;
+      }();
+
+  /// True when [path] lies strictly inside one of the app's own roots.
+  Future<bool> owns(String path) async {
+    final base = await roots;
+    final target = p.normalize(p.absolute(path));
+    return p.isWithin(p.normalize(base.documents.path), target) ||
+        p.isWithin(p.normalize(base.temporary.path), target);
+  }
+
   Future<Directory> newAlbumDir() async {
     final parent = await albumsDir();
-    var stamp = DateTime.now().millisecondsSinceEpoch;
-    var candidate = Directory(p.join(parent.path, 'a$stamp'));
-    while (await candidate.exists()) {
-      candidate = Directory(p.join(parent.path, 'a${++stamp}'));
-    }
-    await candidate.create(recursive: true);
-    return candidate;
-  }
-
-  /// A free name for a page inside [albumDir], keeping the source extension.
-  ///
-  /// Page names are opaque and permanent. The order is a column in the
-  /// database, so dragging a page never renames a file.
-  Future<File> newPageFile(Directory albumDir, String sourcePath) async {
-    final extension = p.extension(sourcePath).toLowerCase();
     var stamp = DateTime.now().microsecondsSinceEpoch;
-    var candidate = File(p.join(albumDir.path, 'p$stamp$extension'));
-    while (await candidate.exists()) {
-      candidate = File(p.join(albumDir.path, 'p${++stamp}$extension'));
+    while (true) {
+      final candidate = Directory(p.join(parent.path, 'a$stamp'));
+      if (!await candidate.exists()) {
+        await candidate.create();
+        return candidate;
+      }
+      stamp++;
     }
-    return candidate;
   }
 
-  Future<Directory> previewsDir() async =>
-      _previews ??= await _ensure(await getTemporaryDirectory(), 'previews');
-
-  /// Where an album's PDF is built before it is shared or printed.
-  ///
-  /// Temporary on purpose: for an album the PDF is an output, not the
-  /// document. Keeping it would put a second copy of every page back on disk,
-  /// which is the thing albums exist to stop.
-  Future<Directory> exportsDir() async =>
-      _exports ??= await _ensure(await getTemporaryDirectory(), 'exports');
-
-  Future<Directory> _ensure(Directory parent, String name) async {
-    final dir = Directory(p.join(parent.path, name));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
+  /// A free, opaque name inside [albumDir]; only the extension is kept.
+  Future<File> newPageFile(Directory albumDir, String extension) async {
+    final ext = _safeExtension(extension);
+    var stamp = DateTime.now().microsecondsSinceEpoch;
+    while (true) {
+      final candidate = File(p.join(albumDir.path, 'p$stamp$ext'));
+      if (!await candidate.exists()) return candidate;
+      stamp++;
+    }
   }
 
   /// A free path for [name] inside [dir]; appends " (2)", " (3)", … on clash.
   Future<File> uniqueFile(Directory dir, String name, String extension) async {
     final safe = Fmt.safeFileName(name);
-    var candidate = File(p.join(dir.path, '$safe$extension'));
-    var counter = 2;
-    while (await candidate.exists()) {
-      candidate = File(p.join(dir.path, '$safe ($counter)$extension'));
-      counter++;
+    final ext = _safeExtension(extension);
+    var candidate = File(p.join(dir.path, '$safe$ext'));
+    for (var counter = 2; await candidate.exists(); counter++) {
+      candidate = File(p.join(dir.path, '$safe ($counter)$ext'));
     }
     return candidate;
   }
 
-  /// True when a sibling file of that name already exists — used to reject a
-  /// rename before touching the file system.
-  Future<bool> nameTaken(File file, String newName) async {
-    final target = p.join(
-      file.parent.path,
-      '${Fmt.safeFileName(newName)}${p.extension(file.path)}',
-    );
-    if (target == file.path) return false;
-    return File(target).exists();
-  }
-
+  /// Renames [file] within its folder; null when the name is taken.
   Future<File?> rename(File file, String newName) async {
     final target = p.join(
       file.parent.path,
@@ -120,86 +117,147 @@ class StorageService {
     return file.rename(target);
   }
 
-  Future<void> deleteFiles(Iterable<String> paths) async {
-    await Future.wait(
-      paths.map((path) async {
-        final file = File(path);
-        try {
-          if (await file.exists()) await file.delete();
-        } on FileSystemException {
-          // Already gone: deleting twice is not an error worth surfacing.
-        }
-      }),
+  /// Writes [bytes] next to [target] and renames over it, so a crash or a full
+  /// disk leaves either the old file or the new one, never half of either.
+  Future<File> writeAtomic(File target, List<int> bytes) async {
+    final part = File(
+      '${target.path}.${DateTime.now().microsecondsSinceEpoch}.part',
     );
+    try {
+      await part.writeAsBytes(bytes, flush: true);
+      return await part.rename(target.path);
+    } on Object {
+      await _deleteQuietly(part);
+      rethrow;
+    }
+  }
+
+  /// Copies [source] to [target] through a temporary sibling.
+  Future<File> copyAtomic(File source, File target) async {
+    final part = File(
+      '${target.path}.${DateTime.now().microsecondsSinceEpoch}.part',
+    );
+    try {
+      await source.copy(part.path);
+      return await part.rename(target.path);
+    } on Object {
+      await _deleteQuietly(part);
+      rethrow;
+    }
+  }
+
+  Future<void> deleteFiles(Iterable<String> paths) async {
+    for (final path in paths.toSet()) {
+      if (!await owns(path)) continue;
+      await _deleteQuietly(File(path));
+    }
+  }
+
+  Future<void> deleteTree(Directory dir) async {
+    if (!await owns(dir.path)) return;
+    try {
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } on FileSystemException {
+      return;
+    }
   }
 
   Future<List<File>> listFiles(Directory dir, Set<String> extensions) async {
     if (!await dir.exists()) return const [];
     final files = <File>[];
     await for (final entity in dir.list(followLinks: false)) {
-      if (entity is! File) continue;
-      if (extensions.contains(p.extension(entity.path).toLowerCase())) {
+      if (entity is File &&
+          extensions.contains(p.extension(entity.path).toLowerCase())) {
         files.add(entity);
       }
     }
     return files;
   }
 
+  /// A file in the export area named for the recipient, removed by
+  /// [clearExports] or the next start.
+  Future<File> exportFile(String name, String extension) async =>
+      uniqueFile(await exportsDir(), name, extension);
+
+  Future<void> clearExports() async {
+    final dir = await exportsDir();
+    await for (final entity in dir.list(followLinks: false)) {
+      try {
+        await entity.delete(recursive: true);
+      } on FileSystemException {
+        continue;
+      }
+    }
+  }
+
+  /// Removes what earlier sessions left in the cache: exports, plugin copies
+  /// of shared files, half-written `.part` files in the library.
+  Future<void> clearTransient() async {
+    await clearExports();
+    final base = await roots;
+    for (final name in _foreignCaches) {
+      await deleteTree(Directory(p.join(base.temporary.path, name)));
+    }
+    for (final dir in [await documentsDir(), await capturesDir()]) {
+      for (final part in await listFiles(dir, const {'.part'})) {
+        await _deleteQuietly(part);
+      }
+    }
+  }
+
+  /// The cache file for one rendering of [documentPath]; its name starts with
+  /// the document's own hash so every rendering can be dropped with it.
+  Future<File> previewFile(String documentPath, String variant) async {
+    final dir = await previewsDir();
+    return File(
+      p.join(dir.path, '${_hash(documentPath)}_${_hash(variant)}.png'),
+    );
+  }
+
+  Future<void> deletePreviewsOf(Iterable<String> documentPaths) async {
+    final prefixes = {for (final path in documentPaths) '${_hash(path)}_'};
+    if (prefixes.isEmpty) return;
+    final dir = await previewsDir();
+    await for (final entity in dir.list(followLinks: false)) {
+      final name = p.basename(entity.path);
+      if (entity is File && prefixes.any(name.startsWith)) {
+        await _deleteQuietly(entity);
+      }
+    }
+  }
+
   Future<int> previewCacheSize() async => _dirSize(await previewsDir());
 
-  /// Bytes taken by the documents and photos themselves — the part of the
-  /// footprint that clearing the cache will NOT recover.
   Future<int> librarySize() async =>
       await _dirSize(await documentsDir()) +
       await _dirSize(await albumsDir()) +
       await _dirSize(await capturesDir());
 
-  /// Above this, Impostazioni nudges the user towards the cache button: the
-  /// previews are all regenerable, so there is never a reason to keep tens of
-  /// megabytes of them around on a phone that is filling up.
-  static const int cacheNudgeBytes = 20 * 1024 * 1024;
-
   Future<void> clearPreviewCache() async {
     final dir = await previewsDir();
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
-      _previews = null;
-      await previewsDir();
-    }
+    _dirs.remove('previews')?.ignore();
+    await deleteTree(dir);
+    await previewsDir();
   }
 
-  /// Records that a preview has just been used.
-  ///
-  /// This is what turns [prunePreviewCache] from oldest-first into genuinely
-  /// least-recently-*used*. Android mounts app storage `noatime`, so nothing
-  /// keeps a read timestamp for us; rewriting the modification stamp is the
-  /// only record available. Without it, paging back to page 1 of a long
-  /// document would find it evicted because it was rendered first.
-  ///
-  /// Skipped while the stamp is still fresh: otherwise reading a document
-  /// would write to disk once per frame, which is the opposite of the point.
+  /// Marks a preview as used; app storage is mounted `noatime`, so the
+  /// modification stamp is the only least-recently-used record available.
   Future<void> touchPreview(File file) async {
     try {
       final stat = await file.stat();
-      final age = DateTime.now().difference(stat.modified);
-      if (age < const Duration(minutes: 2)) return;
+      if (DateTime.now().difference(stat.modified) <
+          const Duration(minutes: 2)) {
+        return;
+      }
       await file.setLastModified(DateTime.now());
     } on FileSystemException {
-      // A preview deleted underneath us needs no bookkeeping.
+      return;
     }
   }
 
-  /// Trims the preview cache to [previewCacheBudgetBytes], least recently used
-  /// first, and stops the moment it is back under budget.
-  ///
-  /// Called on start-up and again as renders accumulate, so a long reading
-  /// session cannot grow the cache without bound between launches. It deletes
-  /// only what it must: a sweep after a big document usually removes a handful
-  /// of previews and costs a few milliseconds.
+  /// Trims the preview cache to its budget, least recently used first.
   Future<void> prunePreviewCache() async {
     final dir = await previewsDir();
-    if (!await dir.exists()) return;
-
     final entries = <({File file, int size, DateTime modified})>[];
     var total = 0;
     await for (final entity in dir.list(followLinks: false)) {
@@ -217,12 +275,7 @@ class StorageService {
     entries.sort((a, b) => a.modified.compareTo(b.modified));
     for (final entry in entries) {
       if (total <= previewCacheBudgetBytes) break;
-      try {
-        await entry.file.delete();
-        total -= entry.size;
-      } on FileSystemException {
-        continue;
-      }
+      if (await _deleteQuietly(entry.file)) total -= entry.size;
     }
   }
 
@@ -230,14 +283,30 @@ class StorageService {
     if (!await dir.exists()) return 0;
     var total = 0;
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is File) {
-        try {
-          total += await entity.length();
-        } on FileSystemException {
-          continue;
-        }
+      if (entity is! File) continue;
+      try {
+        total += await entity.length();
+      } on FileSystemException {
+        continue;
       }
     }
     return total;
+  }
+
+  static String _safeExtension(String extension) {
+    final ext = extension.toLowerCase();
+    return RegExp(r'^\.[a-z0-9]{1,5}$').hasMatch(ext) ? ext : '';
+  }
+
+  static String _hash(String value) =>
+      sha256.convert(utf8.encode(value)).toString().substring(0, 32);
+
+  static Future<bool> _deleteQuietly(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+      return true;
+    } on FileSystemException {
+      return false;
+    }
   }
 }

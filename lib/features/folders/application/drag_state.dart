@@ -31,5 +31,5 @@ class DragActivityController extends Notifier<LibraryDragPayload?> {
 
 final activeDragProvider =
     NotifierProvider<DragActivityController, LibraryDragPayload?>(
-  DragActivityController.new,
-);
+      DragActivityController.new,
+    );

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -12,11 +12,7 @@ import '../../../core/widgets/feedback.dart';
 ///
 /// The text is shown in a scrollable, selectable block rather than dumped into
 /// the clipboard silently — people usually want one line out of a page.
-Future<void> showOcrResult(
-  BuildContext context,
-  WidgetRef ref,
-  String text,
-) {
+Future<void> showOcrResult(BuildContext context, WidgetRef ref, String text) {
   final strings = ref.read(stringsProvider);
   final empty = text.isEmpty;
   final words = empty ? 0 : text.split(RegExp(r'\s+')).length;
@@ -42,7 +38,9 @@ Future<void> showOcrResult(
                 child: Container(
                   padding: const EdgeInsets.all(Space.md),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(Radii.md),
                   ),
                   child: SingleChildScrollView(
@@ -67,8 +65,11 @@ Future<void> showOcrResult(
                             await Clipboard.setData(ClipboardData(text: text));
                             if (!context.mounted) return;
                             Navigator.pop(context);
-                            showSnack(context, strings('ocr_copied'),
-                                icon: Icons.check_rounded);
+                            showSnack(
+                              context,
+                              strings('ocr_copied'),
+                              icon: Icons.check_rounded,
+                            );
                           },
                     icon: const Icon(Icons.copy_rounded),
                     label: Text(strings('ocr_copy')),
@@ -79,8 +80,8 @@ Future<void> showOcrResult(
                   child: OutlinedButton.icon(
                     onPressed: empty
                         ? null
-                        : () => SharePlus.instance
-                            .share(ShareParams(text: text)),
+                        : () =>
+                              SharePlus.instance.share(ShareParams(text: text)),
                     icon: const Icon(Icons.ios_share_rounded),
                     label: Text(strings('common_share')),
                   ),

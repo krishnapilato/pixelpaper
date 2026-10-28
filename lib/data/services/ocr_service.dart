@@ -18,8 +18,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 class OcrService {
   TextRecognizer? _recognizer;
 
-  TextRecognizer get _instance =>
-      _recognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
+  TextRecognizer get _instance => _recognizer ??= TextRecognizer();
 
   Future<String> read(File image) async {
     final result = await _instance.processImage(InputImage.fromFile(image));

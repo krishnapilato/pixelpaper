@@ -1,15 +1,17 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../data/models/capture.dart';
 import '../../../data/models/folder.dart';
+import '../../../data/providers.dart';
 import '../../camera/presentation/camera_screen.dart';
 import '../../folders/application/folders_controller.dart';
 import 'gallery_controller.dart';
@@ -22,9 +24,10 @@ abstract final class CaptureFlow {
   /// into the camera with a container transform. This is for every other
   /// door — the empty state, the scanner's fallback.
   static Future<void> openCamera(BuildContext context) {
-    return Navigator.of(context, rootNavigator: true).push<void>(
-      cameraRoute<void>(),
-    );
+    return Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push<void>(cameraRoute<void>());
   }
 
   /// Brings existing photos into the app's own gallery, in the folder on
@@ -37,7 +40,9 @@ abstract final class CaptureFlow {
     final gallery = ref.read(galleryControllerProvider.notifier);
     final folderId = ref.read(currentFolderProvider(FolderKind.capture));
     try {
-      final picked = await ImagePicker().pickMultiImage();
+      final picked = await ImagePicker().pickMultiImage(
+        requestFullMetadata: false,
+      );
       if (picked.isEmpty) return;
       for (final file in picked) {
         await gallery.adopt(
@@ -59,6 +64,43 @@ abstract final class CaptureFlow {
         strings('camera_import_failed'),
         icon: Icons.error_outline_rounded,
       );
+    }
+  }
+
+  /// Shares copies of [captures] with location and camera metadata removed;
+  /// the copies are deleted once the share sheet has taken them.
+  static Future<void> share(
+    BuildContext context,
+    WidgetRef ref,
+    List<Capture> captures,
+  ) async {
+    if (captures.isEmpty) return;
+    final strings = ref.read(stringsProvider);
+    try {
+      await withBusy(
+        context,
+        strings('share_preparing'),
+        () => ref.read(captureRepositoryProvider).withShareable(captures, (
+          files,
+        ) async {
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [
+                for (var i = 0; i < files.length; i++)
+                  XFile(files[i].path, mimeType: captures[i].mimeType),
+              ],
+            ),
+          );
+        }),
+      );
+    } on Object {
+      if (context.mounted) {
+        showSnack(
+          context,
+          strings('share_failed'),
+          icon: Icons.error_outline_rounded,
+        );
+      }
     }
   }
 

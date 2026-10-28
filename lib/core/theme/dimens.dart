@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart' show Durations, Easing;
 import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart' show Durations, Easing;
 
 /// Spacing scale. Generous by design: the interface should breathe.
 abstract final class Space {
@@ -28,8 +28,9 @@ abstract final class Radii {
   static const double full = 999;
 
   static const BorderRadius card = BorderRadius.all(Radius.circular(lg));
-  static const BorderRadius sheet =
-      BorderRadius.vertical(top: Radius.circular(xl));
+  static const BorderRadius sheet = BorderRadius.vertical(
+    top: Radius.circular(xl),
+  );
 }
 
 /// Motion, on the Material 3 duration and easing tokens.
@@ -61,4 +62,12 @@ abstract final class Motion {
   static const Curve exit = Easing.emphasizedAccelerate;
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;
   static const Curve standard = Easing.standard;
+
+  /// True when the user asked the system to remove animations.
+  static bool reduced(BuildContext context) =>
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+  /// [duration], or zero when animations are off.
+  static Duration of(BuildContext context, Duration duration) =>
+      reduced(context) ? Duration.zero : duration;
 }

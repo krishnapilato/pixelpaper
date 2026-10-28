@@ -110,7 +110,6 @@ const ProImageEditorConfigs italianImageEditor = ProImageEditorConfigs(
       done: 'Fatto',
     ),
     emojiEditor: I18nEmojiEditor(
-      bottomNavigationBarText: 'Emoji',
       search: 'Cerca',
       categoryRecent: 'Recenti',
       categorySmileys: 'Faccine e persone',

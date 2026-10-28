@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'dimens.dart';
 
@@ -111,7 +111,9 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
-        contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
+        contentTextStyle: text.bodyMedium?.copyWith(
+          color: scheme.onInverseSurface,
+        ),
         actionTextColor: scheme.inversePrimary,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(Radii.sm)),
@@ -222,14 +224,13 @@ abstract final class AppTheme {
       double tracking = 0,
       double height = 1.25,
       Color? color,
-    }) =>
-        TextStyle(
-          fontSize: size,
-          fontWeight: weight,
-          letterSpacing: tracking,
-          height: height,
-          color: color ?? scheme.onSurface,
-        );
+    }) => TextStyle(
+      fontSize: size,
+      fontWeight: weight,
+      letterSpacing: tracking,
+      height: height,
+      color: color ?? scheme.onSurface,
+    );
 
     return TextTheme(
       displaySmall: style(36, FontWeight.w400, tracking: -0.8, height: 1.15),
@@ -240,14 +241,26 @@ abstract final class AppTheme {
       titleMedium: style(16, FontWeight.w500),
       titleSmall: style(14, FontWeight.w500),
       bodyLarge: style(16, FontWeight.w400, height: 1.45),
-      bodyMedium: style(14, FontWeight.w400,
-          height: 1.45, color: scheme.onSurfaceVariant),
-      bodySmall: style(12.5, FontWeight.w400,
-          height: 1.4, color: scheme.onSurfaceVariant),
+      bodyMedium: style(
+        14,
+        FontWeight.w400,
+        height: 1.45,
+        color: scheme.onSurfaceVariant,
+      ),
+      bodySmall: style(
+        12.5,
+        FontWeight.w400,
+        height: 1.4,
+        color: scheme.onSurfaceVariant,
+      ),
       labelLarge: style(14.5, FontWeight.w600, tracking: 0.1),
       labelMedium: style(12.5, FontWeight.w500, tracking: 0.2),
-      labelSmall: style(11, FontWeight.w600,
-          tracking: 1.1, color: scheme.onSurfaceVariant),
+      labelSmall: style(
+        11,
+        FontWeight.w600,
+        tracking: 1.1,
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 

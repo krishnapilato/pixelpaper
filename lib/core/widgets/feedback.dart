@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
+import '../state/limits.dart';
 import '../theme/dimens.dart';
+
+const Duration snackDuration = Duration(milliseconds: 2400);
 
 /// One-line confirmation toast. All copy comes from the caller so every string
 /// stays in `assets/lang.json`.
@@ -11,7 +14,7 @@ void showSnack(BuildContext context, String message, {IconData? icon}) {
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(
-      duration: const Duration(milliseconds: 2400),
+      duration: snackDuration,
       content: Row(
         children: [
           if (icon != null) ...[
@@ -137,7 +140,7 @@ Future<T> withBusy<T>(
   );
   overlay.insert(entry);
   try {
-    return await work();
+    return await work().bounded();
   } finally {
     entry.remove();
   }
@@ -165,7 +168,7 @@ class EmptyState extends StatelessWidget {
     // screen arrives instead of being found.
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Motion.slow,
+      duration: Motion.of(context, Motion.slow),
       curve: Motion.enter,
       builder: (context, t, child) => Opacity(
         opacity: t,
@@ -175,40 +178,43 @@ class EmptyState extends StatelessWidget {
         ),
       ),
       child: Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Space.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 84,
-              width: 84,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 84,
+                width: 84,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 34,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 34,
-                color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: Space.lg),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall,
               ),
-            ),
-            const SizedBox(height: Space.lg),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: Space.xs),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (action != null) ...[const SizedBox(height: Space.lg), action!],
-          ],
+              const SizedBox(height: Space.xs),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+              if (action != null) ...[
+                const SizedBox(height: Space.lg),
+                action!,
+              ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

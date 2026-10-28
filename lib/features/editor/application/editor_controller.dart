@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/limits.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
 import '../../../data/services/pdf_service.dart';
@@ -206,10 +207,12 @@ class EditorController extends AsyncNotifier<EditorState> {
           .rewrite(
             target: current.document.file,
             pages: [for (final page in current.pages) page.toBlueprint()],
-          );
+          )
+          .bounded();
       final refreshed = await ref
           .read(documentsControllerProvider.notifier)
-          .reload(current.document);
+          .reload(current.document, pageCount: current.pages.length);
+      if (!ref.mounted) return true;
 
       state = AsyncData(
         EditorState(
@@ -222,7 +225,7 @@ class EditorController extends AsyncNotifier<EditorState> {
       );
       return true;
     } on Object {
-      state = AsyncData(current.copyWith(saving: false));
+      if (ref.mounted) state = AsyncData(current.copyWith(saving: false));
       return false;
     }
   }

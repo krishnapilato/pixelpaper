@@ -1,11 +1,13 @@
 import 'dart:io';
 
-/// Where a raw image came from.
+import 'package:flutter/foundation.dart';
+
+import 'rows.dart';
+
 enum CaptureSource { camera, gallery }
 
-/// A raw, uncropped photo kept at full resolution in the app's private
-/// storage — the input material for a PDF, and the archive for pages whose
-/// detail (faded ink, Latin text) an auto-crop would throw away.
+/// A full-resolution photo kept in the app's private storage.
+@immutable
 class Capture {
   const Capture({
     required this.id,
@@ -30,14 +32,8 @@ class Capture {
   final DateTime? deletedAt;
 
   bool get isTrashed => deletedAt != null;
-
   File get file => File(path);
 
-  /// MIME type derived from the file itself.
-  ///
-  /// The gallery also holds PNGs imported from the photo picker: announcing
-  /// every share as `image/jpeg` would hand the receiving app a file that does
-  /// not match what it was told it is getting.
   String get mimeType =>
       path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
@@ -47,17 +43,22 @@ class Capture {
   String get signature =>
       '$id|$path|$sizeBytes|${createdAt.millisecondsSinceEpoch}';
 
-  /// Only the fields the image editor can change: the path and the capture
-  /// date identify the photo and must survive an edit.
-  Capture copyWith({int? sizeBytes, int? width, int? height}) => Capture(
-    id: id,
+  Capture copyWith({
+    int? id,
+    int? sizeBytes,
+    int? width,
+    int? height,
+    int? folderId,
+    bool clearFolder = false,
+  }) => Capture(
+    id: id ?? this.id,
     path: path,
     createdAt: createdAt,
     sizeBytes: sizeBytes ?? this.sizeBytes,
     source: source,
     width: width ?? this.width,
     height: height ?? this.height,
-    folderId: folderId,
+    folderId: clearFolder ? null : (folderId ?? this.folderId),
     deletedAt: deletedAt,
   );
 
@@ -73,20 +74,43 @@ class Capture {
   };
 
   static Capture fromRow(Map<String, Object?> row) => Capture(
-    id: row['id']! as int,
-    path: row['path']! as String,
-    createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at']! as int),
-    sizeBytes: (row['size_bytes'] as int?) ?? 0,
+    id: Rows.integer(row, 'id'),
+    path: Rows.text(row, 'path'),
+    createdAt: Rows.time(row, 'created_at'),
+    sizeBytes: Rows.integerOr(row, 'size_bytes'),
     source: CaptureSource.values.firstWhere(
       (s) => s.name == row['source'],
       orElse: () => CaptureSource.camera,
     ),
-    width: (row['width'] as int?) ?? 0,
-    height: (row['height'] as int?) ?? 0,
-    folderId: row['folder_id'] as int?,
-    deletedAt: switch (row['deleted_at']) {
-      final int stamp => DateTime.fromMillisecondsSinceEpoch(stamp),
-      _ => null,
-    },
+    width: Rows.integerOr(row, 'width'),
+    height: Rows.integerOr(row, 'height'),
+    folderId: Rows.integerOrNull(row, 'folder_id'),
+    deletedAt: Rows.timeOrNull(row, 'deleted_at'),
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is Capture &&
+      other.id == id &&
+      other.path == path &&
+      other.createdAt == createdAt &&
+      other.sizeBytes == sizeBytes &&
+      other.source == source &&
+      other.width == width &&
+      other.height == height &&
+      other.folderId == folderId &&
+      other.deletedAt == deletedAt;
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    path,
+    createdAt,
+    sizeBytes,
+    source,
+    width,
+    height,
+    folderId,
+    deletedAt,
   );
 }

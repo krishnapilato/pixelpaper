@@ -34,11 +34,11 @@ void main() {
     });
 
     test('zoom stops stay inside what the lens has', () {
-      const wide = CameraCapabilities(minZoom: 1, maxZoom: 8);
+      const wide = CameraCapabilities(maxZoom: 8);
       expect(wide.zoomStops, [1, 2, 5]);
       expect(wide.canZoom, isTrue);
 
-      const fixed = CameraCapabilities(minZoom: 1, maxZoom: 1);
+      const fixed = CameraCapabilities();
       expect(fixed.zoomStops, [1]);
       expect(fixed.canZoom, isFalse);
     });

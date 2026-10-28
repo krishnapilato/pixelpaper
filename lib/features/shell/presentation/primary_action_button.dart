@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart' show kLongPressTimeout;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/dimens.dart';
 
@@ -83,9 +85,10 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
         second > _ticks &&
         second < seconds) {
       _ticks = second;
-      HapticFeedback.selectionClick();
+      unawaited(HapticFeedback.selectionClick());
     }
-    final holding = _hold.status == AnimationStatus.forward &&
+    final holding =
+        _hold.status == AnimationStatus.forward &&
         _hold.lastElapsedDuration != null &&
         _hold.lastElapsedDuration! >= kLongPressTimeout;
     if (holding != _holding) {
@@ -94,7 +97,7 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
     }
     if (_hold.isCompleted && !_fired) {
       _fired = true;
-      HapticFeedback.heavyImpact();
+      unawaited(HapticFeedback.heavyImpact());
       _hold.reverse();
       widget.onImport();
     }

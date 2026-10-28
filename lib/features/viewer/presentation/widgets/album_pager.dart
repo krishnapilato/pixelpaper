@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/widgets/motion.dart';
@@ -36,7 +36,8 @@ class AlbumPager extends StatelessWidget {
     // Decoded at the width it is drawn, never at the width it was shot: a
     // 12 MP page costs a couple of megabytes on screen instead of forty-eight.
     final decodeWidth =
-        (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context))
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
             .round();
 
     return PageView.builder(
@@ -56,7 +57,6 @@ class AlbumPager extends StatelessWidget {
                 File(p.join(document.path, pages[index].fileName)),
                 fit: BoxFit.contain,
                 cacheWidth: decodeWidth,
-                filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
                 frameBuilder: fadeInFrame,
                 errorBuilder: (context, error, stack) => AspectRatio(

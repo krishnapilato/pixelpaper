@@ -1,431 +1,364 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:path/path.dart' as p;
 
 import '../../core/utils/formatters.dart';
 import '../local/document_dao.dart';
 import '../models/document_page.dart';
+import '../models/rows.dart';
 import '../models/scanned_document.dart';
 import '../services/pdf_service.dart';
+import '../services/scanner_service.dart';
 import '../services/storage_service.dart';
+import 'capture_repository.dart';
 
-/// The archive: sqflite rows for metadata, the file system for truth about
-/// what actually exists. Every read reconciles the two, so a file restored
-/// from a backup shows up and a row whose file vanished disappears.
+/// The archive: rows for metadata, the file system for existence.
 class DocumentRepository {
-  /// Private named parameters (Dart 3.10+): the fields stay private while the
-  /// call site still reads `DocumentRepository(dao: …, storage: …, pdf: …)`.
   DocumentRepository({
     required DocumentDao dao,
     required StorageService storage,
     required PdfService pdf,
-  })  : _dao = dao,
-        _storage = storage,
-        _pdf = pdf;
+    required CaptureRepository images,
+  }) : _dao = dao,
+       _storage = storage,
+       _pdf = pdf,
+       _images = images;
 
   final DocumentDao _dao;
   final StorageService _storage;
   final PdfService _pdf;
-
-  static const Set<String> _pdfExtension = {'.pdf'};
+  final CaptureRepository _images;
 
   Future<List<ScannedDocument>> load() async {
-    final rows = await _dao.all();
-    final dir = await _storage.documentsDir();
-    final files = await _storage.listFiles(dir, _pdfExtension);
+    final files = await _storage.listFiles(
+      await _storage.documentsDir(),
+      const {'.pdf'},
+    );
     final onDisk = {for (final file in files) file.path: file};
 
-    // An album's path is a directory, so it is never in [onDisk] and the
-    // reconcile below would delete every album on the first read. Albums are
-    // checked against their own directory instead.
-    final albums = rows.where((row) => row.isAlbum).toList(growable: false);
-    final liveAlbums = <int>{};
-    for (final album in albums) {
-      if (await album.directory.exists()) liveAlbums.add(album.id);
+    final rows = await _dao.all();
+    final missing = <ScannedDocument>[];
+    for (final row in rows) {
+      final exists = row.isAlbum
+          ? await row.directory.exists()
+          : onDisk.containsKey(row.path);
+      if (!exists) missing.add(row);
     }
+    await _dao.deleteIds(missing.map((row) => row.id));
+    await _storage.deletePreviewsOf(missing.map((row) => row.path));
 
-    final missing = rows.where(
-      (row) => row.isAlbum
-          ? !liveAlbums.contains(row.id)
-          : !onDisk.containsKey(row.path),
-    );
-    if (missing.isNotEmpty) {
-      await _dao.deleteIds(missing.map((row) => row.id));
-      await _storage.deleteFiles(
-        missing.map((row) => row.thumbnailPath).whereType<String>(),
-      );
-    }
-
-    // Every path the table knows, trashed rows included: a file sitting in
-    // the bin must not be adopted back as a brand-new document.
     final known = await _dao.knownPaths();
     final adopted = <ScannedDocument>[];
-    for (final file in files.where((f) => !known.contains(f.path))) {
+    for (final file in files) {
+      if (known.contains(file.path)) continue;
       final stat = await file.stat();
       adopted.add(
         ScannedDocument(
           id: 0,
           path: file.path,
           title: Fmt.stem(file.path),
-          createdAt: stat.modified,
-          updatedAt: stat.modified,
+          createdAt: stat.modified.toMillis,
+          updatedAt: stat.modified.toMillis,
           pageCount: await _pdf.pageCount(file),
           sizeBytes: stat.size,
         ),
       );
     }
-    if (adopted.isNotEmpty) await _dao.insertMissing(adopted);
+    await _dao.insertMissing(adopted);
 
-    // Re-read so adopted rows carry their assigned ids, then refresh the size
-    // of anything edited outside the app.
-    final fresh = await _dao.all();
     final result = <ScannedDocument>[];
-    for (final row in fresh) {
-      if (row.isAlbum) {
-        // Nothing outside the app writes into an album, so its row is already
-        // right: the page table and the size were updated by whoever changed
-        // it. Re-walking a dozen files per album on every archive read would
-        // cost more than it could ever catch.
+    for (final row in await _dao.all()) {
+      final file = onDisk[row.path];
+      if (row.isAlbum || file == null) {
+        if (row.isAlbum) result.add(row);
+        continue;
+      }
+      final stat = await file.stat();
+      if (stat.size == row.sizeBytes) {
         result.add(row);
         continue;
       }
-      final file = onDisk[row.path];
-      if (file == null) continue;
-      final stat = await file.stat();
-      if (stat.size != row.sizeBytes) {
-        final updated = row.copyWith(
-          sizeBytes: stat.size,
-          updatedAt: stat.modified,
-        );
-        await _dao.update(updated);
-        result.add(updated);
-      } else {
-        result.add(row);
-      }
+      final updated = row.copyWith(
+        sizeBytes: stat.size,
+        updatedAt: stat.modified.toMillis,
+      );
+      await _dao.update(updated);
+      result.add(updated);
     }
     return result;
   }
 
   Future<ScannedDocument?> byId(int id) => _dao.byId(id);
 
-  /// Files the PDF produced by the ML Kit scanner. The scanner writes into a
-  /// cache directory it owns, so the copy has to happen before anything else.
-  Future<ScannedDocument> importScan({
-    required File pdfSource,
-    required String title,
-    required int pageCount,
-    File? thumbnailSource,
-  }) async {
-    final dir = await _storage.documentsDir();
-    final target = await _storage.uniqueFile(dir, title, '.pdf');
-    await pdfSource.copy(target.path);
-
-    final stat = await target.stat();
-    String? thumbnailPath;
-    if (thumbnailSource != null && await thumbnailSource.exists()) {
-      // The scanner already handed us a clean page image — reuse it instead of
-      // rasterising the PDF we just wrote.
-      final thumb = await _pdf.adoptThumbnail(
-        thumbnailSource,
-        '${target.path}|${stat.modified.millisecondsSinceEpoch}|thumb',
+  /// Files the scanner's PDF and deletes everything the scanner left behind.
+  Future<ScannedDocument> importScan(ScanResult scan, String title) async {
+    try {
+      final target = await _storage.uniqueFile(
+        await _storage.documentsDir(),
+        title,
+        '.pdf',
       );
-      thumbnailPath = thumb?.path;
+      await _storage.copyAtomic(scan.pdf, target);
+      final thumbnail = scan.pageImages.isEmpty
+          ? null
+          : await _pdf.adoptThumbnail(scan.pageImages.first, target.path);
+      return await _insertPdf(target, scan.pageCount, thumbnail?.path);
+    } finally {
+      await discardScan(scan);
     }
+  }
 
-    return _persistNew(
-      target: target,
+  Future<void> discardScan(ScanResult scan) => _storage.deleteFiles([
+    scan.pdf.path,
+    for (final image in scan.pageImages) image.path,
+  ]);
+
+  Future<ScannedDocument> _insertPdf(
+    File target,
+    int pageCount,
+    String? thumbnailPath,
+  ) async {
+    final stat = await target.stat();
+    final draft = ScannedDocument(
+      id: 0,
+      path: target.path,
       title: Fmt.stem(target.path),
+      createdAt: stat.modified.toMillis,
+      updatedAt: stat.modified.toMillis,
       pageCount: pageCount,
-      stat: stat,
+      sizeBytes: stat.size,
       thumbnailPath: thumbnailPath,
     );
+    try {
+      return draft.copyWith(id: await _dao.insert(draft));
+    } on Object {
+      await _storage.deleteFiles([target.path, ?thumbnailPath]);
+      rethrow;
+    }
   }
 
-  /// Builds a PDF out of gallery captures.
-  Future<ScannedDocument> createFromImages({
-    required List<String> imagePaths,
-    required String title,
-  }) async {
-    final bytes = await _pdf.composeFromImages(imagePaths);
-    final dir = await _storage.documentsDir();
-    final target = await _storage.uniqueFile(dir, title, '.pdf');
-    await target.writeAsBytes(bytes, flush: true);
-
-    final stat = await target.stat();
-
-    // Page one is a photo we already have on disk: copy it. Rasterising the
-    // PDF instead — which is what this did — meant parsing a fifty-megabyte
-    // file and rendering a page out of it just to fill a 52-pixel tile, and on
-    // twelve full-resolution photos that took minutes with the progress
-    // spinner sitting there. [importScan] had this right all along.
-    final thumb = await _pdf.adoptThumbnail(
-      File(imagePaths.first),
-      '${target.path}|${stat.modified.millisecondsSinceEpoch}|thumb',
-    );
-
-    return _persistNew(
-      target: target,
-      title: Fmt.stem(target.path),
-      pageCount: imagePaths.length,
-      stat: stat,
-      thumbnailPath: thumb?.path,
-    );
-  }
-
-  // --- Albums --------------------------------------------------------------
-
-  /// Builds a document out of images without building a PDF.
-  ///
-  /// The photos are copied byte for byte — no re-encoding, no resizing, so the
-  /// archive holds exactly what the camera produced. The PDF is a thing the
-  /// user exports later, not a thing the app makes behind their back.
-  ///
-  /// What this replaces: composing twelve full-resolution photos into a PDF
-  /// took fifteen seconds and wrote a second, fifty-megabyte copy of the same
-  /// pixels, and every later reorder rewrote that file from scratch.
-  Future<ScannedDocument> createAlbumFromImages({
+  /// A new album holding byte-exact copies of [imagePaths]. Either every page
+  /// and the row exist afterwards, or nothing does.
+  Future<ScannedDocument> createAlbum({
     required List<String> imagePaths,
     required String title,
   }) async {
     final dir = await _storage.newAlbumDir();
+    try {
+      final now = DateTime.now().toMillis;
+      final pages = <DocumentPage>[];
+      var bytes = 0;
+      for (final source in imagePaths) {
+        final page = await _copyPage(dir, File(source), sourcePath: source);
+        bytes += await page.fileIn(dir).length();
+        pages.add(page);
+      }
+      if (pages.isEmpty) throw StateError('No readable image');
 
-    final pages = <DocumentPage>[];
-    var bytes = 0;
-    final now = DateTime.now();
-    for (final source in imagePaths) {
-      final file = File(source);
-      if (!await file.exists()) continue;
-      final target = await _storage.newPageFile(dir, source);
-      await file.copy(target.path);
-      bytes += await target.length();
-      pages.add(
-        DocumentPage(
-          id: 0,
-          documentId: 0,
-          fileName: p.basename(target.path),
-          position: pages.length,
-          createdAt: now,
-          // Remembered so the gallery can later say that this photo is
-          // already safe inside a document.
-          sourcePath: source,
-        ),
+      final draft = ScannedDocument(
+        id: 0,
+        path: dir.path,
+        kind: DocumentKind.album,
+        title: Fmt.safeFileName(title),
+        createdAt: now,
+        updatedAt: now,
+        pageCount: pages.length,
+        sizeBytes: bytes,
+        thumbnailPath: pages.first.fileIn(dir).path,
       );
+      return draft.copyWith(id: await _dao.insertAlbum(draft, pages));
+    } on Object {
+      await _storage.deleteTree(dir);
+      rethrow;
     }
-
-    final document = ScannedDocument(
-      id: 0,
-      path: dir.path,
-      kind: DocumentKind.album,
-      title: title,
-      createdAt: now,
-      updatedAt: now,
-      pageCount: pages.length,
-      sizeBytes: bytes,
-      // Page one is the thumbnail. Nothing is rendered, nothing is resized:
-      // the grid decodes it at tile size like every other image in the app.
-      thumbnailPath:
-          pages.isEmpty ? null : p.join(dir.path, pages.first.fileName),
-    );
-    final id = await _dao.insert(document);
-    await _dao.replacePages(id, pages);
-    return (await _dao.byId(id)) ?? document;
   }
 
   Future<List<DocumentPage>> pagesOf(ScannedDocument document) =>
       _dao.pagesOf(document.id);
 
-  /// The gallery files that are already pages of a live document.
   Future<Set<String>> pagedCapturePaths() => _dao.pageSourcePaths();
 
-  /// The document as a PDF file, ready to be shared, printed or saved.
-  ///
-  /// A PDF document is already one and is returned untouched. An album is
-  /// composed on the spot, at full resolution, into a temporary file — the one
-  /// place in the app where a PDF gets built, and the only time the user pays
-  /// for it.
-  Future<File> exportPdf(ScannedDocument document) async {
-    if (!document.isAlbum) return document.file;
-
+  /// Runs [use] with the document as a PDF file. An album's PDF is built for
+  /// the occasion and deleted as soon as [use] returns.
+  Future<T> withPdf<T>(
+    ScannedDocument document,
+    Future<T> Function(File pdf) use,
+  ) async {
+    if (!document.isAlbum) return use(document.file);
     final pages = await _dao.pagesOf(document.id);
+    final dir = document.directory;
     final bytes = await _pdf.composeFromImages([
-      for (final page in pages) p.join(document.path, page.fileName),
+      for (final page in pages) page.fileIn(dir).path,
     ]);
-
-    // Named after the title so the file arrives with a name the recipient can
-    // read, and rebuilt each time so it can never be stale.
-    final dir = await _storage.exportsDir();
-    final target = File(
-      p.join(dir.path, '${Fmt.safeFileName(document.title)}.pdf'),
+    final target = await _storage.writeAtomic(
+      await _storage.exportFile(document.title, '.pdf'),
+      bytes,
     );
-    await target.writeAsBytes(bytes, flush: true);
-    return target;
+    try {
+      return await use(target);
+    } finally {
+      await _storage.deleteFiles([target.path]);
+    }
   }
 
-  /// Writes a new page list — a reorder, a deletion, an insertion, or all
-  /// three at once.
-  ///
-  /// Files are not touched: reordering an album is renumbering a column, which
-  /// is why it is instant however large the pages are. Any page dropped from
-  /// the list has its file deleted, because an album owns its images and a
-  /// file nothing points at is only waste.
+  /// Writes the album's new page list; files no page refers to any more are
+  /// deleted.
   Future<ScannedDocument> savePages(
     ScannedDocument document,
     List<DocumentPage> pages,
   ) async {
-    final before = await _dao.pagesOf(document.id);
-    final keeping = {for (final page in pages) page.fileName};
-    final dropped = before
-        .where((page) => !keeping.contains(page.fileName))
-        .map((page) => p.join(document.path, page.fileName));
-
-    await _dao.replacePages(document.id, pages);
-    await _storage.deleteFiles(dropped);
-
+    if (pages.isEmpty) throw ArgumentError.value(pages, 'pages', 'empty');
+    final dir = document.directory;
     var bytes = 0;
     for (final page in pages) {
-      final file = File(p.join(document.path, page.fileName));
-      if (await file.exists()) bytes += await file.length();
+      final file = page.fileIn(dir);
+      if (!await file.exists()) throw StateError('Missing ${page.fileName}');
+      bytes += await file.length();
     }
-
     final updated = document.copyWith(
       pageCount: pages.length,
       sizeBytes: bytes,
-      updatedAt: DateTime.now(),
-      thumbnailPath: pages.isEmpty
-          ? null
-          : p.join(document.path, pages.first.fileName),
-      clearThumbnail: pages.isEmpty,
+      updatedAt: DateTime.now().toMillis,
+      thumbnailPath: pages.first.fileIn(dir).path,
     );
-    await _dao.update(updated);
+    await _dao.replacePages(updated, pages);
+    await sweepAlbum(updated);
     return updated;
   }
 
-  /// Copies [source] into the album and hands back the page for it, unsaved.
-  ///
-  /// Unsaved on purpose: the editor holds the whole list and writes it once,
-  /// so adding a page and moving it are the same single write.
+  /// Deletes files inside the album that no saved page refers to: what an
+  /// editor session added and then discarded, or a crash left behind.
+  Future<void> sweepAlbum(ScannedDocument document) async {
+    if (!document.isAlbum) return;
+    final kept = {
+      for (final page in await _dao.pagesOf(document.id)) page.fileName,
+    };
+    final dir = document.directory;
+    if (!await dir.exists()) return;
+    final orphans = <String>[];
+    await for (final entity in dir.list(followLinks: false)) {
+      if (entity is File && !kept.contains(p.basename(entity.path))) {
+        orphans.add(entity.path);
+      }
+    }
+    await _storage.deleteFiles(orphans);
+  }
+
+  /// Copies an image into the album as an unsaved page; [consume] deletes the
+  /// source afterwards when it is one of the app's temporary files.
   Future<DocumentPage> addPageFile(
     ScannedDocument document,
-    String source,
-  ) async {
-    final dir = Directory(document.path);
-    final target = await _storage.newPageFile(dir, source);
-    await File(source).copy(target.path);
-    return DocumentPage(
-      id: 0,
-      documentId: document.id,
-      fileName: p.basename(target.path),
-      position: 0,
-      createdAt: DateTime.now(),
-      sourcePath: source,
-    );
+    String source, {
+    bool consume = false,
+  }) async {
+    final page = await _copyPage(document.directory, File(source));
+    if (consume && !p.isWithin(document.path, source)) {
+      final base = await _storage.roots;
+      if (p.isWithin(base.temporary.path, source)) {
+        await _storage.deleteFiles([source]);
+      }
+    }
+    return page;
   }
 
-  /// Same, for an image that only exists in memory — a page the image editor
-  /// just produced, or a blank sheet.
+  /// Writes an image that exists only in memory as an unsaved page.
   Future<DocumentPage> addPageBytes(
     ScannedDocument document,
-    List<int> bytes, {
-    String extension = '.jpg',
-  }) async {
-    final dir = Directory(document.path);
-    final target = await _storage.newPageFile(dir, 'page$extension');
-    await target.writeAsBytes(bytes, flush: true);
-    return DocumentPage(
-      id: 0,
-      documentId: document.id,
-      fileName: p.basename(target.path),
-      position: 0,
-      createdAt: DateTime.now(),
+    Uint8List bytes,
+  ) async {
+    final archived = await _images.archivalBytes(bytes);
+    final target = await _storage.newPageFile(
+      document.directory,
+      archived.format.extension,
     );
+    await _storage.writeAtomic(target, archived.bytes);
+    return _pageFor(target);
   }
 
-  Future<ScannedDocument> _persistNew({
-    required File target,
-    required String title,
-    required int pageCount,
-    required FileStat stat,
-    String? thumbnailPath,
+  Future<DocumentPage> _copyPage(
+    Directory dir,
+    File source, {
+    String? sourcePath,
   }) async {
-    final document = ScannedDocument(
-      id: 0,
-      path: target.path,
-      title: title,
-      createdAt: stat.modified,
-      updatedAt: stat.modified,
-      pageCount: pageCount,
-      sizeBytes: stat.size,
-      thumbnailPath: thumbnailPath,
-    );
-    final id = await _dao.insert(document);
-    return (await _dao.byId(id)) ?? document;
+    if (await source.length() > CaptureRepository.maxImageBytes) {
+      throw const InvalidImageException('too large');
+    }
+    final archived = await _images.archivalBytes(await source.readAsBytes());
+    final target = await _storage.newPageFile(dir, archived.format.extension);
+    await _storage.writeAtomic(target, archived.bytes);
+    return _pageFor(target, sourcePath: sourcePath);
   }
 
-  /// Returns null when the name is already taken.
-  ///
-  /// An album is renamed by editing its row and nothing else: its directory is
-  /// named from the clock precisely so that a title can change freely without
-  /// a dozen page files having to move.
-  Future<ScannedDocument?> rename(ScannedDocument document, String title) async {
+  DocumentPage _pageFor(File target, {String? sourcePath}) => DocumentPage(
+    id: 0,
+    documentId: 0,
+    fileName: p.basename(target.path),
+    position: 0,
+    createdAt: DateTime.now().toMillis,
+    sourcePath: sourcePath,
+  );
+
+  /// Null when the name is taken. An album is renamed in its row only.
+  Future<ScannedDocument?> rename(
+    ScannedDocument document,
+    String title,
+  ) async {
+    final clean = Fmt.safeFileName(title, fallback: '');
+    if (clean.isEmpty) return null;
     if (document.isAlbum) {
-      final clean = Fmt.safeFileName(title);
-      if (clean.isEmpty) return null;
       final updated = document.copyWith(
         title: clean,
-        updatedAt: DateTime.now(),
+        updatedAt: DateTime.now().toMillis,
       );
       await _dao.update(updated);
       return updated;
     }
-
-    final renamed = await _storage.rename(document.file, title);
+    final renamed = await _storage.rename(document.file, clean);
     if (renamed == null) return null;
-
     final updated = document.copyWith(
       path: renamed.path,
       title: Fmt.stem(renamed.path),
     );
-    await _dao.update(updated);
+    try {
+      await _dao.update(updated);
+    } on Object {
+      await renamed.rename(document.path);
+      rethrow;
+    }
+    await _storage.deletePreviewsOf([document.path]);
     return updated;
   }
 
-  Future<void> delete(Iterable<ScannedDocument> documents) async {
+  /// Rows, files, album directories and cached renderings, for good.
+  Future<void> deleteForever(Iterable<ScannedDocument> documents) async {
     final list = documents.toList(growable: false);
     if (list.isEmpty) return;
-
-    // Album pages go with their album. The rows would fall to the foreign
-    // key's ON DELETE CASCADE anyway; the files would not.
-    final albums = list.where((d) => d.isAlbum).toList(growable: false);
     await _dao.deleteIds(list.map((d) => d.id));
-
-    await _storage.deleteFiles([
-      // A thumbnail path inside an album directory is one of its own pages,
-      // removed with the directory below; listing it here would be harmless
-      // but the filter keeps the intent readable.
-      ...list.where((d) => !d.isAlbum).map((d) => d.path),
-      ...list
-          .where((d) => !d.isAlbum)
-          .map((d) => d.thumbnailPath)
-          .whereType<String>(),
-    ]);
-    for (final album in albums) {
-      try {
-        final dir = album.directory;
-        if (await dir.exists()) await dir.delete(recursive: true);
-      } on FileSystemException {
-        // Already gone, or held by the system. The row is what matters.
+    for (final document in list) {
+      if (document.isAlbum) {
+        await _storage.deleteTree(document.directory);
+      } else {
+        await _storage.deleteFiles([document.path, ?document.thumbnailPath]);
       }
     }
+    await _storage.deletePreviewsOf(list.map((d) => d.path));
   }
 
-  /// Refreshes size, page count and thumbnail after the editor wrote the file.
-  Future<ScannedDocument> refresh(ScannedDocument document) async {
+  /// Records a rewritten PDF: its size and page count. The old thumbnail is
+  /// dropped and the list renders a new one when it next shows the document.
+  Future<ScannedDocument> refresh(
+    ScannedDocument document, {
+    required int pageCount,
+  }) async {
     final stat = await document.file.stat();
+    await _storage.deleteFiles([?document.thumbnailPath]);
     final updated = document.copyWith(
       sizeBytes: stat.size,
-      updatedAt: stat.modified,
-      pageCount: await _pdf.pageCount(document.file),
-      thumbnailPath: (await _pdf.thumbnail(document.file))?.path,
+      updatedAt: stat.modified.toMillis,
+      pageCount: pageCount,
+      clearThumbnail: true,
     );
     await _dao.update(updated);
     return updated;

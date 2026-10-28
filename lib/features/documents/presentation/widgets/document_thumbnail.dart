@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/dimens.dart';
 import '../../../../core/widgets/motion.dart';
@@ -39,7 +40,7 @@ class _DocumentThumbnailState extends ConsumerState<DocumentThumbnail> {
   @override
   void initState() {
     super.initState();
-    _resolve();
+    unawaited(_resolve());
   }
 
   @override
@@ -48,7 +49,7 @@ class _DocumentThumbnailState extends ConsumerState<DocumentThumbnail> {
     if (oldWidget.document.signature != widget.document.signature) {
       _image = null;
       _failed = false;
-      _resolve();
+      unawaited(_resolve());
     }
   }
 
@@ -61,8 +62,9 @@ class _DocumentThumbnailState extends ConsumerState<DocumentThumbnail> {
         return;
       }
     }
-    final rendered =
-        await ref.read(pdfServiceProvider).thumbnail(widget.document.file);
+    final rendered = await ref
+        .read(pdfServiceProvider)
+        .thumbnail(widget.document.file);
     if (!mounted) return;
     setState(() {
       _image = rendered;
@@ -88,16 +90,15 @@ class _DocumentThumbnailState extends ConsumerState<DocumentThumbnail> {
         ),
         child: switch ((image, _failed)) {
           (final File file, _) => Image.file(
-              file,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              cacheWidth: pixels,
-              filterQuality: FilterQuality.medium,
-              gaplessPlayback: true,
-              frameBuilder: fadeInFrame,
-              errorBuilder: (context, error, stack) =>
-                  _Placeholder(scheme: scheme, size: widget.width),
-            ),
+            file,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            cacheWidth: pixels,
+            gaplessPlayback: true,
+            frameBuilder: fadeInFrame,
+            errorBuilder: (context, error, stack) =>
+                _Placeholder(scheme: scheme, size: widget.width),
+          ),
           (null, true) => _Placeholder(scheme: scheme, size: widget.width),
           _ => const SizedBox.shrink(),
         },

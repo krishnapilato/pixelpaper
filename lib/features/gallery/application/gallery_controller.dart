@@ -1,102 +1,94 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/library_revision.dart';
+import '../../../core/state/limits.dart';
 import '../../../core/state/selection_controller.dart';
+import '../../../core/state/serial.dart';
 import '../../../data/models/capture.dart';
-import '../../../data/providers.dart';
 import '../../../data/models/folder.dart';
+import '../../../data/providers.dart';
 import '../../../data/repositories/capture_repository.dart';
 import '../../folders/application/folders_controller.dart';
-import '../../trash/application/trash_controller.dart';
 
-/// The raw-image gallery.
+/// The photo gallery. Writes are serialised and patch the loaded list.
 class GalleryController extends AsyncNotifier<List<Capture>> {
+  final Serial _serial = Serial();
+
   CaptureRepository get _repository => ref.read(captureRepositoryProvider);
 
   @override
-  Future<List<Capture>> build() => _repository.load();
-
-  Future<void> refresh() async {
-    state = await AsyncValue.guard(_repository.load);
-    final live = state.value?.map((c) => c.id).toSet();
-    if (live != null) ref.read(gallerySelectionProvider.notifier).retain(live);
+  Future<List<Capture>> build() {
+    ref.watch(folderReleasedProvider(FolderKind.capture));
+    return _repository.load().bounded();
   }
 
-  /// Stores a photo the camera just produced (or the picker handed over),
-  /// inside [folderId] when given.
+  Future<void> refresh() => _serial.run(() async {
+    final next = await AsyncValue.guard(() => _repository.load().bounded());
+    if (!ref.mounted) return;
+    state = next;
+    final live = next.value?.map((c) => c.id).toSet();
+    if (live != null) ref.read(gallerySelectionProvider.notifier).retain(live);
+  });
+
   Future<Capture> adopt(
     File source, {
     required CaptureSource origin,
     int? folderId,
-  }) async {
-    final capture = await _repository.adopt(
-      source,
-      origin: origin,
-      folderId: folderId,
+  }) => _write(
+    () => _repository.adopt(source, origin: origin, folderId: folderId),
+    (list, capture) => [capture, ...list],
+  );
+
+  /// Replaces a photo with an edited version of itself.
+  Future<Capture> replaceContent(Capture capture, Uint8List bytes) => _write(
+    () => _repository.replaceContent(capture, bytes),
+    (list, updated) => [for (final c in list) c.id == updated.id ? updated : c],
+  );
+
+  Future<void> moveToTrash(Iterable<int> ids) {
+    final removed = ids.toSet();
+    return _write(
+      () => ref.read(libraryRepositoryProvider).trashCaptures(removed),
+      (list, _) => [
+        for (final c in list)
+          if (!removed.contains(c.id)) c,
+      ],
+      clearSelection: true,
     );
-    final current = state.value ?? const <Capture>[];
-    state = AsyncData([capture, ...current]);
-    if (folderId != null) {
-      // The folder chip shows a count.
-      await ref.read(foldersProvider(FolderKind.capture).notifier).refresh();
-    }
-    return capture;
   }
 
-  /// Called after the image editor overwrote a photo: refreshes its row so the
-  /// grid, the details sheet and every image cache see the new picture.
-  Future<Capture> remeasure(Capture capture) async {
-    final updated = await _repository.remeasure(capture);
-    final current = state.value;
-    if (current != null) {
-      state = AsyncData([
-        for (final item in current) item.id == updated.id ? updated : item,
-      ]);
-    }
-    return updated;
+  Future<void> move(Iterable<int> ids, int? folderId) {
+    final moved = ids.toSet();
+    return _write(
+      () => ref.read(libraryRepositoryProvider).moveCaptures(moved, folderId),
+      (list, _) => [
+        for (final c in list)
+          moved.contains(c.id)
+              ? c.copyWith(folderId: folderId, clearFolder: folderId == null)
+              : c,
+      ],
+      clearSelection: true,
+    );
   }
 
-  /// Moves photos to the bin (recoverable for 30 days).
-  Future<void> moveToTrash(List<Capture> captures) async {
-    if (captures.isEmpty) return;
-    final removed = captures.map((c) => c.id).toSet();
-    await ref.read(libraryRepositoryProvider).trashCaptures(removed);
+  Future<T> _write<T>(
+    Future<T> Function() write,
+    List<Capture> Function(List<Capture> list, T result) patch, {
+    bool clearSelection = false,
+  }) => _serial.run(() async {
+    final result = await write();
+    if (!ref.mounted) return result;
     final current = state.value;
     if (current != null) {
-      state = AsyncData(
-        current.where((c) => !removed.contains(c.id)).toList(growable: false),
-      );
+      state = AsyncData(List.unmodifiable(patch(current, result)));
     }
-    ref.read(gallerySelectionProvider.notifier).clear();
-    await ref.read(trashControllerProvider.notifier).refresh();
-    await ref.read(foldersProvider(FolderKind.capture).notifier).refresh();
-  }
-
-  Future<void> move(Iterable<int> ids, int? folderId) async {
-    if (ids.isEmpty) return;
-    await ref.read(libraryRepositoryProvider).moveCaptures(ids, folderId);
-    final current = state.value;
-    if (current != null) {
-      state = AsyncData([
-        for (final item in current)
-          ids.contains(item.id)
-              ? Capture(
-                  id: item.id,
-                  path: item.path,
-                  createdAt: item.createdAt,
-                  sizeBytes: item.sizeBytes,
-                  source: item.source,
-                  width: item.width,
-                  height: item.height,
-                  folderId: folderId,
-                )
-              : item,
-      ]);
-    }
-    ref.read(gallerySelectionProvider.notifier).clear();
-    await ref.read(foldersProvider(FolderKind.capture).notifier).refresh();
-  }
+    if (clearSelection) ref.read(gallerySelectionProvider.notifier).clear();
+    ref.libraryChanged();
+    return result;
+  });
 }
 
 final galleryControllerProvider =
@@ -107,8 +99,6 @@ final galleryControllerProvider =
 final gallerySelectionProvider =
     NotifierProvider<SelectionController, Set<int>>(SelectionController.new);
 
-/// How many columns the gallery uses. Three is the default: big enough to
-/// recognise a page, small enough to scan a roll quickly.
 class GalleryColumnsController extends Notifier<int> {
   @override
   int build() => 3;
@@ -120,45 +110,38 @@ final galleryColumnsProvider = NotifierProvider<GalleryColumnsController, int>(
   GalleryColumnsController.new,
 );
 
-/// The photos of the folder currently open (all of them at the root).
 final visibleCapturesProvider = Provider<AsyncValue<List<Capture>>>((ref) {
-  final captures = ref.watch(galleryControllerProvider);
   final folderId = ref.watch(currentFolderProvider(FolderKind.capture));
-  return captures.whenData(
-    (list) => folderId == null
-        ? list
-        : list.where((c) => c.folderId == folderId).toList(growable: false),
-  );
+  return ref
+      .watch(galleryControllerProvider)
+      .whenData(
+        (list) => folderId == null
+            ? list
+            : [
+                for (final c in list)
+                  if (c.folderId == folderId) c,
+              ],
+      );
 });
 
-/// Photos that are already pages of a document, and what they weigh.
-///
-/// An album owns a copy of every page, so a document built from the gallery
-/// leaves the same pixels on the phone twice. That is deliberate — it is what
-/// makes a document impossible to break by tidying the gallery — but it is
-/// also the one place where the app's storage grows for a reason the user
-/// cannot see. This is that reason, made visible and made actionable: these
-/// photos can go, and nothing is lost.
-///
-/// The bytes are the honest number, read from the capture rows rather than
-/// guessed.
-/// Recomputed every time the screen that shows it is opened: creating a
-/// document does not touch the gallery, so watching the gallery alone left
-/// the count stale until the next launch.
+/// Photos already copied into a live document, and their weight: safe to
+/// delete, nothing is lost.
 final duplicatedCapturesProvider =
-    FutureProvider.autoDispose<({List<Capture> captures, int bytes})>((ref) async {
-  final captures = ref.watch(galleryControllerProvider).value;
-  if (captures == null || captures.isEmpty) {
-    return (captures: const <Capture>[], bytes: 0);
-  }
-  final paged = await ref.watch(documentRepositoryProvider).pagedCapturePaths();
-  if (paged.isEmpty) return (captures: const <Capture>[], bytes: 0);
-
-  final duplicated =
-      captures.where((c) => paged.contains(c.path)).toList(growable: false);
-  var bytes = 0;
-  for (final capture in duplicated) {
-    bytes += capture.sizeBytes;
-  }
-  return (captures: duplicated, bytes: bytes);
-});
+    FutureProvider.autoDispose<({List<Capture> captures, int bytes})>((
+      ref,
+    ) async {
+      ref.watch(libraryRevisionProvider);
+      final captures = ref.watch(galleryControllerProvider).value ?? const [];
+      if (captures.isEmpty) return (captures: const <Capture>[], bytes: 0);
+      final paged = await ref
+          .watch(documentRepositoryProvider)
+          .pagedCapturePaths();
+      final duplicated = [
+        for (final c in captures)
+          if (paged.contains(c.path)) c,
+      ];
+      return (
+        captures: duplicated,
+        bytes: duplicated.fold(0, (sum, c) => sum + c.sizeBytes),
+      );
+    });

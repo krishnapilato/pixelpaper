@@ -1,9 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pro_image_editor/pro_image_editor.dart';
 
@@ -12,21 +13,14 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/image_editor_config.dart';
+import '../../../core/widgets/motion.dart';
 import '../../../data/models/document_page.dart';
-import '../../../data/models/scanned_document.dart';
-import '../../../data/providers.dart';
 import '../../camera/presentation/camera_screen.dart';
-import '../../documents/application/documents_controller.dart';
+import '../application/album_editor_controller.dart';
 
-/// The editor for an album.
-///
-/// Same shape as the PDF editor — the page you are working on fills the
-/// screen, the strip above the dock is the map, the four verbs sit at the
-/// bottom — because it is the same job and should not feel like a different
-/// app. What changed is underneath: a page is an image the album owns, so
-/// reordering is a list of integers, duplicating is a file copy, and editing
-/// one page is editing one image. Nothing is rasterised and nothing is
-/// re-encoded, so the pages stay the pixels the camera produced.
+/// The album editor: the page on screen fills the canvas, the strip is the
+/// map, the dock holds the four verbs. Pages are images the album owns, so
+/// nothing is rasterised or re-encoded.
 class AlbumEditorScreen extends ConsumerStatefulWidget {
   const AlbumEditorScreen({super.key, required this.documentId});
 
@@ -40,14 +34,8 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
   final _pager = PageController();
   final _strip = ScrollController();
 
-  /// The order being edited. Null until the pages have loaded; from then on
-  /// this is the truth on screen, and the database only hears about it on save.
-  List<DocumentPage>? _pages;
-  String? _loadedFor;
-  int _index = 0;
-  bool _dirty = false;
-  bool _saving = false;
-  bool _busy = false;
+  AlbumEditorController get _editor =>
+      ref.read(albumEditorProvider(widget.documentId).notifier);
 
   @override
   void dispose() {
@@ -59,35 +47,27 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = ref.watch(stringsProvider);
-    final document = ref.watch(documentByIdProvider(widget.documentId));
+    final async = ref.watch(albumEditorProvider(widget.documentId));
+    final editor = async.value;
 
-    if (document == null) {
+    if (editor == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: EmptyState(
-          icon: Icons.description_outlined,
-          title: strings('viewer_open_failed'),
-          body: strings('documents_empty_body'),
-        ),
+        body: async.hasError
+            ? EmptyState(
+                icon: Icons.description_outlined,
+                title: strings('viewer_open_failed'),
+                body: strings('documents_empty_body'),
+              )
+            : const Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Adopt the stored order once per document version. Re-adopting on every
-    // build would throw away the drag the user just made.
-    final async = ref.watch(documentPagesProvider(widget.documentId));
-    if (_loadedFor != document.signature && async.hasValue && !_dirty) {
-      _loadedFor = document.signature;
-      _pages = [...async.requireValue];
-    }
-    final pages = _pages;
-    if (pages != null && _index >= pages.length) {
-      _index = pages.isEmpty ? 0 : pages.length - 1;
-    }
-
+    final pages = editor.pages;
     return PopScope(
-      canPop: !_dirty,
+      canPop: !editor.dirty && editor.isIdle,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        if (didPop || !editor.isIdle) return;
         final leave = await confirmAction(
           context,
           title: strings('editor_discard_title'),
@@ -95,7 +75,9 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
           confirmLabel: strings('editor_discard_action'),
           cancelLabel: strings('common_cancel'),
         );
-        if (leave && context.mounted) Navigator.of(context).pop();
+        if (!leave) return;
+        await _editor.discard();
+        if (context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -104,13 +86,16 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(strings('editor_title')),
-              if (pages != null && pages.isNotEmpty)
-                Text(
-                  strings('viewer_page_of', {
-                    'a': _index + 1,
-                    'b': pages.length,
-                  }),
-                  style: Theme.of(context).textTheme.bodySmall,
+              if (pages.isNotEmpty)
+                Swapped(
+                  value: '${editor.index}/${pages.length}',
+                  child: Text(
+                    strings('viewer_page_of', {
+                      'a': editor.index + 1,
+                      'b': pages.length,
+                    }),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
             ],
           ),
@@ -118,7 +103,7 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.xs),
               child: FilledButton(
-                onPressed: _dirty && !_saving ? _save : null,
+                onPressed: editor.dirty && editor.isIdle ? _save : null,
                 child: Text(strings('editor_save')),
               ),
             ),
@@ -126,9 +111,7 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
         ),
         body: Stack(
           children: [
-            if (pages == null)
-              const Center(child: CircularProgressIndicator())
-            else if (pages.isEmpty)
+            if (pages.isEmpty)
               EmptyState(
                 icon: Icons.description_outlined,
                 title: strings('viewer_open_failed'),
@@ -136,141 +119,118 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
               )
             else
               _Body(
-                albumDir: document.path,
+                albumDir: editor.document.path,
                 pages: pages,
                 pager: _pager,
                 strip: _strip,
-                index: _index,
+                index: editor.index,
                 hint: strings('editor_hint'),
-                onPageChanged: (index) => setState(() {
-                  _index = index;
+                onPageChanged: (index) {
+                  _editor.show(index);
                   _keepThumbVisible(index);
-                }),
+                },
                 onThumbTap: _goTo,
-                onReorder: _reorder,
+                onReorder: (from, to) {
+                  _editor.reorder(from, to);
+                  _afterFrame(() => _goTo(to, animate: false));
+                },
               ),
-            if (_saving) BusyOverlay(label: strings('editor_saving')),
-            if (_busy) BusyOverlay(label: strings('editor_rendering_page')),
+            if (editor.activity == EditorActivity.saving)
+              BusyOverlay(label: strings('editor_saving')),
+            if (editor.activity == EditorActivity.working)
+              BusyOverlay(label: strings('editor_rendering_page')),
           ],
         ),
-        bottomNavigationBar: pages == null
-            ? null
-            : _EditorDock(
-                strings: strings,
-                canDelete: pages.length > 1,
-                onAdd: () => _showAddSheet(document),
-                onEditPage: () => _editPage(document),
-                onDuplicate: () => _duplicate(document),
-                onDelete: _delete,
-              ),
+        bottomNavigationBar: _EditorDock(
+          strings: strings,
+          canDelete: editor.canDelete,
+          onAdd: () => unawaited(_showAddSheet()),
+          onEditPage: () => unawaited(_editPage(editor)),
+          onDuplicate: () => unawaited(
+            _run(() async {
+              await _editor.duplicateCurrent();
+              _afterFrame(() => _goTo(_editorIndex));
+            }),
+          ),
+          onDelete: () {
+            _editor.deleteCurrent();
+            _afterFrame(() => _goTo(_editorIndex, animate: false));
+          },
+        ),
       ),
     );
   }
 
+  int get _editorIndex =>
+      ref.read(albumEditorProvider(widget.documentId)).value?.index ?? 0;
+
+  void _afterFrame(VoidCallback action) =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) action();
+      });
+
   void _goTo(int index, {bool animate = true}) {
     if (!_pager.hasClients) return;
-    if (animate) {
-      _pager.animateToPage(index, duration: Motion.base, curve: Motion.enter);
+    if (animate && !Motion.reduced(context)) {
+      unawaited(
+        _pager.animateToPage(index, duration: Motion.base, curve: Motion.enter),
+      );
     } else {
       _pager.jumpToPage(index);
     }
     _keepThumbVisible(index);
   }
 
-  /// Keeps the current frame inside the strip after a jump or a reorder.
   void _keepThumbVisible(int index) {
     if (!_strip.hasClients) return;
     const thumb = 64.0 + Space.xs;
     final target =
         (index * thumb) - (_strip.position.viewportDimension / 2) + (thumb / 2);
-    _strip.animateTo(
-      target.clamp(0, _strip.position.maxScrollExtent),
-      duration: Motion.quick,
-      curve: Motion.enter,
+    unawaited(
+      _strip.animateTo(
+        target.clamp(0, _strip.position.maxScrollExtent),
+        duration: Motion.of(context, Motion.quick),
+        curve: Motion.enter,
+      ),
     );
   }
 
-  void _reorder(int oldIndex, int newIndex) {
-    final pages = _pages;
-    if (pages == null) return;
-    setState(() {
-      pages.insert(newIndex, pages.removeAt(oldIndex));
-      _index = newIndex;
-      _dirty = true;
-    });
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _goTo(newIndex, animate: false));
-  }
-
-  void _delete() {
-    final pages = _pages;
-    if (pages == null || pages.length <= 1) return;
-    setState(() {
-      pages.removeAt(_index);
-      if (_index >= pages.length) _index = pages.length - 1;
-      _dirty = true;
-    });
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _goTo(_index, animate: false));
-  }
-
-  /// Duplicating copies the file, because the copy has to be editable on its
-  /// own: two pages pointing at one image would edit each other.
-  Future<void> _duplicate(ScannedDocument document) async {
-    final pages = _pages;
-    if (pages == null || pages.isEmpty || _busy) return;
-    setState(() => _busy = true);
+  /// Runs a file operation and reports a failure instead of dropping it.
+  Future<void> _run(Future<void> Function() action) async {
     try {
-      final source = p.join(document.path, pages[_index].fileName);
-      final copy = await ref
-          .read(documentRepositoryProvider)
-          .addPageFile(document, source);
-      if (!mounted) return;
-      setState(() {
-        pages.insert(_index + 1, copy);
-        _dirty = true;
-        _busy = false;
-      });
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _goTo(_index + 1));
+      await action();
     } on Object {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        showSnack(
+          context,
+          ref.read(stringsProvider)('editor_edit_failed'),
+          icon: Icons.error_outline_rounded,
+        );
+      }
     }
   }
 
-  /// Opens the page on screen in the image editor and puts the result back in
-  /// its slot: crop, rotate, draw, annotate, blur — the same editor the
-  /// gallery uses on a photo, because that is exactly what this page is.
-  ///
-  /// The result is written to a *new* file rather than over the old one. The
-  /// path is what every image cache in Flutter keys on, so overwriting in
-  /// place leaves the grid, the strip and the reader all showing the picture
-  /// from before the edit. A new name makes the change visible everywhere for
-  /// free, and [DocumentRepository.savePages] deletes the file left behind.
-  Future<void> _editPage(ScannedDocument document) async {
-    final pages = _pages;
-    if (pages == null || pages.isEmpty || _busy) return;
-
+  /// Opens the page on screen in the image editor; the result becomes a new
+  /// file so every image cache sees the change.
+  Future<void> _editPage(AlbumEditorState editor) async {
+    final page = editor.current;
+    if (page == null || !editor.isIdle) return;
     final strings = ref.read(stringsProvider);
-    final index = _index;
-    final file = File(p.join(document.path, pages[index].fileName));
 
-    setState(() => _busy = true);
-    Uint8List bytes;
+    final Uint8List bytes;
     try {
-      bytes = await file.readAsBytes();
+      bytes = await page.fileIn(editor.document.directory).readAsBytes();
     } on Object {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      showSnack(
-        context,
-        strings('editor_edit_failed'),
-        icon: Icons.error_outline_rounded,
-      );
+      if (mounted) {
+        showSnack(
+          context,
+          strings('editor_edit_failed'),
+          icon: Icons.error_outline_rounded,
+        );
+      }
       return;
     }
     if (!mounted) return;
-    setState(() => _busy = false);
 
     Uint8List? edited;
     await Navigator.of(context, rootNavigator: true).push(
@@ -287,42 +247,28 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
     );
 
     final result = edited;
-    if (result == null || !mounted) return; // closed without saving
-
-    final replacement = await ref
-        .read(documentRepositoryProvider)
-        .addPageBytes(document, result);
-    if (!mounted) return;
-    setState(() {
-      pages[index] = replacement;
-      _dirty = true;
+    if (result == null || !mounted) return;
+    await _run(() async {
+      await _editor.replaceCurrent(result);
+      if (mounted) {
+        showSnack(
+          context,
+          strings('editor_page_edited'),
+          icon: Icons.check_rounded,
+        );
+      }
     });
-    showSnack(
-      context,
-      strings('editor_page_edited'),
-      icon: Icons.check_rounded,
-    );
   }
 
-  Future<void> _showAddSheet(ScannedDocument document) async {
+  Future<void> _showAddSheet() async {
     final strings = ref.read(stringsProvider);
-    final picker = ImagePicker();
 
-    Future<void> append(XFile? shot) async {
-      if (shot == null || !mounted) return;
-      final pages = _pages;
-      if (pages == null) return;
-      final page = await ref
-          .read(documentRepositoryProvider)
-          .addPageFile(document, shot.path);
-      if (!mounted) return;
-      setState(() {
-        pages.add(page);
-        _index = pages.length - 1;
-        _dirty = true;
+    Future<void> append(String? path) async {
+      if (path == null || !mounted) return;
+      await _run(() async {
+        await _editor.append(File(path));
+        _afterFrame(() => _goTo(_editorIndex));
       });
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _goTo(pages.length - 1));
     }
 
     await showAppSheet<void>(
@@ -339,11 +285,8 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             emphasised: true,
             onTap: () async {
               Navigator.pop(context);
-              // Full resolution, like every other page: a page added later is
-              // an archive page too. The app's own camera, in single-page mode:
-              // the shot closes it and lands here.
               final shot = await CameraScreen.takePage(context);
-              await append(shot == null ? null : XFile(shot.path));
+              await append(shot?.path);
             },
           ),
           SheetAction(
@@ -352,7 +295,11 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             detail: strings('editor_add_gallery_detail'),
             onTap: () async {
               Navigator.pop(context);
-              await append(await picker.pickImage(source: ImageSource.gallery));
+              final picked = await ImagePicker().pickImage(
+                source: ImageSource.gallery,
+                requestFullMetadata: false,
+              );
+              await append(picked?.path);
             },
           ),
           const SheetFooterSpace(),
@@ -362,31 +309,14 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
   }
 
   Future<void> _save() async {
-    final pages = _pages;
-    final document = ref.read(documentByIdProvider(widget.documentId));
-    if (pages == null || document == null) return;
-
     final strings = ref.read(stringsProvider);
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(documentsControllerProvider.notifier)
-          .savePages(document, pages);
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _dirty = false;
-      });
-      showSnack(context, strings('editor_saved'), icon: Icons.check_rounded);
-    } on Object {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      showSnack(
-        context,
-        strings('common_error'),
-        icon: Icons.error_outline_rounded,
-      );
-    }
+    final ok = await _editor.save();
+    if (!mounted) return;
+    showSnack(
+      context,
+      ok ? strings('editor_saved') : strings('common_error'),
+      icon: ok ? Icons.check_rounded : Icons.error_outline_rounded,
+    );
   }
 }
 
@@ -444,7 +374,6 @@ class _Body extends StatelessWidget {
                     key: ValueKey(pages[i].fileName),
                     fit: BoxFit.contain,
                     cacheWidth: canvasWidth,
-                    filterQuality: FilterQuality.medium,
                     gaplessPlayback: true,
                   ),
                 ),

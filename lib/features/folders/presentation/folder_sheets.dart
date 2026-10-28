@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -33,8 +33,11 @@ Future<void> createFolderFlow(
   if (!context.mounted) return;
 
   if (folder == null) {
-    showSnack(context, strings('folders_name_taken'),
-        icon: Icons.error_outline_rounded);
+    showSnack(
+      context,
+      strings('folders_name_taken'),
+      icon: Icons.error_outline_rounded,
+    );
     return;
   }
   ref.read(currentFolderProvider(kind).notifier).open(folder.id);
@@ -80,8 +83,11 @@ Future<void> showFolderActions(
                   .rename(folder, name);
               if (!context.mounted) return;
               if (!ok) {
-                showSnack(context, strings('folders_name_taken'),
-                    icon: Icons.error_outline_rounded);
+                showSnack(
+                  context,
+                  strings('folders_name_taken'),
+                  icon: Icons.error_outline_rounded,
+                );
               }
             },
           ),
@@ -104,8 +110,11 @@ Future<void> showFolderActions(
                   .read(foldersProvider(folder.kind).notifier)
                   .delete(folder);
               if (!context.mounted) return;
-              showSnack(context, strings('folders_deleted'),
-                  icon: Icons.check_rounded);
+              showSnack(
+                context,
+                strings('folders_deleted'),
+                icon: Icons.check_rounded,
+              );
             },
           ),
           const SheetFooterSpace(),
@@ -173,12 +182,16 @@ Future<void> showMoveToFolderSheet(
                   icon: Icons.create_new_folder_outlined,
                 );
                 if (name == null || !context.mounted) return;
-                final folder =
-                    await ref.read(foldersProvider(kind).notifier).create(name);
+                final folder = await ref
+                    .read(foldersProvider(kind).notifier)
+                    .create(name);
                 if (folder == null) {
                   if (context.mounted) {
-                    showSnack(context, strings('folders_name_taken'),
-                        icon: Icons.error_outline_rounded);
+                    showSnack(
+                      context,
+                      strings('folders_name_taken'),
+                      icon: Icons.error_outline_rounded,
+                    );
                   }
                   return;
                 }

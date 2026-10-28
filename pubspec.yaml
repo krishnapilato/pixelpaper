@@ -1,58 +1,61 @@
 name: pixel_paper
-description: "Scanner di documenti e archivio PDF per Android."
+description: "Scanner di documenti e archivio PDF per Android, privacy first."
 publish_to: 'none'
 version: 3.2.0+26092001
 
 environment:
   sdk: ^3.13.0
+  flutter: ">=3.47.0"
 
+# Every dependency is open source (MIT, BSD or Apache 2.0) and works offline.
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
-  # Stato e navigazione
+
+  # State, navigation, motion
   flutter_riverpod: ^3.4.3
-  go_router: ^18.0.1
-  # Transizioni Material (container transform, shared axis, fade through)
+  go_router: ^18.1.1
   animations: ^3.0.0
 
-  # Persistenza
-  sqflite: ^2.4.2
-  path_provider: ^2.1.5
+  # Storage
+  sqflite: ^2.4.5
+  path_provider: ^2.1.6
   path: ^1.9.1
 
-  # Acquisizione
+  # Capture
   google_mlkit_document_scanner: ^0.6.1
-  # Fotocamera della Galleria: il plugin ufficiale, CameraX su Android.
-  camera: ^0.12.1
-  # 12.x: la 13 richiede compileSdk 37, che il resto dell'app non usa ancora.
-  permission_handler: ^12.0.3
-  # Importazione dalle foto del telefono (Photo Picker di sistema)
-  image_picker: ^1.2.1
-
-  # PDF
-  pdf: ^3.11.3
-  printing: ^5.14.2
-  syncfusion_flutter_pdf: ^34.2.6
-
-  # Utilita
-  share_plus: ^13.3.0
-  intl: ^0.20.2
-  package_info_plus: ^10.2.1
-  crypto: ^3.0.6
-  url_launcher: ^6.3.2
   google_mlkit_text_recognition: ^0.17.1
-  pro_image_editor: ^13.3.1
-  pdfrx: ^2.6.1
-  flutter_file_dialog: ^3.3.2
-  saf_util: ^3.1.0
-  saf_stream: ^4.0.1
+  camera: ^0.12.2
+  permission_handler: ^13.0.2
+  image_picker: ^1.2.4
+
+  # Images and PDF
+  image: ^4.12.0
+  pdf: ^3.13.1
+  pdfrx: ^2.10.1
+  printing: ^5.15.1
+  pro_image_editor: ^14.21.1
+
+  # Sharing and export
+  share_plus: ^13.3.1
+  flutter_file_dialog: ^3.3.3
+  saf_util: ^3.1.1
+  saf_stream: ^4.0.3
+
+  # Utilities
+  intl: ^0.20.3
+  crypto: ^3.0.8
+  package_info_plus: ^10.2.2
+  url_launcher: ^6.3.3
+
+  # Material as a package, decoupled from the SDK (needed by pro_image_editor 14)
+  material_ui: ^1.8.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  sqflite_common_ffi: ^2.4.5
 
 flutter:
   uses-material-design: true

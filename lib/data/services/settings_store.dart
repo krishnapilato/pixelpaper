@@ -1,68 +1,106 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-/// The handful of choices the app has to remember between launches.
-///
-/// A small JSON file rather than a preferences plugin or a table: there is one
-/// setting so far, it is two strings long, and a file is something you can
-/// open and read when something goes wrong. If this grows past a screenful it
-/// belongs in the database with the rest of the state.
-class SettingsStore {
-  SettingsStore();
+import 'storage_service.dart';
 
-  Map<String, Object?>? _cache;
+@immutable
+class ExportFolder {
+  const ExportFolder({required this.uri, required this.name});
 
-  Future<File> _file() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File(p.join(dir.path, 'settings.json'));
+  /// A Storage Access Framework tree URI granted by the user.
+  final String uri;
+  final String name;
+
+  /// Only tree URIs from the system document provider are accepted back from
+  /// disk, so a tampered file cannot point exports anywhere else.
+  static bool isValidUri(String uri) {
+    final parsed = Uri.tryParse(uri);
+    return parsed != null &&
+        parsed.scheme == 'content' &&
+        parsed.host.isNotEmpty &&
+        parsed.pathSegments.isNotEmpty &&
+        parsed.pathSegments.first == 'tree';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ExportFolder && other.uri == uri && other.name == name;
+
+  @override
+  int get hashCode => Object.hash(uri, name);
+}
+
+/// The few choices remembered between launches, in a small JSON file.
+class SettingsStore {
+  SettingsStore(this._storage);
+
+  final StorageService _storage;
+  Map<String, Object?>? _cache;
+  Future<void> _writes = Future<void>.value();
+
+  static const String _exportUri = 'export_dir_uri';
+  static const String _exportName = 'export_dir_name';
+  static const int _maxBytes = 64 * 1024;
+
+  Future<File> _file() async =>
+      File(p.join((await _storage.roots).documents.path, 'settings.json'));
 
   Future<Map<String, Object?>> _read() async {
     final cached = _cache;
     if (cached != null) return cached;
     try {
       final file = await _file();
-      if (await file.exists()) {
+      if (await file.exists() && await file.length() <= _maxBytes) {
         final decoded = jsonDecode(await file.readAsString());
         if (decoded is Map<String, Object?>) return _cache = decoded;
       }
     } on Object {
-      // A corrupt settings file is not worth a crash, and there is nothing in
-      // it that cannot be chosen again.
+      // A corrupt file holds nothing that cannot be chosen again.
     }
     return _cache = <String, Object?>{};
   }
 
-  Future<void> _write(Map<String, Object?> values) async {
-    _cache = values;
-    final file = await _file();
-    await file.writeAsString(jsonEncode(values), flush: true);
+  Future<void> _update(void Function(Map<String, Object?> values) change) {
+    final next = _writes.then((_) async {
+      final values = {...await _read()};
+      change(values);
+      _cache = values;
+      await _storage.writeAtomic(
+        await _file(),
+        utf8.encode(jsonEncode(values)),
+      );
+    });
+    _writes = next.catchError((Object _) {});
+    return next;
   }
 
-  // --- Export folder -------------------------------------------------------
-
-  static const String _exportUri = 'export_dir_uri';
-  static const String _exportName = 'export_dir_name';
-
-  /// The folder "Esporta" writes into, or null while it should ask each time.
-  ///
-  /// Stored as the SAF tree URI plus the name to show in Impostazioni — the
-  /// URI is unreadable to a human and the name alone cannot be written to.
-  Future<({String uri, String name})?> exportFolder() async {
+  Future<ExportFolder?> exportFolder() async {
     final values = await _read();
     final uri = values[_exportUri];
     final name = values[_exportName];
-    if (uri is! String || uri.isEmpty) return null;
-    return (uri: uri, name: name is String && name.isNotEmpty ? name : uri);
+    if (uri is! String || !ExportFolder.isValidUri(uri)) return null;
+    return ExportFolder(
+      uri: uri,
+      name: name is String && name.isNotEmpty ? name : uri,
+    );
   }
 
-  Future<void> setExportFolder({required String uri, required String name}) =>
-      _read().then((v) => _write({...v, _exportUri: uri, _exportName: name}));
+  Future<void> setExportFolder(ExportFolder folder) {
+    if (!ExportFolder.isValidUri(folder.uri)) {
+      throw ArgumentError.value(folder.uri, 'uri', 'not a tree URI');
+    }
+    return _update((v) {
+      v[_exportUri] = folder.uri;
+      v[_exportName] = folder.name;
+    });
+  }
 
-  Future<void> clearExportFolder() =>
-      _read().then((v) => _write({...v}..remove(_exportUri)
-        ..remove(_exportName)));
+  Future<void> clearExportFolder() => _update((v) {
+    v
+      ..remove(_exportUri)
+      ..remove(_exportName);
+  });
 }

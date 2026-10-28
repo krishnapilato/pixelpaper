@@ -1,57 +1,62 @@
 # PixelPaper
 
-> **"I tuoi dati restano con te."** — *Your data stays with you.*
+> **«I tuoi dati restano con te.»**
 
-A document scanner and PDF archive for Android. Everything stays on the device:
-no account, no cloud, no permission beyond the camera.
+Scanner di documenti e archivio PDF per Android. Tutto resta sul telefono:
+nessun account, nessun cloud, nessuna richiesta di rete, nessun permesso oltre
+alla fotocamera.
 
-The interface is **Italian only** — a product decision, not an oversight; see
-[Design decisions](#design-decisions).
+[![Android](https://github.com/krishnapilato/pixelpaper/actions/workflows/android.yml/badge.svg)](https://github.com/krishnapilato/pixelpaper/actions/workflows/android.yml)
 
-**Author:** Khova Krishna Pilato ·
+- 📲 **App su Google Play:** <https://play.google.com/store/apps/details?id=com.khovakrishnapilato.pixelpaper>
+- 🧪 **Diventa tester:** <https://play.google.com/apps/testing/com.khovakrishnapilato.pixelpaper>
+- 📖 **Guida:** <https://krishnapilato.github.io/pixelpaper/>
+- 📦 **APK firmati:** [Releases](https://github.com/krishnapilato/pixelpaper/releases)
+
+**Autore:** Khova Krishna Pilato ·
 [GitHub](https://github.com/krishnapilato) ·
 [LinkedIn](https://www.linkedin.com/in/khovakrishnapilato/) ·
 [krishnak.pilato@gmail.com](mailto:krishnak.pilato@gmail.com)
 
-<sub>From an idea by Stefano Pilato.</sub>
+<sub>Da un’idea di Stefano Pilato.</sub>
 
 ---
 
 <table>
   <tr>
     <td align="center" width="25%">
-      <img src="web/screenshots/01-avvio.jpg" width="190" alt="Launch screen"><br>
-      <sub><b>Launch</b><br>The icon is scanned, the beam writes the name</sub>
+      <img src="web/screenshots/01-avvio.jpg" width="190" alt="Avvio"><br>
+      <sub><b>Avvio</b><br>L’icona viene scansionata, il raggio scrive il nome</sub>
     </td>
     <td align="center" width="25%">
-      <img src="web/screenshots/02-archivio.jpg" width="190" alt="Document archive"><br>
-      <sub><b>Archive</b><br>Pages, size, date, folders</sub>
+      <img src="web/screenshots/02-archivio.jpg" width="190" alt="Archivio"><br>
+      <sub><b>Archivio</b><br>Pagine, dimensione, data, cartelle</sub>
     </td>
     <td align="center" width="25%">
-      <img src="web/screenshots/03-nome-pdf.jpg" width="190" alt="Naming the document"><br>
-      <sub><b>Naming</b><br>Asked after the scan</sub>
+      <img src="web/screenshots/03-nome-pdf.jpg" width="190" alt="Nome del documento"><br>
+      <sub><b>Nome</b><br>Chiesto dopo la scansione</sub>
     </td>
     <td align="center" width="25%">
-      <img src="web/screenshots/04-visualizzatore.jpg" width="190" alt="Document viewer"><br>
-      <sub><b>Viewer</b><br>Pages scroll vertically</sub>
+      <img src="web/screenshots/04-visualizzatore.jpg" width="190" alt="Visualizzatore"><br>
+      <sub><b>Visualizzatore</b><br>Le pagine scorrono in verticale</sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="web/screenshots/05-editor.jpg" width="190" alt="Page editor"><br>
-      <sub><b>Page editor</b><br>Drag the filmstrip to reorder</sub>
+      <img src="web/screenshots/05-editor.jpg" width="190" alt="Editor pagine"><br>
+      <sub><b>Editor pagine</b><br>Trascina la striscia per riordinare</sub>
     </td>
     <td align="center">
-      <img src="web/screenshots/06-galleria.jpg" width="190" alt="Gallery"><br>
-      <sub><b>Gallery</b><br>Full-resolution shots</sub>
+      <img src="web/screenshots/06-galleria.jpg" width="190" alt="Galleria"><br>
+      <sub><b>Galleria</b><br>Foto a piena risoluzione</sub>
     </td>
     <td align="center">
-      <img src="web/screenshots/07-schermo-intero.jpg" width="190" alt="Full-screen photo"><br>
-      <sub><b>Full screen</b><br>Details, text, edit, share</sub>
+      <img src="web/screenshots/07-schermo-intero.jpg" width="190" alt="Foto a schermo intero"><br>
+      <sub><b>Schermo intero</b><br>Dettagli, testo, modifica, condividi</sub>
     </td>
     <td align="center">
-      <img src="web/screenshots/08-impostazioni.jpg" width="190" alt="Settings"><br>
-      <sub><b>Settings</b><br>Storage, bin, export folder, licences</sub>
+      <img src="web/screenshots/08-impostazioni.jpg" width="190" alt="Impostazioni"><br>
+      <sub><b>Impostazioni</b><br>Spazio, cestino, cartella di export, licenze</sub>
     </td>
   </tr>
 </table>
@@ -61,336 +66,234 @@ scanner ones show the emulator's virtual scene.</sub>
 
 ---
 
-## What it does
+---
 
-| Module | What you get |
+## Cosa fa
+
+| Modulo | Cosa offre |
 | :--- | :--- |
-| **Two tabs, one button** | Archivio and Galleria side by side: tap the bar or swipe between them. One action button follows the finger — scan in the Archivio, camera in the Galleria, and in the Galleria a **2-second hold imports** photos already on the phone. |
-| **Smart scanner** | Google's ML Kit flow: edge detection, perspective correction, shadow cleanup, several pages in a row. You only pick the name. |
-| **Camera** | The official `camera` plugin, CameraX underneath, at the lens's full resolution with no crop and no corrections. Tap the viewfinder to focus and meter there, drag up or down to compensate the exposure in the steps the device takes, long-press to go back to automatic. Pinch or 1×/2×/5× zoom, flash, self-timer, thirds grid, front/back lens. The camera **stays open** between shots: every photo is confirmed on the viewfinder and lands in the folder you had open. |
-| **Gallery** | Full-resolution photos, two to four columns. Select them **in the order you want the pages**: each tile shows its number, and "Crea album" copies them into a document in exactly that order. |
-| **Full-screen photo** | Zoom, swipe between shots, and four actions: details, text extraction (ML Kit, with copy and share), image editing and sharing. Swipe up or down to leave. |
-| **Archive** | List or grid with thumbnail, page count, size and date. Search, sorting, rename, share, **export**, print, details. A document made from photos is an **album** of page images; the PDF is built when you share, print or export it. |
-| **Export** | "Esporta" opens the system save dialog, or writes straight into a folder you chose once in Impostazioni. |
-| **Viewer** | Pages scroll vertically, one per screen, each with its own zoom. A tap sends both bars off their edges, and the system's with them, so the page is read at the size it was scanned. |
-| **Page editor** | The whole page on screen, a filmstrip above the dock for drag-and-drop reordering, and four actions: add (from the app's camera or the phone's photos; PDFs also take a blank page), edit the page as an image, duplicate, delete. |
-| **Folders** | One level of folders for documents and for images, moved by dragging or from the "Sposta in" (move to) menu. The folder rail stays pinned while you scroll. |
-| **Bin** | Deletion is reversible for 30 days, with immediate undo; deleting for good removes the files from storage. |
-| **Guide and licences** | A seven-step in-app tutorial with code-drawn illustrations and three practical tips per step, plus the full list of technologies used with their open-source licences. |
-| **Launch** | A little over three seconds: the launcher mark is scanned and turns into pixels, the beam writes the name, and the finished mark rests on screen while the archive and gallery load underneath. One tap skips it. |
+| **Due schede, un pulsante** | Archivio e Galleria affiancati: tocca la barra o scorri. Il pulsante d’azione segue il dito: scansione nell’Archivio, fotocamera nella Galleria; nella Galleria una **pressione di 2 secondi importa** le foto già sul telefono. |
+| **Scanner** | Il flusso ML Kit di Google: bordi, prospettiva, ombre, più pagine di fila. Scegli solo il nome. |
+| **Fotocamera** | CameraX alla piena risoluzione, senza ritagli. Tocca per mettere a fuoco ed esporre, trascina per compensare, zoom, flash, autoscatto, griglia. Resta aperta tra uno scatto e l’altro. |
+| **Galleria** | Foto a piena risoluzione, da due a quattro colonne. Selezionale **nell’ordine delle pagine** e “Crea album” le copia in un documento in quell’ordine. |
+| **Archivio** | Lista o griglia, ricerca, ordinamento, rinomina, condividi, **esporta**, stampa. Un documento fatto di foto è un **album**: il PDF si crea solo quando lo condividi, stampi o esporti. |
+| **Editor pagine** | Riordino trascinando la striscia, aggiunta da fotocamera o galleria (e pagina bianca per i PDF), modifica della pagina come immagine, duplica, elimina. |
+| **Cartelle e Cestino** | Un livello di cartelle per documenti e foto. Ogni eliminazione è annullabile e resta nel Cestino 30 giorni; svuotarlo cancella davvero i file. |
+| **Testo** | Riconoscimento del testo sul dispositivo (ML Kit, alfabeto latino). |
 
 ---
 
-## Design decisions
+## Privacy e sicurezza
 
-Every detail answers a concrete problem:
+Privacy first non è uno slogan: ogni punto qui sotto è verificato da un test o
+da un controllo della pipeline.
 
-- **Dark theme only.** The app is used on paper under a lamp; a bright UI at
-  night was the flaw that started the redesign. No switch to get wrong: depth
-  comes from M3 tonal layers (`surfaceContainer*`), not from shadows.
-- **Italian only.** Every string lives in `assets/lang.json`; no copy is written
-  in the code. The parts Flutter draws itself (text selection menu, licence
-  page) and the image editor, which ships in English, are translated too: an
-  English screen inside an all-Italian app is the crack you notice most.
-- **The name is asked after the scan**, not before: until you have scanned,
-  you do not yet know what you are saving.
-- **One action button, two gestures.** Its meaning follows the tab: Archive →
-  scan, Gallery → camera. Importing is the occasional action, so it sits
-  behind a deliberate **2-second hold** in the Gallery: the button fills from
-  the bottom, ticks once at the halfway mark and opens the photo picker at the
-  end; letting go early does nothing and explains the gesture. The empty
-  Gallery spells both actions out, and screen readers get import as the
-  button's long-press action.
-- **Tabs are pages.** Archive and Gallery are peers, so moving between them is
-  a horizontal swipe as well as a tap on the bar, and the button's icon turns
-  from scan to camera with the finger. Swiping is off while items are
-  selected or dragged, so a selection can never be carried off screen.
-- **Selection order is page order.** Picking photos for an album numbers
-  them 1, 2, 3 on the tiles; the album copies them in that order. The grid's
-  order is how the photos were taken, not how the document should read.
-- **A document is its pages.** An album is a row and an ordered list of image
-  files: creating one is a file copy, reordering is a column of integers, and
-  reading shows the images at the size they are drawn. The PDF is built once,
-  on the way out — share, print, export — and thrown away after.
-- **The camera only offers what the lens has.** When a lens opens, it is asked
-  what it can do — how far the zoom goes, how much exposure it can compensate
-  and in what steps, whether it can meter a point, whether it has a flash —
-  and only that is drawn. A control the phone does not have is absent, not
-  greyed out. Exposure is the one place where this needs care: compensation is
-  quantised, a drag arrives a pixel at a time, and the dial keeps the raw
-  position underneath the stepped one so small movements add up instead of
-  rounding back to nothing.
-- **The camera stays open.** A roll of pages is shot without leaving the
-  viewfinder; each shot is confirmed on screen and filed into the folder that
-  was open. The confirmation sits at the top: the bottom belongs to the
-  shutter.
-- **Motion follows Material.** Container transform from the button to the
-  camera, shared axis for forward navigation, fade through between top-level
-  destinations, emphasized easing and the M3 duration tokens everywhere.
-  Lists cascade in when they appear or change folder, new items enter on their
-  own, images fade in when decoded, and the splash starts exactly where
-  Android's system splash leaves off. With Android's animations turned off the
-  splash is skipped.
-- **Long press = select and drag.** Lift without moving and you are simply in
-  selection mode; keep moving and you carry the whole selection. One gesture,
-  two outcomes, as in Files and Photos.
-- **The bin only appears while dragging**, in place of the navigation bar: the
-  target is where the thumb already is, and it cannot be hit by accident.
-- **Deleting asks nothing** (it is reversible, with undo in the snackbar);
-  emptying the bin does ask, because that step does not come back.
-- **Folders are flat.** A scan archive needs "Fatture", "Università",
-  "Ricette" — a tree would add breadcrumbs and navigation without adding value.
-  Deleting a folder does not delete the files.
-- **The viewer scrolls down, one page per screen**: a scan is a set of
-  discrete pages, so the page number is exact and every page keeps its own
-  zoom.
-- **The folder rail stays pinned.** A filter that disappears as soon as you
-  scroll is a filter you forget you turned on; it is also the drop target, so
-  dragging no longer means scrolling back to the top.
-- **A vertical swipe closes the full-screen photo.** The photo follows the
-  finger and shrinks: the gesture shows where it is going before it commits,
-  and if you stop halfway it springs back.
-- **"Svuota la cache" lights up by itself.** Above 20 MB the row turns tonal and
-  explains that space can be freed: it asks for attention only when it has
-  something to give back.
-- **The icon is the app's name.** An A4 sheet whose corner comes away as pixels:
-  paper turning into an image. It is a vector (adaptive and monochrome icon),
-  the system launch screen from Android 12, and the first frame of the
-  in-app splash.
+- **Un solo permesso: la fotocamera.** Niente internet, niente archivio,
+  niente posizione. La CI fallisce se un plugin ne aggiunge uno
+  (`tool/check_permissions.sh`).
+- **Niente metadati in uscita.** Foto condivise e PDF esportati perdono
+  coordinate GPS, modello del telefono, numeri di serie, XMP, commenti e dati
+  nascosti dopo la fine dell’immagine; resta solo l’orientamento
+  (`ImageSanitizer`, testato anche con migliaia di file corrotti).
+- **Nessuna copia dimenticata.** I PDF creati per condividere, stampare o
+  esportare vivono solo per la durata dell’operazione; all’avvio vengono
+  rimossi i residui di plugin, scanner e scritture interrotte.
+- **Eliminare è eliminare.** Svuotando il Cestino spariscono righe, file,
+  cartelle degli album e anteprime. Il database usa `secure_delete`: i dati
+  cancellati vengono sovrascritti.
+- **File confinati.** Lo storage non cancella mai nulla fuori dalle due
+  cartelle private dell’app, qualunque percorso gli arrivi; i nomi file sono
+  ripuliti da separatori, caratteri di controllo e override bidirezionali.
+- **Input ostili rifiutati.** Il formato di un’immagine si riconosce dai byte,
+  non dall’estensione: file vuoti, troppo grandi o che non sono immagini non
+  entrano in galleria; HEIC/WebP vengono convertiti in JPEG.
+- **Scritture atomiche.** Un crash o il disco pieno lasciano il file vecchio o
+  quello nuovo, mai uno a metà.
+- **Nessun backup su cloud.** I dati sono esclusi dal backup Google; il
+  trasferimento diretto tra due telefoni resta possibile.
+- **Log puliti.** In release non vengono scritti titoli o percorsi nei log.
 
 ---
 
-## Performance and memory
+## Architettura
 
-- **Rebuilds are scoped.** A tap in a selection repaints that tile and the
-  contextual bar, not the grid: each tile watches only its own slice of the
-  selection (`select`), and the drag wrapper keeps the drag payload current
-  without rebuilding the tile inside it.
-- **Images decoded at the size they are drawn** (`cacheWidth`), with the image
-  cache capped at 80 MB: hundreds of 12 MP photos stay inside the heap. Album
-  pages are shown as images, never rasterised back from a PDF.
-- **No PDF until it is needed.** Albums are file copies; the PDF is composed in
-  an isolate only when it leaves the app.
-- **The camera holds the sensor only while it is on screen**: it is released
-  when the app goes to the background and reopened on return, and native
-  open/close calls are serialised so a quick lens switch cannot leak a session.
-  Zoom gestures send the latest value to the camera, never a queue.
-- **Lazy rendering for PDFs** through PDFium (`pdfrx`), with a bounded DPI: an
-  outsized page cannot allocate hundreds of MB.
-- **Housekeeping at start-up**: expired bin items, the preview cache above its
-  budget, and whatever the photo picker and the camera left in the cache.
-- **Minimum permissions**: `CAMERA` only. `RECORD_AUDIO`,
-  `READ_EXTERNAL_STORAGE`, `INTERNET` and `ACCESS_NETWORK_STATE`, which would
-  arrive from plugins, are stripped from the manifest with
-  `tools:node="remove"`.
-
----
-
-## Architecture
-
-Clean Architecture, feature-first:
-
-```text
+```
 lib/
-├── main.dart                 # bootstrap: edge-to-edge, locale, image cache, error guards
-├── app.dart                  # MaterialApp.router + theme + start-up housekeeping
-├── core/                     # theme and motion tokens, router, strings, shared widgets
-├── data/
-│   ├── models/               # ScannedDocument, DocumentPage, Capture, Folder
-│   ├── local/                # sqflite: database (idempotent migrations) and DAOs
-│   ├── services/             # ML Kit scanner, PDF, OCR, file system, settings
-│   ├── repositories/         # documents and albums, images, folders + bin
-│   └── providers.dart        # composition root
-└── features/
-    ├── shell/ documents/ gallery/ camera/ scanner/
-    ├── viewer/ editor/ folders/ trash/
-    └── settings/ tutorial/ splash/
+  core/       tema, motion, router, primitive di stato (Serial, LibraryRevision, Limits)
+  data/       modelli immutabili, DAO sqflite, repository, servizi (storage, PDF, immagini)
+  features/   una cartella per funzione: application/ (controller) + presentation/ (UI)
 ```
 
-Every feature has `application/` (Riverpod controllers) and `presentation/`
-(screens and widgets). The sqflite database is the source of truth for
-metadata, the file system is the source of truth for what actually exists:
-every read reconciles the two.
-
-### The camera
-
-The camera is the official [`camera`](https://pub.dev/packages/camera) plugin,
-which runs on CameraX on Android. A vendored Camera2 plugin lived here before,
-kept alive with local patches for manual ISO, shutter and white balance dials;
-most phones decline those controls outright — without `MANUAL_SENSOR` the back
-lens showed a row of dials that could not do anything — so the screen was
-rebuilt around what every device really has.
-
-`CameraCapabilities` asks the lens once, when it opens, and the screen draws
-only what came back. `ExposureDial` keeps the finger's position apart from the
-stepped value the camera takes, and the drag reports how far to move rather
-than where to land; both are covered by `test/camera_settings_test.dart`.
+- **Stato con Riverpod 3.** Ogni libreria (archivio, galleria, cestino,
+  cartelle) è un `AsyncNotifier`. Le scritture passano da una coda `Serial`:
+  due operazioni sulla stessa libreria non si sovrappongono mai.
+- **Niente chiamate incrociate tra controller.** Ogni scrittura incrementa
+  `libraryRevisionProvider`; cartelle e cestino lo osservano e si ricalcolano
+  da soli.
+- **Modelli immutabili** con uguaglianza per valore: una schermata si
+  ricostruisce solo se il dato è cambiato davvero.
+- **Editor come controller.** Le sessioni di modifica (album e PDF) vivono in
+  controller testabili; i file scritti e poi scartati vengono rimossi.
+- **Nessuna attesa oltre 20 secondi.** Ogni spinner è legato a `Limits.wait`:
+  oltre, l’operazione è segnalata come fallita e la schermata torna usabile.
+- **PDF su PDFium** (`pdfrx`): riordino ed eliminazione di pagine spostano le
+  pagine originali, vettori e annotazioni compresi, in pochi millisecondi.
+- **Animazioni** sui token Material 3 e rispettose di “Rimuovi animazioni”
+  di Android.
 
 ---
 
-## Stack
+## Qualità
 
-| Area | Packages |
+| Controllo | Dove |
 | :--- | :--- |
-| State | `flutter_riverpod` 3 (no code generation) |
-| Navigation | `go_router` 18 (every route declares its own transition), `animations` (Material motion) |
-| Language | `flutter_localizations` (locale fixed to `it`) + `assets/lang.json` |
-| Database | `sqflite` (schema v4, idempotent migrations) |
-| Capture | `google_mlkit_document_scanner`, `camera` (CameraX), `permission_handler`, `image_picker` |
-| PDF | `pdf`, `printing`, `syncfusion_flutter_pdf`, `pdfrx` |
-| Images | `pro_image_editor`, `google_mlkit_text_recognition` |
-| Export | `flutter_file_dialog`, `saf_util`, `saf_stream` |
-| Misc | `share_plus`, `url_launcher`, `intl`, `crypto`, `package_info_plus` |
+| `flutter analyze` con `strict-casts`, `strict-inference`, `strict-raw-types` e oltre 60 regole; **unused, warning e deprecazioni sono errori** | `analysis_options.yaml` |
+| La **build Gradle fallisce** se l’analisi trova anche un solo problema (task `analyzeDart`, legato a `preBuild`) | `android/app/build.gradle.kts` |
+| Kotlin compila con `allWarningsAsErrors` | `android/app/build.gradle.kts` |
+| Test unitari, d’integrazione (SQLite reale + file veri), di stato e di widget | `test/` |
+| Fuzzing del parser JPEG/PNG, attacchi di path traversal, SQL nei nomi, impostazioni manomesse | `test/unit`, `test/data` |
+| Analisi SonarQube / SonarCloud | `sonar-project.properties` |
+
+```bash
+flutter analyze --fatal-infos --fatal-warnings
+dart format --output=none --set-exit-if-changed lib test
+flutter test --coverage
+```
+
+> **Test su Windows:** `pdfium_dart` (usato da pdfrx) compila un piccolo
+> modulo C per l’host, quindi in locale serve **Visual Studio Build Tools**
+> con il carico di lavoro “Sviluppo di applicazioni desktop con C++”. Su
+> Linux e macOS basta il compilatore di sistema; in CI non serve nulla.
 
 ---
 
-## Build requirements
+## Toolchain
 
-| | Version |
+| Strumento | Versione |
 | :--- | :--- |
-| Flutter / Dart | 3.47.5 / 3.13.4 |
-| Gradle | 9.1.0 |
-| Android Gradle Plugin | 9.0.1 |
-| Kotlin | 2.3.20 (AGP's built-in Kotlin) |
-| JDK | 17 (`sourceCompatibility`/`jvmTarget`), built on JDK 21 |
-| compileSdk / targetSdk / minSdk | 36 / 36 / 24 |
+| Flutter / Dart | 3.47.8 / 3.13 |
+| JDK | 27 in locale (minimo 21); 25 LTS in CI |
+| Gradle | 9.8.2 (la prima con supporto a Java 27) |
+| Android Gradle Plugin | 9.5.0 |
+| Kotlin | 2.4.21 |
+| compileSdk / bytecode | 37 / Java 21 |
 
-`compileSdk 36` is required by `google_mlkit_document_scanner` 0.6.x; it is also
-why `permission_handler` stays on 12.x (13.x needs 37). The scanner only works
-on Android devices with Google Play services: without them the app says so and
-offers the manual camera instead.
+Tutte le dipendenze sono open source (MIT, BSD, Apache 2.0). Material arriva
+dal pacchetto `material_ui`, separato dall’SDK.
+
+Per indicare a Flutter il JDK senza dipendere da `JAVA_HOME` (che cambia a ogni
+aggiornamento del JDK):
+
+```bash
+flutter config --jdk-dir="C:\Program Files\Java\latest\jdk-27"
+```
+
+> **Repository dentro OneDrive:** OneDrive blocca i file che Gradle scrive in
+> `build/` mentre li sincronizza, e la build fallisce con `AccessDenied` o con
+> errori di compilazione Java casuali. Tieni il repository fuori da OneDrive
+> (es. `C:\dev\pixelpaper`) o metti in pausa la sincronizzazione durante la
+> build.
 
 ```bash
 flutter pub get
-flutter run                 # debug on the connected device
-flutter test                # camera scales and labels, the action button, page order
-flutter build apk --release # without key.properties it signs with the debug key
+flutter run                       # debug sul dispositivo collegato
+flutter build apk --release       # senza key.properties firma con la chiave di debug
 ```
-
-`flutter analyze` reports no issues.
-
-### Two things a release build can break silently
-
-Both were found by testing the release APK on a device, and neither shows up in
-debug — test the release build before every upload.
-
-- **R8 and ML Kit.** ML Kit and Play Services resolve implementations *by name*
-  at runtime, so R8 renaming them makes the lookup return null: the scanner and
-  text extraction die with a `NullPointerException` thrown from inside
-  `Objects.requireNonNull`, far from the cause. `proguard-rules.pro` keeps
-  `com.google.mlkit.**`, `com.google.android.gms.**` and the plugins' bridge
-  classes, plus the annotation and signature attributes those libraries read
-  back.
-- **`uses-feature` and the manifest merger.** The merger ORs `required` across
-  every library that declares a feature, so a single plugin declaring
-  `android.hardware.camera.any` as required ships the app as "camera
-  required" and Play drops every camera-less device. The manifest declares
-  camera, camera.any and camera.autofocus as not required with
-  `tools:replace="android:required"`. Check the merged result, not the source:
-
-  ```bash
-  grep -A2 uses-feature build/app/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
-  ```
 
 ---
 
-## Publishing to Google Play
+## Pipeline e release
 
-1. **Create the signing key** (once, and keep it: without it you can never
-   publish an update again).
+`.github/workflows/android.yml`:
+
+1. **Ogni push e pull request** – formattazione, analisi rigorosa, test con
+   copertura, build release di controllo e verifica dei permessi.
+2. **Tag `v*`** (es. `v3.2.0`) – se tutto passa: controlla che il tag
+   coincida con `version:` del `pubspec.yaml`, costruisce gli APK offuscati
+   (uno per architettura più l’universale), verifica i permessi, calcola gli
+   SHA-256 e pubblica la **GitHub Release** con le note in italiano
+   (`.github/release-notes.md`).
+
+Segreti richiesti (*Settings → Secrets and variables → Actions*):
+
+| Segreto | Contenuto |
+| :--- | :--- |
+| `ANDROID_KEYSTORE_BASE64` | il file `.jks` in base64 (`base64 -w0 pixelpaper.jks`) |
+| `ANDROID_KEYSTORE_PASSWORD` | password del keystore |
+| `ANDROID_KEY_ALIAS` | alias della chiave |
+| `ANDROID_KEY_PASSWORD` | password della chiave |
+
+Senza segreti la release **si ferma**: un APK pubblico non viene mai firmato
+con la chiave di debug.
+
+```bash
+git tag v3.2.0
+git push origin v3.2.0
+```
+
+---
+
+## Pubblicare su Google Play
+
+1. **Crea la chiave di firma** (una volta sola, e conservala: senza non potrai
+   più pubblicare aggiornamenti).
 
    ```bash
-   keytool -genkey -v -keystore pixelpaper.jks -keyalg RSA -keysize 2048 -validity 10000 -alias pixelpaper
+   keytool -genkey -v -keystore pixelpaper.jks -keyalg RSA -keysize 4096 -validity 10000 -alias pixelpaper
    ```
 
-2. **Declare it in `android/key.properties`** — the file is in `.gitignore`
-   along with `*.jks`, so the key and its passwords never reach GitHub:
+2. **Dichiarala in `android/key.properties`** (è in `.gitignore` insieme a
+   `*.jks`):
 
    ```properties
-   storeFile=C:/absolute/path/pixelpaper.jks
+   storeFile=C:/percorso/assoluto/pixelpaper.jks
    storePassword=…
    keyAlias=pixelpaper
    keyPassword=…
    ```
 
-3. **Build the bundle** you upload to the Play Console:
+3. **Costruisci il bundle** da caricare in Play Console:
 
    ```bash
    flutter build appbundle --release
    ```
 
-   The artefact lands in `build/app/outputs/bundle/release/app-release.aab`.
-   Without `key.properties` the bundle build **fails on purpose**: a
-   debug-signed bundle installs and builds fine and is rejected only at the end
-   of the upload ("signed with the wrong key"), so it is better refused here.
-   A release *APK* still falls back to the debug key, because a locally signed
-   APK is genuinely useful.
-
-   Check what you are about to upload before you upload it:
+   Senza `key.properties` la build del bundle **fallisce di proposito**. Prima
+   di caricarlo, controlla che lo SHA1 coincida con il certificato di caricamento
+   mostrato da Play:
 
    ```bash
    keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab
    ```
 
-   The SHA1 must match the upload certificate Play shows under
-   *Release → Setup → App signing*.
+4. **Versione:** la riga `version:` del `pubspec.yaml`, nella forma
+   `<versionName>+<versionCode>`; il `versionCode` deve superare ogni codice già
+   caricato.
 
-   > `key.properties` is untracked, so a **git worktree does not inherit it**.
-   > Build from the main checkout, or copy the file into the worktree's
-   > `android/` first.
-
-4. **Version number**: the `version:` line in `pubspec.yaml`, in the form
-   `<versionName>+<versionCode>`. The number after the `+` is the
-   `versionCode` and must be higher than every code already uploaded, or Play
-   rejects the bundle before it looks at anything else.
-
-The `applicationId` is `com.khovakrishnapilato.pixelpaper`. The bundle carries
-every ABI: the actual per-device download is a fraction of its size.
+L’`applicationId` è `com.khovakrishnapilato.pixelpaper`.
 
 ---
 
-## Editing the guide
+## Guida web
 
-The user guide at
-[krishnapilato.github.io/pixelpaper](https://krishnapilato.github.io/pixelpaper/)
-lives in `web/`: `index.html`, `styles.css`, `favicon.svg`. Plain HTML and CSS,
-no framework, no build step — which is the point: a page you can fix in thirty
-seconds is a page that stays accurate. The stylesheet runs on one spacing
-scale (multiples of 4 px) and one reading column, so text, tables and boxes
-always share the same right edge.
-
-Editing it is a commit. `.github/workflows/deploy.yml` watches `web/**` on
-`main` and publishes the folder as it is, so a change is live about half a
-minute after it lands — from your editor or straight from GitHub's web editor,
-without touching anything else in the repository. `workflow_dispatch` re-runs
-the deploy by hand when you need it.
+La guida su [krishnapilato.github.io/pixelpaper](https://krishnapilato.github.io/pixelpaper/)
+sta in `web/`: HTML e CSS statici, nessun framework e nessuna build.
+`.github/workflows/deploy.yml` la pubblica a ogni modifica di `web/**` su `main`.
 
 ```bash
-# preview before pushing, exactly as Pages serves it
-node tool/serve-web.js      # then open http://localhost:4173
+node tool/serve-web.js      # anteprima su http://localhost:4173
 ```
 
-Two things worth keeping true: paths inside the page stay **relative**
-(`styles.css`, not `/styles.css`), because the site is served from
-`/pixelpaper/` and an absolute path would 404; and the CSS carries the
-breakpoints, so check a change at both a phone width and a desktop one before
-committing.
-
-Pages must be set to **Settings → Pages → Source: GitHub Actions** for any of
-this to publish.
+I percorsi nella pagina restano **relativi** (il sito è servito da
+`/pixelpaper/`). Pages va impostato su *Settings → Pages → Source: GitHub
+Actions*.
 
 ---
 
-## Text recognition
+## Riconoscimento del testo
 
-Text extraction uses ML Kit's **Latin** model: it recognises a *script*, not a
-language, so it reads anything printed in the Latin alphabet — Italian,
-English, French, and Latin itself. Greek (ancient or modern), Cyrillic, Hebrew
-and Arabic are not supported, because ML Kit only ships Latin, Chinese,
-Devanagari, Japanese and Korean models.
-
-The practical limit is the printing, not the language: modern type reads well,
-while blackletter/Fraktur, incunabula, long s (ſ), scribal abbreviations and
-handwriting give poor results, and macrons (ā ē) are usually dropped. That is
-why the gallery keeps shots at full resolution and uncropped: OCR always works
-on the sharpest original available.
+ML Kit con il modello **latino** riconosce un alfabeto, non una lingua:
+italiano, inglese, francese e latino sì; greco, cirillico, ebraico e arabo no.
+Il limite pratico è la stampa: caratteri moderni ottimi, gotico, incunaboli,
+s lunga e scrittura a mano danno risultati scarsi. Per questo la galleria
+conserva le foto a piena risoluzione e senza ritagli.

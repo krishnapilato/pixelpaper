@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
@@ -36,7 +38,7 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
   void dispose() {
     // Whatever the reader did with the system bars, the rest of the app gets
     // them back.
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     super.dispose();
   }
 
@@ -45,8 +47,10 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
   /// brings everything back.
   void _toggleChrome() {
     setState(() => _chrome = !_chrome);
-    SystemChrome.setEnabledSystemUIMode(
-      _chrome ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(
+        _chrome ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+      ),
     );
   }
 
@@ -143,22 +147,22 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
         child: document.isAlbum
             ? switch (ref.watch(documentPagesProvider(document.id))) {
                 AsyncData(:final value) when value.isNotEmpty => AlbumPager(
-                    key: ValueKey(document.signature),
-                    document: document,
-                    pages: value,
-                    padding: readerPadding(context),
-                    onPageChanged: (index) => setState(() => _page = index),
-                  ),
+                  key: ValueKey(document.signature),
+                  document: document,
+                  pages: value,
+                  padding: readerPadding(context),
+                  onPageChanged: (index) => setState(() => _page = index),
+                ),
                 AsyncData() => EmptyState(
-                    icon: Icons.description_outlined,
-                    title: strings('viewer_open_failed'),
-                    body: strings('documents_empty_body'),
-                  ),
+                  icon: Icons.description_outlined,
+                  title: strings('viewer_open_failed'),
+                  body: strings('documents_empty_body'),
+                ),
                 AsyncError() => EmptyState(
-                    icon: Icons.error_outline_rounded,
-                    title: strings('common_error'),
-                    body: strings('viewer_open_failed'),
-                  ),
+                  icon: Icons.error_outline_rounded,
+                  title: strings('common_error'),
+                  body: strings('viewer_open_failed'),
+                ),
                 _ => const Center(child: CircularProgressIndicator()),
               }
             : PdfPager(

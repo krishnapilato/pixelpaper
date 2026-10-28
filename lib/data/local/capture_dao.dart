@@ -2,107 +2,80 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/capture.dart';
 import 'app_database.dart';
+import 'batched.dart';
 
-/// Row-level access to the `captures` table.
 class CaptureDao {
   CaptureDao(this._database);
 
   final AppDatabase _database;
   static const String table = 'captures';
 
-  /// Live rows only; the bin has its own query.
-  Future<List<Capture>> all() async {
-    final db = await _database.instance;
-    final rows = await db.query(
-      table,
-      where: 'deleted_at IS NULL',
-      orderBy: 'created_at DESC',
-    );
-    return rows.map(Capture.fromRow).toList(growable: false);
-  }
+  Future<List<Capture>> all() =>
+      _query('deleted_at IS NULL', 'created_at DESC');
 
-  Future<List<Capture>> trashed() async {
-    final db = await _database.instance;
-    final rows = await db.query(
-      table,
-      where: 'deleted_at IS NOT NULL',
-      orderBy: 'deleted_at DESC',
-    );
-    return rows.map(Capture.fromRow).toList(growable: false);
-  }
+  Future<List<Capture>> trashed() =>
+      _query('deleted_at IS NOT NULL', 'deleted_at DESC');
 
-  /// Every path the database knows about, trashed included — used by the
-  /// disk reconcile so a trashed file is not adopted back as a new one.
+  Future<List<Capture>> expired(DateTime cutoff) => _query(
+    'deleted_at IS NOT NULL AND deleted_at < ?',
+    null,
+    [cutoff.millisecondsSinceEpoch],
+  );
+
+  /// Every path known, trashed included, so a trashed file is not adopted
+  /// back as a new photo.
   Future<Set<String>> knownPaths() async {
     final db = await _database.instance;
     final rows = await db.query(table, columns: ['path']);
     return {for (final row in rows) row['path']! as String};
   }
 
-  Future<void> moveToFolder(Iterable<int> ids, int? folderId) async {
-    if (ids.isEmpty) return;
-    final db = await _database.instance;
-    final placeholders = List.filled(ids.length, '?').join(',');
-    await db.update(
-      table,
-      {'folder_id': folderId},
-      where: 'id IN ($placeholders)',
-      whereArgs: ids.toList(growable: false),
-    );
-  }
+  Future<void> moveToFolder(Iterable<int> ids, int? folderId) async =>
+      inChunks(await _database.instance, ids, (txn, marks, chunk) async {
+        await txn.update(
+          table,
+          {'folder_id': folderId},
+          where: 'id IN ($marks)',
+          whereArgs: chunk,
+        );
+      });
 
-  Future<void> setTrashed(Iterable<int> ids, bool trashed) async {
-    if (ids.isEmpty) return;
-    final db = await _database.instance;
-    final placeholders = List.filled(ids.length, '?').join(',');
-    await db.update(
-      table,
-      {'deleted_at': trashed ? DateTime.now().millisecondsSinceEpoch : null},
-      where: 'id IN ($placeholders)',
-      whereArgs: ids.toList(growable: false),
-    );
-  }
-
-  /// Rows trashed before [cutoff], so their files can be deleted too.
-  Future<List<Capture>> expired(DateTime cutoff) async {
-    final db = await _database.instance;
-    final rows = await db.query(
-      table,
-      where: 'deleted_at IS NOT NULL AND deleted_at < ?',
-      whereArgs: [cutoff.millisecondsSinceEpoch],
-    );
-    return rows.map(Capture.fromRow).toList(growable: false);
+  Future<void> setTrashed(Iterable<int> ids, {required bool trashed}) async {
+    final stamp = trashed ? DateTime.now().millisecondsSinceEpoch : null;
+    await inChunks(await _database.instance, ids, (txn, marks, chunk) async {
+      await txn.update(
+        table,
+        {'deleted_at': stamp},
+        where: 'id IN ($marks)',
+        whereArgs: chunk,
+      );
+    });
   }
 
   Future<int> insert(Capture capture) async {
     final db = await _database.instance;
-    return db.insert(
-      table,
-      capture.toRow(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    return db.insert(table, capture.toRow());
   }
 
   Future<void> update(Capture capture) async {
     final db = await _database.instance;
     await db.update(
       table,
-      capture.toRow(),
+      {
+        'path': capture.path,
+        'size_bytes': capture.sizeBytes,
+        'width': capture.width,
+        'height': capture.height,
+      },
       where: 'id = ?',
       whereArgs: [capture.id],
     );
   }
 
-  Future<void> deleteIds(Iterable<int> ids) async {
-    if (ids.isEmpty) return;
-    final db = await _database.instance;
-    final placeholders = List.filled(ids.length, '?').join(',');
-    await db.delete(
-      table,
-      where: 'id IN ($placeholders)',
-      whereArgs: ids.toList(growable: false),
-    );
-  }
+  Future<void> deleteIds(Iterable<int> ids) async =>
+      inChunks(await _database.instance, ids, (txn, marks, chunk) async {
+        await txn.delete(table, where: 'id IN ($marks)', whereArgs: chunk);
+      });
 
   Future<void> insertMissing(Iterable<Capture> captures) async {
     if (captures.isEmpty) return;
@@ -116,5 +89,20 @@ class CaptureDao {
         );
       }
     });
+  }
+
+  Future<List<Capture>> _query(
+    String where,
+    String? orderBy, [
+    List<Object?>? args,
+  ]) async {
+    final db = await _database.instance;
+    final rows = await db.query(
+      table,
+      where: where,
+      whereArgs: args,
+      orderBy: orderBy,
+    );
+    return rows.map(Capture.fromRow).toList(growable: false);
   }
 }

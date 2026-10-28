@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/l10n/strings.dart';
 import '../../../../core/router/app_router.dart';
@@ -45,7 +47,7 @@ Future<void> showDocumentActions(
               emphasised: true,
               onTap: () {
                 Navigator.pop(context);
-                context.push(Routes.editor(document.id));
+                unawaited(context.push(Routes.editor(document.id)));
               },
             ),
             SheetAction(
@@ -53,7 +55,7 @@ Future<void> showDocumentActions(
               label: strings('common_rename'),
               onTap: () {
                 Navigator.pop(context);
-                DocumentActions.rename(context, ref, document);
+                unawaited(DocumentActions.rename(context, ref, document));
               },
             ),
             SheetAction(
@@ -61,7 +63,7 @@ Future<void> showDocumentActions(
               label: strings('common_share'),
               onTap: () {
                 Navigator.pop(context);
-                DocumentActions.share(context, ref, [document]);
+                unawaited(DocumentActions.share(context, ref, [document]));
               },
             ),
             SheetAction(
@@ -70,7 +72,7 @@ Future<void> showDocumentActions(
               detail: strings('common_export_detail'),
               onTap: () {
                 Navigator.pop(context);
-                DocumentActions.export(context, ref, document);
+                unawaited(DocumentActions.export(context, ref, document));
               },
             ),
             SheetAction(
@@ -78,7 +80,7 @@ Future<void> showDocumentActions(
               label: strings('common_print'),
               onTap: () {
                 Navigator.pop(context);
-                DocumentActions.print(context, ref, document);
+                unawaited(DocumentActions.print(context, ref, document));
               },
             ),
             SheetAction(
@@ -86,7 +88,7 @@ Future<void> showDocumentActions(
               label: strings('common_details'),
               onTap: () {
                 Navigator.pop(context);
-                showDocumentDetails(context, ref, document);
+                unawaited(showDocumentDetails(context, ref, document));
               },
             ),
             SheetAction(
@@ -95,7 +97,7 @@ Future<void> showDocumentActions(
               destructive: true,
               onTap: () {
                 Navigator.pop(context);
-                DocumentActions.delete(context, ref, [document]);
+                unawaited(DocumentActions.delete(context, ref, [document]));
               },
             ),
             const SheetFooterSpace(),

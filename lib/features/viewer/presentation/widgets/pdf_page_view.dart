@@ -18,7 +18,7 @@
 /// a way to allocate hundreds of megabytes.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/theme/dimens.dart';
@@ -124,15 +124,14 @@ class PdfPageImage extends StatelessWidget {
       pageNumber: index + 1,
       maximumDpi: maximumDpi,
       backgroundColor: Colors.white,
-      alignment: Alignment.center,
     );
   }
 }
 
 /// Shared padding for the reader, leaving room for the two floating bars.
 EdgeInsets readerPadding(BuildContext context) => EdgeInsets.fromLTRB(
-      Space.md,
-      MediaQuery.paddingOf(context).top + kToolbarHeight + Space.sm,
-      Space.md,
-      MediaQuery.paddingOf(context).bottom + 88,
-    );
+  Space.md,
+  MediaQuery.paddingOf(context).top + kToolbarHeight + Space.sm,
+  Space.md,
+  MediaQuery.paddingOf(context).bottom + 88,
+);

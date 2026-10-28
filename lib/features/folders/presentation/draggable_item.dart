@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/state/selection_controller.dart';
 import '../../../core/theme/dimens.dart';
@@ -48,7 +50,7 @@ class LibraryDraggable extends ConsumerWidget {
       data: LibraryDragPayload(kind: kind, ids: ids),
       dragAnchorStrategy: pointerDragAnchorStrategy,
       onDragStarted: () {
-        HapticFeedback.selectionClick();
+        unawaited(HapticFeedback.selectionClick());
         final selection = ref.read(selectionProvider);
         if (!selection.contains(id)) {
           ref.read(selectionProvider.notifier).toggle(id);
@@ -118,15 +120,14 @@ class _DragFeedback extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: scheme.primary,
-                    shape: BoxShape.rectangle,
                     borderRadius: BorderRadius.circular(Radii.full),
                   ),
                   child: Text(
                     '$count',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: scheme.onPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

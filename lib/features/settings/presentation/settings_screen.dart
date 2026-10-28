@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:saf_util/saf_util.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,8 +11,9 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/motion.dart';
-import '../../../data/providers.dart';
 import '../../../data/models/capture.dart';
+import '../../../data/providers.dart';
+import '../../../data/services/settings_store.dart';
 import '../../../data/services/storage_service.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../gallery/application/gallery_controller.dart';
@@ -88,9 +89,9 @@ class SettingsScreen extends ConsumerWidget {
                     leading: const Icon(Icons.delete_outline_rounded),
                     title: Text(strings('trash_title')),
                     subtitle: Text(
-                      trashCount > 0 && (trashSize.value ?? 0) > 0
+                      trashCount > 0 && trashSize > 0
                           ? '${strings('trash_detail')} · '
-                                '${Fmt.bytes(trashSize.value!)}'
+                                '${Fmt.bytes(trashSize)}'
                           : strings('trash_detail'),
                     ),
                     trailing: Row(
@@ -194,7 +195,9 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     trailing: Text(Fmt.bytes(cache.value ?? 0)),
                     onTap: () async {
-                      await ref.read(storageServiceProvider).clearPreviewCache();
+                      await ref
+                          .read(storageServiceProvider)
+                          .clearPreviewCache();
                       ref
                         ..invalidate(_cacheSizeProvider)
                         ..invalidate(_librarySizeProvider);
@@ -417,7 +420,7 @@ Future<void> _pickExportFolder(
     if (picked == null) return; // backed out of the picker
     await ref
         .read(settingsStoreProvider)
-        .setExportFolder(uri: picked.uri, name: picked.name);
+        .setExportFolder(ExportFolder(uri: picked.uri, name: picked.name));
     ref.invalidate(exportFolderProvider);
     if (!context.mounted) return;
     showSnack(
@@ -462,7 +465,7 @@ Future<void> _cleanDuplicates(
 
   await ref
       .read(galleryControllerProvider.notifier)
-      .moveToTrash(captures);
+      .moveToTrash(captures.map((c) => c.id));
   ref
     ..invalidate(duplicatedCapturesProvider)
     ..invalidate(_librarySizeProvider);

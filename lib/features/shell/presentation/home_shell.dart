@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:animations/animations.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
@@ -112,7 +114,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   void _onPageChanged(int index) {
     if (index == widget.navigationShell.currentIndex) return;
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
     widget.navigationShell.goBranch(index);
   }
 
@@ -251,8 +253,7 @@ class _PagePosition extends Animation<double>
 
   @override
   double get value {
-    if (!_controller.hasClients ||
-        !_controller.position.hasContentDimensions) {
+    if (!_controller.hasClients || !_controller.position.hasContentDimensions) {
       return _initial;
     }
     return _controller.page ?? _initial;
@@ -313,7 +314,7 @@ class _TrashDropZone extends ConsumerWidget {
       key: const ValueKey('trash-zone'),
       onWillAcceptWithDetails: (_) => true,
       onAcceptWithDetails: (details) async {
-        HapticFeedback.heavyImpact();
+        unawaited(HapticFeedback.heavyImpact());
         await _trash(context, ref, details.data);
       },
       builder: (context, candidates, rejected) {
@@ -344,10 +345,10 @@ class _TrashDropZone extends ConsumerWidget {
               Text(
                 strings('trash_drop_here'),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: hovered
-                          ? scheme.onErrorContainer
-                          : scheme.onSurfaceVariant,
-                    ),
+                  color: hovered
+                      ? scheme.onErrorContainer
+                      : scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -363,18 +364,13 @@ class _TrashDropZone extends ConsumerWidget {
   ) async {
     switch (payload.kind) {
       case FolderKind.document:
-        final documents = (ref.read(documentsControllerProvider).value ??
-                const [])
-            .where((d) => payload.ids.contains(d.id))
-            .toList(growable: false);
         await ref
             .read(documentsControllerProvider.notifier)
-            .moveToTrash(documents);
+            .moveToTrash(payload.ids);
       case FolderKind.capture:
-        final captures = (ref.read(galleryControllerProvider).value ?? const [])
-            .where((c) => payload.ids.contains(c.id))
-            .toList(growable: false);
-        await ref.read(galleryControllerProvider.notifier).moveToTrash(captures);
+        await ref
+            .read(galleryControllerProvider.notifier)
+            .moveToTrash(payload.ids);
     }
 
     if (!context.mounted) return;

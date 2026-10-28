@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../theme/dimens.dart';
 
@@ -28,7 +28,12 @@ class SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.xs, Space.lg, Space.md),
+      padding: const EdgeInsets.fromLTRB(
+        Space.lg,
+        Space.xs,
+        Space.lg,
+        Space.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -71,13 +76,13 @@ class SheetAction extends StatelessWidget {
     final foreground = destructive
         ? scheme.error
         : emphasised
-            ? scheme.onPrimaryContainer
-            : scheme.onSurfaceVariant;
+        ? scheme.onPrimaryContainer
+        : scheme.onSurfaceVariant;
     final background = destructive
         ? scheme.errorContainer.withValues(alpha: 0.35)
         : emphasised
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerHighest;
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHighest;
 
     return InkWell(
       onTap: onTap,

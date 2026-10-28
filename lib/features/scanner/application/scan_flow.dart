@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
@@ -34,8 +36,11 @@ abstract final class ScanFlow {
         case ScanFailure.unavailable:
           await _showUnavailable(context, ref, strings);
         case ScanFailure.failed:
-          showSnack(context, strings('scan_failed'),
-              icon: Icons.error_outline_rounded);
+          showSnack(
+            context,
+            strings('scan_failed'),
+            icon: Icons.error_outline_rounded,
+          );
       }
       return;
     }
@@ -55,29 +60,33 @@ abstract final class ScanFlow {
       initialValue: suggestion,
       icon: Icons.description_outlined,
     );
-    if (name == null || !context.mounted) return;
+    if (name == null || !context.mounted) {
+      await ref.read(documentRepositoryProvider).discardScan(result);
+      return;
+    }
 
     try {
-      final document =
-          await ref.read(documentsControllerProvider.notifier).importScan(
-                pdfSource: result.pdf,
-                title: name,
-                pageCount: result.pageCount,
-                thumbnailSource:
-                    result.pageImages.isEmpty ? null : result.pageImages.first,
-              );
+      final document = await ref
+          .read(documentsControllerProvider.notifier)
+          .importScan(result, name);
 
       if (!context.mounted) return;
       messenger.hideCurrentSnackBar();
-      showSnack(context, strings('scan_created'),
-          icon: Icons.check_circle_outline_rounded);
+      showSnack(
+        context,
+        strings('scan_created'),
+        icon: Icons.check_circle_outline_rounded,
+      );
       // Straight into the document: the user's next question is always
       // "did it come out right?".
-      context.push(Routes.viewer(document.id));
+      unawaited(context.push(Routes.viewer(document.id)));
     } on Object {
       if (!context.mounted) return;
-      showSnack(context, strings('common_error'),
-          icon: Icons.error_outline_rounded);
+      showSnack(
+        context,
+        strings('common_error'),
+        icon: Icons.error_outline_rounded,
+      );
     }
   }
 

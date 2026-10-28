@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
@@ -104,7 +106,7 @@ class _FolderChip extends ConsumerWidget {
           onAccept != null && (accepts?.call(details.data) ?? false),
       onAcceptWithDetails: (details) {
         // A confirmation you feel, before the list even redraws.
-        HapticFeedback.mediumImpact();
+        unawaited(HapticFeedback.mediumImpact());
         onAccept!(details.data);
       },
       builder: (context, candidates, rejected) {
@@ -135,70 +137,70 @@ class _FolderChip extends ConsumerWidget {
               ),
             ),
             child: Material(
-            type: MaterialType.transparency,
-            shape: const StadiumBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: AnimatedContainer(
-                duration: Motion.quick,
-                curve: Motion.enter,
-                padding: EdgeInsets.symmetric(
-                  horizontal: hovered ? Space.lg : Space.md,
-                  vertical: Space.xs,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: dashed ? scheme.onSurfaceVariant : foreground,
-                    ),
-                    const SizedBox(width: Space.xs),
-                    Text(
-                      label,
-                      style: theme.textTheme.labelLarge?.copyWith(
+              type: MaterialType.transparency,
+              shape: const StadiumBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                onLongPress: onLongPress,
+                child: AnimatedContainer(
+                  duration: Motion.quick,
+                  curve: Motion.enter,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: hovered ? Space.lg : Space.md,
+                    vertical: Space.xs,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 18,
                         color: dashed ? scheme.onSurfaceVariant : foreground,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
                       ),
-                    ),
-                    if (count != null && count! > 0) ...[
-                      const SizedBox(width: 6),
-                      // A photo filed into the folder ticks the count over
-                      // instead of swapping the digit.
-                      AnimatedSwitcher(
-                        duration: Motion.base,
-                        switchInCurve: Motion.enter,
-                        switchOutCurve: Motion.exit,
-                        transitionBuilder: (child, animation) =>
-                            FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.6),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        ),
-                        child: Text(
-                          '$count',
-                          key: ValueKey(count),
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: foreground.withValues(alpha: 0.75),
-                          ),
+                      const SizedBox(width: Space.xs),
+                      Text(
+                        label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: dashed ? scheme.onSurfaceVariant : foreground,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                       ),
+                      if (count != null && count! > 0) ...[
+                        const SizedBox(width: 6),
+                        // A photo filed into the folder ticks the count over
+                        // instead of swapping the digit.
+                        AnimatedSwitcher(
+                          duration: Motion.base,
+                          switchInCurve: Motion.enter,
+                          switchOutCurve: Motion.exit,
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.6),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                          child: Text(
+                            '$count',
+                            key: ValueKey(count),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: foreground.withValues(alpha: 0.75),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
           ),
         );
       },

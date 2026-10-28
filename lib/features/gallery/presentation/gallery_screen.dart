@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
@@ -72,65 +73,65 @@ class GalleryScreen extends ConsumerWidget {
               ),
               ...switch (captures) {
                 AsyncData(:final value) when value.isEmpty => [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        icon: Icons.photo_camera_outlined,
-                        title: strings('gallery_empty_title'),
-                        body: strings('gallery_empty_body'),
-                        // Both ways in, spelled out: the action button hides
-                        // import behind a hold, and an empty gallery is where
-                        // someone is most likely to be looking for it.
-                        action: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: () => CaptureFlow.openCamera(context),
-                              icon: const Icon(Icons.photo_camera_outlined),
-                              label: Text(strings('camera_title')),
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: Icons.photo_camera_outlined,
+                      title: strings('gallery_empty_title'),
+                      body: strings('gallery_empty_body'),
+                      // Both ways in, spelled out: the action button hides
+                      // import behind a hold, and an empty gallery is where
+                      // someone is most likely to be looking for it.
+                      action: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => CaptureFlow.openCamera(context),
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: Text(strings('camera_title')),
+                          ),
+                          const SizedBox(height: Space.xs),
+                          TextButton.icon(
+                            onPressed: () =>
+                                CaptureFlow.importPhotos(context, ref),
+                            icon: const Icon(
+                              Icons.add_photo_alternate_outlined,
                             ),
-                            const SizedBox(height: Space.xs),
-                            TextButton.icon(
-                              onPressed: () =>
-                                  CaptureFlow.importPhotos(context, ref),
-                              icon: const Icon(
-                                Icons.add_photo_alternate_outlined,
-                              ),
-                              label: Text(strings('camera_import')),
-                            ),
-                          ],
-                        ),
+                            label: Text(strings('camera_import')),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
+                ],
                 AsyncData(:final value) => [
-                    EntranceGroup(
-                      // A different folder or density is a different grid:
-                      // it cascades in again. A new photo enters on its own.
-                      epoch: (folderId, columns),
-                      ids: value.map((c) => c.id),
-                      child: _grid(context, value, columns),
-                    ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: Space.bottomInset),
-                    ),
-                  ],
+                  EntranceGroup(
+                    // A different folder or density is a different grid:
+                    // it cascades in again. A new photo enters on its own.
+                    epoch: (folderId, columns),
+                    ids: value.map((c) => c.id),
+                    child: _grid(context, value, columns),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: Space.bottomInset),
+                  ),
+                ],
                 AsyncError() => [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        icon: Icons.error_outline_rounded,
-                        title: strings('common_error'),
-                        body: strings('gallery_empty_body'),
-                      ),
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: Icons.error_outline_rounded,
+                      title: strings('common_error'),
+                      body: strings('gallery_empty_body'),
                     ),
-                  ],
+                  ),
+                ],
                 _ => const [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ],
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
               },
             ],
           ),
@@ -157,11 +158,7 @@ class GalleryScreen extends ConsumerWidget {
           key: ValueKey(captures[index].id),
           id: captures[index].id,
           index: index,
-          child: _GalleryItem(
-            captures: captures,
-            index: index,
-            extent: extent,
-          ),
+          child: _GalleryItem(captures: captures, index: index, extent: extent),
         ),
       ),
     );
@@ -320,7 +317,6 @@ class _GalleryAppBar extends ConsumerWidget {
     }
 
     return SliverAppBar.large(
-      pinned: true,
       leading: folder == null
           ? null
           : IconButton(
@@ -346,14 +342,11 @@ class _GalleryAppBar extends ConsumerWidget {
             duration: Motion.quick,
             transitionBuilder: (child, animation) =>
                 ScaleTransition(scale: animation, child: child),
-            child: Icon(
-              switch (columns) {
-                2 => Icons.grid_view_rounded,
-                3 => Icons.grid_on_rounded,
-                _ => Icons.apps_rounded,
-              },
-              key: ValueKey(columns),
-            ),
+            child: Icon(switch (columns) {
+              2 => Icons.grid_view_rounded,
+              3 => Icons.grid_on_rounded,
+              _ => Icons.apps_rounded,
+            }, key: ValueKey(columns)),
           ),
           tooltip: strings('view_grid'),
         ),
@@ -375,27 +368,7 @@ Future<void> _share(
   BuildContext context,
   WidgetRef ref,
   List<Capture> captures,
-) async {
-  if (captures.isEmpty) return;
-  final strings = ref.read(stringsProvider);
-  try {
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [
-          for (final capture in captures)
-            XFile(capture.path, mimeType: capture.mimeType),
-        ],
-      ),
-    );
-  } on Object {
-    if (!context.mounted) return;
-    showSnack(
-      context,
-      strings('share_failed'),
-      icon: Icons.error_outline_rounded,
-    );
-  }
-}
+) => CaptureFlow.share(context, ref, captures);
 
 Future<void> _move(
   BuildContext context,
@@ -406,8 +379,11 @@ Future<void> _move(
   final strings = ref.read(stringsProvider);
   await ref.read(galleryControllerProvider.notifier).move(ids, folderId);
   if (!context.mounted) return;
-  showSnack(context, strings('folders_moved'),
-      icon: Icons.drive_file_move_outline);
+  showSnack(
+    context,
+    strings('folders_moved'),
+    icon: Icons.drive_file_move_outline,
+  );
 }
 
 /// Copies the selected photos, in the order they were picked, into a new
@@ -439,20 +415,25 @@ Future<void> _createAlbum(
     final document = await withBusy(
       context,
       strings.plural('gallery_creating_album', paths.length),
-      () => ref.read(documentsControllerProvider.notifier).createFromImages(
-            imagePaths: paths,
-            title: name,
-          ),
+      () => ref
+          .read(documentsControllerProvider.notifier)
+          .createAlbum(imagePaths: paths, title: name),
     );
     ref.read(gallerySelectionProvider.notifier).clear();
     if (!context.mounted) return;
-    showSnack(context, strings('gallery_album_created'),
-        icon: Icons.check_circle_outline_rounded);
-    context.push(Routes.viewer(document.id));
+    showSnack(
+      context,
+      strings('gallery_album_created'),
+      icon: Icons.check_circle_outline_rounded,
+    );
+    unawaited(context.push(Routes.viewer(document.id)));
   } on Object {
     if (!context.mounted) return;
-    showSnack(context, strings('common_error'),
-        icon: Icons.error_outline_rounded);
+    showSnack(
+      context,
+      strings('common_error'),
+      icon: Icons.error_outline_rounded,
+    );
   }
 }
 
@@ -463,7 +444,18 @@ Future<void> _trash(
 ) async {
   if (captures.isEmpty) return;
   final ids = captures.map((c) => c.id).toSet();
-  await ref.read(galleryControllerProvider.notifier).moveToTrash(captures);
+  try {
+    await ref.read(galleryControllerProvider.notifier).moveToTrash(ids);
+  } on Object {
+    if (context.mounted) {
+      showSnack(
+        context,
+        ref.read(stringsProvider)('common_error'),
+        icon: Icons.error_outline_rounded,
+      );
+    }
+    return;
+  }
   if (!context.mounted) return;
   showTrashedSnack(context, ref, kind: FolderKind.capture, ids: ids);
 }
