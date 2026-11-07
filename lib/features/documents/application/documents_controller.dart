@@ -9,6 +9,7 @@ import '../../../data/models/folder.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
 import '../../../data/repositories/document_repository.dart';
+import '../../../data/services/pdf_service.dart';
 import '../../../data/services/scanner_service.dart';
 import '../../folders/application/folders_controller.dart';
 
@@ -21,7 +22,7 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
   @override
   Future<List<ScannedDocument>> build() {
     ref.watch(folderReleasedProvider(FolderKind.document));
-    return _repository.load().bounded();
+    return _repository.load(reconcile: false).bounded();
   }
 
   Future<void> refresh() => _serial.run(() async {
@@ -42,6 +43,19 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
     required String title,
   }) => _write(
     () => _repository.createAlbum(imagePaths: imagePaths, title: title),
+    (list, doc) => [doc, ...list],
+  );
+
+  Future<ScannedDocument> createPdf({
+    required List<String> imagePaths,
+    required String title,
+    PdfImageQuality quality = PdfImageQuality.original,
+  }) => _write(
+    () => _repository.createPdf(
+      imagePaths: imagePaths,
+      title: title,
+      quality: quality,
+    ),
     (list, doc) => [doc, ...list],
   );
 
@@ -85,6 +99,11 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
     List<DocumentPage> pages,
   ) => _write(() => _repository.savePages(document, pages), _replaced);
 
+  Future<ScannedDocument> rewritePdf(
+    ScannedDocument document,
+    List<PageBlueprint> pages,
+  ) => _write(() => _repository.rewritePdf(document, pages), _replaced);
+
   /// After a PDF was rewritten on disk.
   Future<ScannedDocument> reload(
     ScannedDocument document, {
@@ -100,6 +119,7 @@ class DocumentsController extends AsyncNotifier<List<ScannedDocument>> {
     patch, {
     bool clearSelection = false,
   }) => _serial.run(() async {
+    if (!state.hasValue) await future;
     final result = await write();
     if (!ref.mounted) return result;
     final current = state.value;

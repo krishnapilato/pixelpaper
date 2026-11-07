@@ -1,17 +1,15 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:pro_image_editor/pro_image_editor.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/image_cache.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/edit_image.dart';
 import '../../../core/widgets/feedback.dart';
-import '../../../core/widgets/image_editor_config.dart';
 import '../../../data/models/capture.dart';
 import '../../../data/providers.dart';
 import '../application/capture_flow.dart';
@@ -192,19 +190,10 @@ class _CapturePreviewState extends ConsumerState<CapturePreview>
   Future<void> _edit() async {
     final strings = ref.read(stringsProvider);
     final capture = _capture;
-    Uint8List? edited;
-
-    await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (editorContext) => ProImageEditor.file(
-          capture.file,
-          configs: italianImageEditor,
-          callbacks: ProImageEditorCallbacks(
-            onImageEditingComplete: (bytes) async => edited = bytes,
-            onCloseEditor: (mode) => Navigator.of(editorContext).pop(),
-          ),
-        ),
-      ),
+    final edited = await editImage(
+      context,
+      capture.file,
+      ref.read(storageServiceProvider),
     );
 
     final bytes = edited;

@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
-  FLUTTER_VERSION: '3.47.8'
-  JAVA_VERSION: '25'
+  FLUTTER_VERSION: '3.47.9'
+  JAVA_VERSION: '27'
 
 jobs:
   verify:
@@ -27,9 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -44,7 +44,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Formattazione
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
 
       - name: Analisi (warning, info e unused sono errori)
         run: flutter analyze --fatal-infos --fatal-warnings
@@ -52,21 +52,50 @@ jobs:
       - name: Test
         run: flutter test --coverage --reporter=github
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: coverage
           path: coverage/lcov.info
           retention-days: 14
 
+  smoke-android:
+    name: Smoke test Android
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Abilita KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: flutter test integration_test/app_smoke_test.dart -d emulator-5554 --no-pub
+
   build:
     name: Build di controllo
-    needs: verify
+    needs: [verify, smoke-android]
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -83,14 +112,14 @@ jobs:
 
   release:
     name: Release
-    needs: verify
+    needs: [verify, smoke-android]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Il tag coincide con la versione del pubspec
         run: |
@@ -101,7 +130,7 @@ jobs:
           fi
           echo "VERSION=${version}" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}

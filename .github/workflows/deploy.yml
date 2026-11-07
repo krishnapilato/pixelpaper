@@ -12,6 +12,12 @@ on:
     paths:
       - 'web/**'
       - '.github/workflows/deploy.yml'
+      - 'test/web/**'
+      - 'playwright.config.js'
+      - 'package*.json'
+      - 'tool/serve-web.js'
+  pull_request:
+    paths: ['web/**', 'test/web/**', 'playwright.config.js', 'package*.json', 'tool/serve-web.js', '.github/workflows/deploy.yml']
   workflow_dispatch:
 
 permissions:
@@ -24,13 +30,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  smoke-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '26'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:web
+
   deploy:
+    needs: smoke-web
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - uses: actions/configure-pages@v6
 

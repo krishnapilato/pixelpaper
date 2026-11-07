@@ -38,6 +38,7 @@ class StorageService {
   final StorageRootsLoader _loadRoots;
   Future<StorageRoots>? _roots;
   final Map<String, Future<Directory>> _dirs = {};
+  Future<void>? _pruning;
 
   static const int previewCacheBudgetBytes = 64 * 1024 * 1024;
   static const int cacheNudgeBytes = 20 * 1024 * 1024;
@@ -179,9 +180,13 @@ class StorageService {
   Future<File> exportFile(String name, String extension) async =>
       uniqueFile(await exportsDir(), name, extension);
 
-  Future<void> clearExports() async {
+  Future<void> clearExports({DateTime? olderThan}) async {
     final dir = await exportsDir();
     await for (final entity in dir.list(followLinks: false)) {
+      if (olderThan != null &&
+          !(await entity.stat()).modified.isBefore(olderThan)) {
+        continue;
+      }
       try {
         await entity.delete(recursive: true);
       } on FileSystemException {
@@ -192,14 +197,22 @@ class StorageService {
 
   /// Removes what earlier sessions left in the cache: exports, plugin copies
   /// of shared files, half-written `.part` files in the library.
-  Future<void> clearTransient() async {
-    await clearExports();
+  Future<void> clearTransient({DateTime? olderThan}) async {
+    await clearExports(olderThan: olderThan);
     final base = await roots;
     for (final name in _foreignCaches) {
-      await deleteTree(Directory(p.join(base.temporary.path, name)));
+      final directory = Directory(p.join(base.temporary.path, name));
+      if (olderThan == null ||
+          (await directory.stat()).modified.isBefore(olderThan)) {
+        await deleteTree(directory);
+      }
     }
     for (final dir in [await documentsDir(), await capturesDir()]) {
       for (final part in await listFiles(dir, const {'.part'})) {
+        if (olderThan != null &&
+            !(await part.stat()).modified.isBefore(olderThan)) {
+          continue;
+        }
         await _deleteQuietly(part);
       }
     }
@@ -256,7 +269,10 @@ class StorageService {
   }
 
   /// Trims the preview cache to its budget, least recently used first.
-  Future<void> prunePreviewCache() async {
+  Future<void> prunePreviewCache() =>
+      _pruning ??= _prunePreviewCache().whenComplete(() => _pruning = null);
+
+  Future<void> _prunePreviewCache() async {
     final dir = await previewsDir();
     final entries = <({File file, int size, DateTime modified})>[];
     var total = 0;

@@ -31,7 +31,8 @@ class DocumentRepository {
   final PdfService _pdf;
   final CaptureRepository _images;
 
-  Future<List<ScannedDocument>> load() async {
+  Future<List<ScannedDocument>> load({bool reconcile = true}) async {
+    if (!reconcile) return _dao.all();
     final files = await _storage.listFiles(
       await _storage.documentsDir(),
       const {'.pdf'},
@@ -91,6 +92,72 @@ class DocumentRepository {
   }
 
   Future<ScannedDocument?> byId(int id) => _dao.byId(id);
+
+  /// A gallery selection becomes a persistent PDF immediately. The gallery's
+  /// originals remain independent and the first image gives an instant preview.
+  Future<ScannedDocument> createPdf({
+    required List<String> imagePaths,
+    required String title,
+    PdfImageQuality quality = PdfImageQuality.original,
+  }) async {
+    if (imagePaths.isEmpty) throw ArgumentError('No image pages');
+    final target = await _storage.uniqueFile(
+      await _storage.documentsDir(),
+      title,
+      '.pdf',
+    );
+    File? thumbnail;
+    try {
+      await _pdf.composeToFile(imagePaths, target, quality: quality);
+      thumbnail = await _pdf.adoptThumbnail(
+        File(imagePaths.first),
+        target.path,
+      );
+      return await _insertPdf(target, imagePaths.length, thumbnail?.path);
+    } catch (_) {
+      await _storage.deleteFiles([target.path, ?thumbnail?.path]);
+      rethrow;
+    }
+  }
+
+  /// Commit a new file and then switch the row to it. A failed encode or
+  /// database update leaves the previous document usable and untouched.
+  Future<ScannedDocument> rewritePdf(
+    ScannedDocument document,
+    List<PageBlueprint> pages,
+  ) async {
+    final live = await _dao.byId(document.id);
+    if (live == null ||
+        live.isTrashed ||
+        live.signature != document.signature) {
+      throw StateError('Document changed during editing');
+    }
+    final target = await _storage.uniqueFile(
+      await _storage.documentsDir(),
+      '${document.title}_edited',
+      '.pdf',
+    );
+    ScannedDocument updated;
+    try {
+      await _storage.copyAtomic(document.file, target);
+      await _pdf.rewrite(target: target, pages: pages);
+      final stat = await target.stat();
+      updated = document.copyWith(
+        path: target.path,
+        pageCount: pages.length,
+        sizeBytes: stat.size,
+        updatedAt: stat.modified.toMillis,
+        clearThumbnail: true,
+      );
+      await _dao.replaceFile(document, updated);
+    } catch (_) {
+      await _storage.deleteFiles([target.path]);
+      rethrow;
+    }
+    await _storage.deleteFiles([document.path, ?document.thumbnailPath]);
+    await _storage.deletePreviewsOf([document.path]);
+    return updated;
+  }
 
   /// Files the scanner's PDF and deletes everything the scanner left behind.
   Future<ScannedDocument> importScan(ScanResult scan, String title) async {

@@ -172,6 +172,7 @@ class _DocumentViewerScreenState extends ConsumerState<DocumentViewerScreen> {
                 // read on the way in.
                 key: ValueKey(document.signature),
                 file: document.path,
+                firstPagePreview: document.thumbnailPath,
                 pageCount: pageCount,
                 padding: readerPadding(context),
                 onPageChanged: (index) => setState(() => _page = index),

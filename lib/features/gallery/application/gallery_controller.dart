@@ -22,7 +22,7 @@ class GalleryController extends AsyncNotifier<List<Capture>> {
   @override
   Future<List<Capture>> build() {
     ref.watch(folderReleasedProvider(FolderKind.capture));
-    return _repository.load().bounded();
+    return _repository.load(reconcile: false).bounded();
   }
 
   Future<void> refresh() => _serial.run(() async {
@@ -79,6 +79,7 @@ class GalleryController extends AsyncNotifier<List<Capture>> {
     List<Capture> Function(List<Capture> list, T result) patch, {
     bool clearSelection = false,
   }) => _serial.run(() async {
+    if (!state.hasValue) await future;
     final result = await write();
     if (!ref.mounted) return result;
     final current = state.value;

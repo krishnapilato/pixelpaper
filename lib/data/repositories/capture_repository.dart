@@ -37,11 +37,12 @@ class CaptureRepository {
   final StorageService _storage;
   final Transcoder _transcode;
 
-  static const int maxImageBytes = 256 << 20;
+  static const int maxImageBytes = 64 << 20;
   static const int maxPixels = 260000000;
   static const Set<String> _extensions = {'.jpg', '.jpeg', '.png'};
 
-  Future<List<Capture>> load() async {
+  Future<List<Capture>> load({bool reconcile = true}) async {
+    if (!reconcile) return _dao.all();
     final dir = await _storage.capturesDir();
     final files = await _storage.listFiles(dir, _extensions);
     final onDisk = {for (final file in files) file.path};
@@ -122,21 +123,15 @@ class CaptureRepository {
   Future<Capture> replaceContent(Capture capture, Uint8List bytes) async {
     final archived = await archivalBytes(bytes);
     final wanted = archived.format.extension;
-    final current = p.extension(capture.path).toLowerCase();
-    final sameFormat =
-        wanted == current || (wanted == '.jpg' && current == '.jpeg');
-
-    if (sameFormat) {
-      await _storage.writeAtomic(capture.file, archived.bytes);
-      return _remeasured(capture, capture.path, archived);
-    }
-    final target = await _storage.uniqueFile(
-      capture.file.parent,
-      p.basenameWithoutExtension(capture.path),
-      wanted,
-    );
+    final target = await _storage.newPageFile(capture.file.parent, wanted);
     await _storage.writeAtomic(target, archived.bytes);
-    final moved = await _remeasured(capture, target.path, archived);
+    final Capture moved;
+    try {
+      moved = await _remeasured(capture, target.path, archived);
+    } catch (_) {
+      await _storage.deleteFiles([target.path]);
+      rethrow;
+    }
     await _storage.deleteFiles([capture.path]);
     return moved;
   }
@@ -194,8 +189,20 @@ class CaptureRepository {
   /// [bytes] as the gallery keeps them: JPEG or PNG as given, anything the
   /// engine can decode transcoded to JPEG, everything else refused.
   Future<ArchivalImage> archivalBytes(Uint8List bytes) async {
+    if (bytes.length > maxImageBytes) {
+      throw const InvalidImageException('too large');
+    }
     final format = ImageSanitizer.sniff(bytes);
     if (format == null) throw const InvalidImageException('unknown format');
+    if (format.isArchival) {
+      final originalSize = await _dimensions(bytes);
+      if (originalSize == null) {
+        throw const InvalidImageException('undecodable');
+      }
+      if (originalSize.width * originalSize.height > maxPixels) {
+        throw const InvalidImageException('too many pixels');
+      }
+    }
     final kept = format.isArchival ? bytes : await _transcode(bytes);
     final keptFormat = format.isArchival ? format : ImageFormat.jpeg;
     final size = await _dimensions(kept);
@@ -253,6 +260,11 @@ Uint8List _strip(Uint8List bytes) {
 /// Decodes with the platform codec (HEIF and WebP included on Android) and
 /// re-encodes as JPEG off the UI isolate.
 Future<Uint8List> transcodeToJpeg(Uint8List encoded) async {
+  final dimensions = await CaptureRepository._dimensions(encoded);
+  if (dimensions == null) throw const InvalidImageException('undecodable');
+  if (dimensions.width * dimensions.height > 24000000) {
+    throw const InvalidImageException('too many pixels');
+  }
   final ui.Codec codec;
   try {
     codec = await ui.instantiateImageCodec(encoded);

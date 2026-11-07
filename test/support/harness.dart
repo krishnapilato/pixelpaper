@@ -75,14 +75,20 @@ Strings loadStrings() {
   return Strings({for (final e in decoded.entries) e.key: '${e.value}'});
 }
 
-ProviderContainer containerFor(Sandbox sandbox, {AppDatabase? database}) {
+ProviderContainer containerFor(
+  Sandbox sandbox, {
+  AppDatabase? database,
+  PdfService? pdfService,
+}) {
   final db = database ?? memoryDatabase();
   final storage = sandbox.storage();
   final container = ProviderContainer(
     overrides: [
       appDatabaseProvider.overrideWithValue(db),
       storageServiceProvider.overrideWithValue(storage),
-      pdfServiceProvider.overrideWithValue(FakePdfService(storage)),
+      pdfServiceProvider.overrideWithValue(
+        pdfService ?? FakePdfService(storage),
+      ),
       stringsProvider.overrideWithValue(loadStrings()),
     ],
   );

@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a class="skip-link" href="#contenuto">Vai alla guida</a>
 
 <header class="bar">
   <div class="bar-inner">
@@ -35,14 +36,19 @@
     <h1>Guida a PixelPaper</h1>
     <p class="lead">
       Scanner di documenti e archivio PDF per Android. Questa guida percorre
-      l'app schermata per schermata: cosa fa ogni pulsante, quale gesto serve,
-      e perché in certi casi conviene una strada invece di un'altra.
+      l’app dal primo scatto al PDF: conserva i dettagli di un libro storico,
+      modifica una foto alla volta e organizza le pagine prima di stampare.
     </p>
+    <nav class="quick-paths" aria-label="Scegli da dove iniziare">
+      <a href="#scansione">Scansiona un documento <span aria-hidden="true">↗</span></a>
+      <a href="#galleria">Crea un PDF dalle foto <span aria-hidden="true">↗</span></a>
+      <a href="#editor">Modifica le pagine <span aria-hidden="true">↗</span></a>
+    </nav>
     <div class="chips">
       <span class="chip">Android 7.0 e successivi</span>
       <span class="chip">Interfaccia in italiano</span>
       <span class="chip">Funziona offline</span>
-      <span class="chip">Un solo permesso: fotocamera</span>
+      <span class="chip">Nessun permesso fotocamera o archivio</span>
     </div>
 
     <div class="get" id="get">
@@ -70,7 +76,7 @@
 
 <section class="shots" aria-label="Schermate dell'app">
   <div class="shots-head">
-    <h2>L'app in otto schermate</h2>
+    <h2>Le schermate principali</h2>
     <div class="shots-nav">
       <button type="button" id="shot-prev" aria-label="Schermata precedente">&#8249;</button>
       <button type="button" id="shot-next" aria-label="Schermata successiva">&#8250;</button>
@@ -78,11 +84,7 @@
   </div>
 
   <div class="shots-track" id="shots-track" tabindex="0" aria-label="Galleria delle schermate, scorri o usa le frecce">
-    <figure>
-      <img src="screenshots/01-avvio.jpg" alt="Schermata di avvio con il nome PixelPaper" width="420" height="935" loading="lazy" decoding="async">
-      <figcaption><strong>Avvio</strong>Il foglio dell'icona viene scansionato e diventa pixel, poi il raggio scrive il nome.</figcaption>
-    </figure>
-    <figure>
+<figure>
       <img src="screenshots/02-archivio.jpg" alt="Archivio con tre documenti PDF" width="420" height="935" loading="lazy" decoding="async">
       <figcaption><strong>Archivio</strong>Anteprima, pagine, dimensione e data. Ricerca, ordinamento e cartelle in alto.</figcaption>
     </figure>
@@ -112,7 +114,7 @@
     </figure>
   </div>
 
-  <div class="shots-dots" id="shots-dots" role="tablist" aria-label="Vai alla schermata"></div>
+  <div class="shots-dots" id="shots-dots" role="group" aria-label="Vai alla schermata"></div>
 </section>
 
 <div class="layout">
@@ -135,7 +137,7 @@
     </ol>
   </nav>
 
-  <main>
+  <main id="contenuto">
 
     <!-- 1 -->
     <section class="step" id="panoramica">
@@ -245,52 +247,20 @@
     <section class="step" id="fotocamera">
       <p class="eyebrow">Passo 2</p>
       <h2>Fotocamera e importazione</h2>
-      <p>
-        La fotocamera della Galleria scatta alla <strong>massima risoluzione
-        dell'obiettivo</strong>, senza ritaglio automatico e senza correzioni:
-        il file resta come l'ha visto il sensore. È la scelta giusta quando il
-        dettaglio è il contenuto — carte antiche, testi latini, timbri,
-        firme, pagine rovinate.
-      </p>
-
+      <p>PixelPaper apre la <strong>fotocamera di sistema</strong>: usi i controlli del tuo telefono, con la qualità e le modalità che quell’app mette a disposizione. PixelPaper non imposta una compressione aggiuntiva sullo scatto ricevuto.</p>
       <ol class="howto">
-        <li>Nella scheda <strong>Galleria</strong> tocca il pulsante in basso a destra: si allarga fino a diventare la fotocamera. La prima volta Android chiede il permesso.</li>
-        <li>Inquadra e scatta. La fotocamera <strong>resta aperta</strong>: in alto compare la conferma (<em>Foto salvata nella Galleria</em>, oppure <em>Salvata in «Fatture»</em> se avevi aperto una cartella), e in basso a sinistra la miniatura dell'ultimo scatto con il conteggio.</li>
-        <li>Continua a scattare quante pagine vuoi; quando hai finito, torna indietro o tocca la miniatura.</li>
+        <li>Nella <strong>Galleria</strong> tocca il pulsante della fotocamera.</li>
+        <li>Inquadra e conferma lo scatto nell’app fotocamera. L’immagine viene importata nello spazio privato di PixelPaper, nella cartella aperta.</li>
+        <li>La sessione di acquisizione mostra il numero di scatti. Tocca <strong>Scatta</strong> per un’altra pagina, oppure <strong>Chiudi</strong> per tornare alla Galleria.</li>
       </ol>
-
       <div class="screen">
-        <div class="screen-bar"><span class="dot"></span> Fotocamera · flash · autoscatto · griglia</div>
-        <div class="rail">
-          <span class="fchip sel">Tocca: fuoco ed esposizione</span>
-          <span class="fchip">Trascina: ±EV</span>
-          <span class="fchip">1× · 2× · 5×</span>
-        </div>
-        <div class="dock">
-          <span>Ultimo scatto</span><span>Scatta</span><span>Cambia obiettivo</span>
-        </div>
+        <div class="screen-bar"><span class="dot"></span> Fotocamera</div>
+        <p class="capture-count">12 scatti</p>
+        <p>Le modalità disponibili dipendono dalla fotocamera del telefono.</p>
+        <div class="dock"><span>Scatta</span><span>Chiudi</span></div>
       </div>
-
-      <div class="table-wrap"><table>
-        <thead><tr><th>Gesto o comando</th><th>A cosa serve</th></tr></thead>
-        <tbody>
-          <tr><td>Tocco sull'anteprima</td><td>Mette a fuoco lì e misura la luce lì. Compare un quadrato, e accanto la scala dell'esposizione. È il rimedio a una pagina chiara che il telefono scurisce perché sta leggendo lo sfondo.</td></tr>
-          <tr><td>Trascinamento verticale</td><td>Con il quadrato a schermo, schiarisce o scurisce: in alto più luce, in basso meno. Si muove a scatti — quelli che la fotocamera accetta — e il valore resta scritto accanto al sole.</td></tr>
-          <tr><td>Pressione lunga</td><td>Toglie il punto scelto e rimette tutto in automatico.</td></tr>
-          <tr><td>Zoom</td><td>Con due dita sull'anteprima, oppure con i pulsanti 1× · 2× · 5× quando l'obiettivo arriva fin lì.</td></tr>
-          <tr><td>Flash</td><td>Automatico, sempre acceso, spento o torcia: si passa da uno all'altro toccando l'icona in alto.</td></tr>
-          <tr><td>Autoscatto</td><td>3 o 10 secondi, con il conto alla rovescia sull'anteprima: il telefono non si muove mentre scatta.</td></tr>
-          <tr><td>Griglia</td><td>I terzi sull'anteprima, per raddrizzare una pagina a occhio.</td></tr>
-        </tbody>
-      </table></div>
-
-      <div class="tip">
-        <strong>Compare solo quello che l'obiettivo sa fare davvero.</strong>
-        Quando la fotocamera si apre, l'app chiede all'obiettivo che cosa
-        offre — fin dove arriva lo zoom, quanta esposizione può correggere, se
-        ha un flash — e disegna soltanto quello. Un comando che il tuo telefono
-        non ha non resta lì spento a occupare posto: non c'è.
-      </div>
+      <div class="tip"><strong>Per i libri storici.</strong> Evita filtri di pulizia aggressivi, usa luce uniforme e controlla il fuoco sul testo. Se disponibile, scegli la modalità manuale nella fotocamera del telefono. Non tutti i dispositivi la offrono quando la fotocamera viene aperta da un’altra app.</div>
+      <div class="tip"><strong>Uno scatto alla volta.</strong> Android può riportarti a PixelPaper dopo ogni foto confermata: non è un errore. La sessione rimane aperta e scegli tu quando terminarla.</div>
 
       <h3>Importare foto già sul telefono</h3>
       <p>
@@ -327,17 +297,22 @@
       <ol class="howto">
         <li><strong>Tieni premuta</strong> una foto per entrare in selezione.</li>
         <li>Tocca le altre per aggiungerle. In alto compare il conteggio: <em>3 selezionate</em>.</li>
-        <li>Dalla barra in alto: <strong>condividi</strong> le immagini, oppure tocca l'icona <strong>album</strong> per unirle in un unico documento.</li>
+        <li>Dalla barra in alto: <strong>condividi</strong> le immagini, oppure tocca <strong>Crea PDF</strong> per unirle in un documento. Scegli <em>Originale</em> o <em>Compatto</em>, assegna un nome e conferma: il PDF viene salvato subito nell’Archivio e aperto in anteprima.</li>
         <li>Il menu <span class="kbd">⋮</span> aggiunge <em>Seleziona tutto</em>, <em>Sposta in</em> (una cartella) ed <em>Elimina</em>.</li>
       </ol>
 
       <div class="tip">
         <strong>L'ordine delle pagine è quello in cui tocchi le foto.</strong>
         Su ogni foto selezionata compare un numero: è la pagina che avrà
-        nell'album. Deselezionandone una, i numeri si ricompattano da soli. Se
+        nel PDF. Deselezionandone una, i numeri si ricompattano da soli. Se
         cambi idea dopo, l'<a href="#editor">editor delle pagine</a> riordina
-        trascinando le miniature, all'istante.
+        trascinando le miniature.
       </div>
+      <div class="grid-2">
+        <div class="card"><h3>Originale</h3><p>Conserva le dimensioni delle immagini. I JPEG vengono inseriti nel PDF senza riduzione o ricompressione. Sceglilo quando contano dettagli, inchiostri e margini.</p></div>
+        <div class="card"><h3>Compatto</h3><p>Riduce le immagini fino a 2400 pixel sul lato lungo e usa JPEG all’85%. Adatto a condivisione e consultazione quando preferisci un file più leggero.</p></div>
+      </div>
+      <div class="tip"><strong>Le foto restano indipendenti.</strong> Il PDF è un file autonomo: riordinare o eliminare in seguito le foto della Galleria non cambia le sue pagine. Il testo ricercabile non viene aggiunto automaticamente; l’OCR resta disponibile sulle foto.</div>
     </section>
 
     <!-- 5 -->
@@ -377,7 +352,7 @@
         </div>
         <div class="card">
           <h3>Modifica</h3>
-          <p>Ritaglia, ruota, disegna, scrivi, sfoca, applica filtri. Il risultato <strong>sostituisce</strong> la foto: non nasce un doppione a ogni ritocco.</p>
+          <p>Ritaglia, ruota, disegna, scrivi, sfoca, applica filtri. L’editor usa una copia di lavoro fino a 3200 pixel sul lato lungo; annullando, la foto rimane intatta. Il risultato <strong>sostituisce</strong> la foto: non nasce un doppione a ogni ritocco.</p>
         </div>
         <div class="card">
           <h3>Condividi</h3>
@@ -387,7 +362,7 @@
 
       <div class="tip warn">
         <strong>La modifica non è annullabile dall'app.</strong> Salvando,
-        l'immagine originale viene sovrascritta. Se ti serve tenere anche la
+        la versione precedente della foto viene sostituita. Se ti serve tenere anche la
         versione di partenza, duplicala prima condividendola con te stesso, o
         lavora su una copia importata.
       </div>
@@ -515,23 +490,19 @@
         <h3>"Modifica": la pagina come immagine</h3>
         <p>
           Un PDF non si riscrive come si riscrive un testo. Per intervenire su
-          una pagina, PixelPaper la <strong>rasterizza</strong> a circa 190 dpi,
+          una pagina, PixelPaper prepara <strong>l’immagine della sola pagina scelta</strong>, fino a 3200 pixel sul lato lungo,
           la apre nell'editor di immagini — dove puoi ritagliare, ruotare,
           disegnare, oscurare una firma o un numero di conto — e la rimette al
           suo posto. Le altre pagine non vengono toccate.
         </p>
         <p>
           Il prezzo è dichiarato: quella pagina <strong>diventa un'immagine</strong>.
-          Il file cresce e il testo non è più selezionabile né ricercabile. Per
+          Il peso può cambiare e l’eventuale testo della pagina non è più selezionabile né ricercabile. Per
           questo è un'azione esplicita, che non scatta mai da sola.
         </p>
       </div>
 
-      <div class="tip">
-        <strong>Oscurare davvero.</strong> Se copri un dato sensibile con il
-        pennello e salvi, il dato sparisce sul serio: sotto non resta un livello
-        nascosto, perché la pagina viene ridisegnata da zero.
-      </div>
+      <div class="tip"><strong>Durante il salvataggio.</strong> Aspetta la conferma prima di continuare: i controlli restano bloccati finché la scrittura è terminata. In caso di errore nel salvataggio del PDF, il documento precedente viene conservato.</div>
     </section>
 
     <!-- 9 -->
@@ -608,15 +579,7 @@
         </tbody>
       </table></div>
 
-      <div class="tip">
-        <strong>Le foto già dentro un documento.</strong> Quando crei un
-        documento dalla Galleria, le pagine sono copie: il documento non può
-        rompersi se poi riordini o svuoti la galleria. Il prezzo è che quelle
-        foto stanno sul telefono due volte. La riga <em>Documenti e immagini</em>
-        se ne accorge e te lo dice — «8 foto sono già dentro un documento» —
-        e toccandola le sposta nel cestino. Nessuna pagina viene toccata, e
-        restano recuperabili per 30 giorni come tutto il resto.
-      </div>
+      <div class="tip"><strong>Originali e PDF occupano spazio separato.</strong> Prima di rimuovere gli scatti, controlla il PDF e conserva una copia esterna dei materiali importanti. Il suggerimento di pulizia delle foto duplicate resta disponibile per gli album delle versioni precedenti.</div>
 
       <div class="tip">
         <strong>Il cestino non si svuota da solo prima dei 30 giorni.</strong>
@@ -646,7 +609,7 @@
       </p>
 
       <ul class="plain">
-        <li><strong>Un solo permesso da concedere: la fotocamera</strong>, chiesto la prima volta che apri la fotocamera della Galleria e usato solo per gli scatti.</li>
+        <li><strong>PixelPaper non richiede accesso diretto alla fotocamera o all’archivio.</strong> Gli scatti vengono delegati all’app fotocamera del telefono; quella app gestisce i propri permessi.</li>
         <li>Lo scanner ML Kit usa la fotocamera dei servizi Google Play: non chiede permessi all'app.</li>
         <li>L'importazione passa dal selettore foto di sistema: nessun accesso all'intera galleria.</li>
         <li>Il riconoscimento del testo gira sul dispositivo, senza rete.</li>
@@ -671,7 +634,7 @@
         <p>
           Manca il supporto dei servizi Google Play su quel dispositivo. Usa la
           fotocamera dalla Galleria: scatti le pagine, le selezioni
-          nell'ordine giusto e l'icona album le raccoglie in un documento.
+          nell’ordine giusto e <strong>Crea PDF</strong> le raccoglie in un documento.
         </p>
       </div>
 
@@ -688,11 +651,7 @@
       <div class="card">
         <h3>Quando viene creato il PDF?</h3>
         <p>
-          Quando lo chiedi tu. Un documento fatto dalle tue foto conserva le
-          pagine come immagini, alla risoluzione dello scatto; il PDF viene
-          costruito nel momento in cui condividi, stampi o esporti. È per
-          questo che crearlo e riordinarlo sono immediati, e che l’app non
-          tiene sul telefono due copie delle stesse pagine.
+          Subito dopo <strong>Crea PDF</strong>: scegli qualità e nome, poi il file è nell’Archivio. Condivisione, stampa ed esportazione usano quel PDF. Gli album creati dalle versioni precedenti restano disponibili.
         </p>
       </div>
 
@@ -861,7 +820,7 @@
   shots.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.type = 'button';
-    dot.setAttribute('role', 'tab');
+
     dot.setAttribute('aria-label', `Schermata ${i + 1} di ${shots.length}`);
     dot.addEventListener('click', () => go(i));
     dots.append(dot);
@@ -880,7 +839,7 @@
 
   const syncShots = () => {
     const i = Math.min(current(), shots.length - 1);
-    [...dots.children].forEach((d, n) => d.setAttribute('aria-selected', n === i));
+    [...dots.children].forEach((d, n) => d.setAttribute('aria-pressed', n === i));
     prev.disabled = track.scrollLeft < 4;
     next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
   };
@@ -894,65 +853,14 @@
   const spy = new IntersectionObserver((entries) => {
     entries.forEach((entry) => entry.isIntersecting ? seen.add(entry.target.id) : seen.delete(entry.target.id));
     const first = [...links.keys()].find((id) => seen.has(id));
-    links.forEach((a, id) => a.classList.toggle('active', id === first));
+    links.forEach((a, id) => {
+      a.classList.toggle('active', id === first);
+      if (id === first) a.setAttribute('aria-current', 'location');
+      else a.removeAttribute('aria-current');
+    });
   }, { rootMargin: '-80px 0px -70% 0px' });
   document.querySelectorAll('section.step').forEach((s) => spy.observe(s));
 
-  /* ------------------------------------------------------------------
-     Movimento.
-
-     Tre numeri per fotogramma, e nient'altro: quanto si è scorso (--sy),
-     quanto manca alla fine della guida (--progress) e, per le sole sezioni
-     in vista, quanto distano dal centro dello schermo (--vp, fra -1 e 1).
-     A muovere qualcosa è il foglio di stile; qui si misura soltanto.
-
-     Chi ha chiesto meno movimento non entra nemmeno: senza queste classi e
-     senza queste variabili la pagina resta ferma, e leggibile per intero.
-     ------------------------------------------------------------------ */
-  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const bar = document.querySelector('header.bar');
-  const root = document.documentElement;
-  const steps = [...document.querySelectorAll('section.step')];
-  let queued = false;
-
-  /* Una sola passata per fotogramma, e fa tutto: quanto si è scorso, quanto
-     manca alla fine, quali sezioni sono entrate e dove si trovano rispetto
-     al centro dello schermo.
-
-     Le sezioni si scoprono qui e non con un IntersectionObserver di
-     proposito: sono tredici, misurarle costa niente, e il contenuto non
-     dipende dal fatto che una callback asincrona arrivi davvero. Se questo
-     giro parte, quello che è in pagina si vede. */
-  const measure = () => {
-    queued = false;
-    const y = window.scrollY;
-    const tall = window.innerHeight;
-    const runway = document.body.scrollHeight - tall;
-    root.style.setProperty('--sy', y.toFixed(0));
-    root.style.setProperty('--progress', runway > 0 ? (y / runway).toFixed(4) : '0');
-    bar.classList.toggle('scrolled', y > 8);
-
-    for (const section of steps) {
-      const box = section.getBoundingClientRect();
-      // Entrata una volta, entrata per sempre: tornare indietro non deve
-      // far sparire quello che si è già letto.
-      if (box.top < tall * 0.92) section.classList.add('in');
-      if (box.bottom > 0 && box.top < tall) {
-        const away = (tall / 2 - (box.top + box.height / 2)) / tall;
-        section.style.setProperty('--vp', Math.max(-1.5, Math.min(1.5, away)).toFixed(3));
-      }
-    }
-  };
-  const tick = () => { if (!queued) { queued = true; requestAnimationFrame(measure); } };
-
-  if (!calm.matches) {
-    steps.forEach((s) => s.classList.add('reveal'));
-    window.addEventListener('scroll', tick, { passive: true });
-    window.addEventListener('resize', tick);
-    // Le immagini che arrivano dopo spostano il resto: si rimisura.
-    window.addEventListener('load', tick);
-    measure();
-  }
 </script>
 
 </body>

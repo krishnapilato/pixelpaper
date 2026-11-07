@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:pdfrx/pdfrx.dart';
 
 import 'app.dart';
 import 'core/l10n/strings.dart';
@@ -26,7 +25,6 @@ Future<void> main() async {
     ..maximumSize = 160;
 
   await initializeDateFormatting('it');
-  await pdfrxFlutterInitialize();
   final strings = await Strings.load();
 
   runApp(

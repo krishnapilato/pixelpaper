@@ -1,7 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/state/limits.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
 import '../../../data/services/pdf_service.dart';
@@ -17,20 +18,20 @@ class EditorPageItem {
   const EditorPageItem({
     required this.id,
     this.sourceIndex,
-    this.imageBytes,
+    this.imagePath,
     this.blank = false,
   });
 
   final String id;
   final int? sourceIndex;
-  final Uint8List? imageBytes;
+  final String? imagePath;
   final bool blank;
 
   bool get isFromSource => sourceIndex != null;
 
   PageBlueprint toBlueprint() {
     if (blank) return const PageBlueprint.blank();
-    if (imageBytes != null) return PageBlueprint.image(imageBytes!);
+    if (imagePath != null) return PageBlueprint.image(imagePath!);
     return PageBlueprint.fromSource(sourceIndex!);
   }
 }
@@ -80,9 +81,42 @@ class EditorController extends AsyncNotifier<EditorState> {
 
   final int documentId;
   int _sequence = 0;
+  Future<Directory>? _workspace;
+
+  Future<Directory> _sessionDirectory() => _workspace ??= () async {
+    final cache = (await ref.read(storageServiceProvider).roots).temporary;
+    final root = await Directory('${cache.path}/pdf_edits')
+        .create(recursive: true);
+    return root.createTemp('session_');
+  }();
+
+  Future<String> _keepImage(Uint8List bytes) async {
+    final storage = ref.read(storageServiceProvider);
+    final archived = await ref
+        .read(captureRepositoryProvider)
+        .archivalBytes(bytes);
+    final file = await storage.newPageFile(
+      await _sessionDirectory(),
+      archived.format.extension,
+    );
+    await storage.writeAtomic(file, archived.bytes);
+    return file.path;
+  }
+
+  Future<void> _cleanWorkspace() async {
+    final pending = _workspace;
+    if (pending == null) return;
+    try {
+      final dir = await pending;
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } on FileSystemException {
+      // Startup housekeeping also removes abandoned sessions.
+    }
+  }
 
   @override
   Future<EditorState> build() async {
+    ref.onDispose(_cleanWorkspace);
     final document =
         ref.read(documentByIdProvider(documentId)) ??
         await ref.read(documentRepositoryProvider).byId(documentId);
@@ -108,7 +142,7 @@ class EditorController extends AsyncNotifier<EditorState> {
 
   void _mutate(List<EditorPageItem> pages, {String? select}) {
     final current = _current;
-    if (current == null) return;
+    if (current == null || current.saving) return;
     state = AsyncData(
       current.copyWith(pages: pages, selectedId: select, dirty: true),
     );
@@ -117,7 +151,7 @@ class EditorController extends AsyncNotifier<EditorState> {
   /// Tap to select; tapping the selected page again clears the selection.
   void select(String id) {
     final current = _current;
-    if (current == null) return;
+    if (current == null || current.saving) return;
     state = AsyncData(
       current.selectedId == id
           ? current.copyWith(clearSelection: true)
@@ -132,7 +166,7 @@ class EditorController extends AsyncNotifier<EditorState> {
   /// insert-before index needs a -1 correction when moving an item down.
   void reorder(int oldIndex, int newIndex) {
     final current = _current;
-    if (current == null) return;
+    if (current == null || current.saving) return;
     final pages = [...current.pages];
     final moved = pages.removeAt(oldIndex);
     pages.insert(newIndex, moved);
@@ -143,13 +177,18 @@ class EditorController extends AsyncNotifier<EditorState> {
   /// the user just created.
   void duplicate(int index) {
     final current = _current;
-    if (current == null || index < 0 || index >= current.pages.length) return;
+    if (current == null ||
+        current.saving ||
+        index < 0 ||
+        index >= current.pages.length) {
+      return;
+    }
     final pages = [...current.pages];
     final source = pages[index];
     final copy = EditorPageItem(
       id: 'dup-${_sequence++}',
       sourceIndex: source.sourceIndex,
-      imageBytes: source.imageBytes,
+      imagePath: source.imagePath,
       blank: source.blank,
     );
     pages.insert(index + 1, copy);
@@ -162,18 +201,36 @@ class EditorController extends AsyncNotifier<EditorState> {
   /// not rewrite their content — so "modifica pagina" renders the page, hands
   /// the bitmap to the image editor and puts the result back in its slot. The
   /// page keeps its position and the rest of the document is untouched.
-  void replaceWithImage(int index, Uint8List bytes) {
+  Future<void> replaceWithImage(int index, Uint8List bytes) async {
     final current = _current;
-    if (current == null || index < 0 || index >= current.pages.length) return;
-    final pages = [...current.pages];
-    final edited = EditorPageItem(id: 'edit-${_sequence++}', imageBytes: bytes);
-    pages[index] = edited;
-    _mutate(pages, select: edited.id);
+    if (current == null ||
+        current.saving ||
+        index < 0 ||
+        index >= current.pages.length) {
+      return;
+    }
+    state = AsyncData(current.copyWith(saving: true));
+    final keepAlive = ref.keepAlive();
+    try {
+      final path = await _keepImage(bytes);
+      if (!ref.mounted) return;
+      final pages = [...current.pages];
+      final edited = EditorPageItem(id: 'edit-${_sequence++}', imagePath: path);
+      pages[index] = edited;
+      state = AsyncData(
+        current.copyWith(pages: pages, selectedId: edited.id, dirty: true),
+      );
+    } catch (_) {
+      if (ref.mounted) state = AsyncData(current);
+      rethrow;
+    } finally {
+      keepAlive.close();
+    }
   }
 
   void remove(int index) {
     final current = _current;
-    if (current == null || current.pages.length <= 1) return;
+    if (current == null || current.saving || current.pages.length <= 1) return;
     if (index < 0 || index >= current.pages.length) return;
     final pages = [...current.pages]..removeAt(index);
     state = AsyncData(
@@ -183,35 +240,59 @@ class EditorController extends AsyncNotifier<EditorState> {
 
   void addBlank() {
     final current = _current;
-    if (current == null) return;
+    if (current == null || current.saving) return;
     final page = EditorPageItem(id: 'blank-${_sequence++}', blank: true);
     _mutate([...current.pages, page], select: page.id);
   }
 
-  void addImage(Uint8List bytes) {
+  Future<void> addImageFile(File source) => _appendImage(() async {
+    if (await source.length() > 64 * 1024 * 1024) {
+      throw ArgumentError('Image exceeds the import memory budget');
+    }
+    return source.readAsBytes();
+  });
+
+  Future<void> addImage(Uint8List bytes) => _appendImage(() async => bytes);
+
+  Future<void> _appendImage(Future<Uint8List> Function() read) async {
     final current = _current;
-    if (current == null) return;
-    final page = EditorPageItem(id: 'img-${_sequence++}', imageBytes: bytes);
-    _mutate([...current.pages, page], select: page.id);
+    if (current == null || current.saving) return;
+    state = AsyncData(current.copyWith(saving: true));
+    final keepAlive = ref.keepAlive();
+    try {
+      final path = await _keepImage(await read());
+      if (!ref.mounted) return;
+      final page = EditorPageItem(id: 'img-${_sequence++}', imagePath: path);
+      state = AsyncData(
+        current.copyWith(
+          pages: [...current.pages, page],
+          selectedId: page.id,
+          dirty: true,
+        ),
+      );
+    } catch (_) {
+      if (ref.mounted) state = AsyncData(current);
+      rethrow;
+    } finally {
+      keepAlive.close();
+    }
   }
 
-  /// Rewrites the file on a background isolate and refreshes the archive row.
+  /// Waits for the actual commit before permitting another edit or save.
   Future<bool> save() async {
     final current = _current;
-    if (current == null || current.pages.isEmpty) return false;
+    if (current == null || current.saving || current.pages.isEmpty) {
+      return false;
+    }
 
     state = AsyncData(current.copyWith(saving: true));
+    final keepAlive = ref.keepAlive();
     try {
-      await ref
-          .read(pdfServiceProvider)
-          .rewrite(
-            target: current.document.file,
-            pages: [for (final page in current.pages) page.toBlueprint()],
-          )
-          .bounded();
       final refreshed = await ref
           .read(documentsControllerProvider.notifier)
-          .reload(current.document, pageCount: current.pages.length);
+          .rewritePdf(current.document, [
+            for (final page in current.pages) page.toBlueprint(),
+          ]);
       if (!ref.mounted) return true;
 
       state = AsyncData(
@@ -224,14 +305,17 @@ class EditorController extends AsyncNotifier<EditorState> {
         ),
       );
       return true;
-    } on Object {
+    } on Object catch (error, stack) {
+      if (kDebugMode) debugPrint('Salvataggio PDF: $error\n$stack');
       if (ref.mounted) state = AsyncData(current.copyWith(saving: false));
       return false;
+    } finally {
+      keepAlive.close();
     }
   }
 }
 
-/// Auto-disposed: leaving the editor must release any picked image bytes.
+/// Auto-disposed: leaving the editor releases its temporary image files.
 final editorControllerProvider =
     AsyncNotifierProvider.family<EditorController, EditorState, int>(
       EditorController.new,

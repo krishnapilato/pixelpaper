@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:pro_image_editor/pro_image_editor.dart';
 
 /// Italian labels for `pro_image_editor`.
@@ -9,6 +11,12 @@ import 'package:pro_image_editor/pro_image_editor.dart';
 /// Filter names (Aden, Amaro, Lo-Fi…) stay as they are — they are proper
 /// names, not words to translate.
 const ProImageEditorConfigs italianImageEditor = ProImageEditorConfigs(
+  stateHistory: StateHistoryConfigs(stateHistoryLimit: 20),
+  imageGeneration: ImageGenerationConfigs(
+    maxOutputSize: Size(3200, 3200),
+    jpegQuality: 95,
+    enableBackgroundGeneration: false,
+  ),
   i18n: I18n(
     cancel: 'Annulla',
     undo: 'Annulla',

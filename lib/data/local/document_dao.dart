@@ -88,6 +88,36 @@ class DocumentDao {
         await txn.delete(table, where: 'id IN ($marks)', whereArgs: chunk);
       });
 
+  /// Compare-and-swap protects a long PDF encode from a concurrent rename,
+  /// edit, trash or deletion. The old file remains owned until this succeeds.
+  Future<void> replaceFile(
+    ScannedDocument expected,
+    ScannedDocument replacement,
+  ) async {
+    final db = await _database.instance;
+    final changed = await db.update(
+      table,
+      {
+        'path': replacement.path,
+        'updated_at': replacement.updatedAt.millisecondsSinceEpoch,
+        'page_count': replacement.pageCount,
+        'size_bytes': replacement.sizeBytes,
+        'thumbnail_path': replacement.thumbnailPath,
+      },
+      where:
+          'id = ? AND path = ? AND updated_at = ? AND size_bytes = ? '
+          'AND page_count = ? AND deleted_at IS NULL',
+      whereArgs: [
+        expected.id,
+        expected.path,
+        expected.updatedAt.millisecondsSinceEpoch,
+        expected.sizeBytes,
+        expected.pageCount,
+      ],
+    );
+    if (changed != 1) throw StateError('Document changed during editing');
+  }
+
   Future<void> insertMissing(Iterable<ScannedDocument> documents) async {
     if (documents.isEmpty) return;
     final db = await _database.instance;

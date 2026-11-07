@@ -1,21 +1,20 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
-import 'package:pro_image_editor/pro_image_editor.dart';
 
 import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/edit_image.dart';
 import '../../../core/widgets/feedback.dart';
-import '../../../core/widgets/image_editor_config.dart';
 import '../../../core/widgets/motion.dart';
 import '../../../data/models/document_page.dart';
-import '../../camera/presentation/camera_screen.dart';
+import '../../../data/providers.dart';
+import '../../camera/presentation/system_camera_screen.dart';
 import '../application/album_editor_controller.dart';
 
 /// The album editor: the page on screen fills the canvas, the strip is the
@@ -217,33 +216,10 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
     if (page == null || !editor.isIdle) return;
     final strings = ref.read(stringsProvider);
 
-    final Uint8List bytes;
-    try {
-      bytes = await page.fileIn(editor.document.directory).readAsBytes();
-    } on Object {
-      if (mounted) {
-        showSnack(
-          context,
-          strings('editor_edit_failed'),
-          icon: Icons.error_outline_rounded,
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-
-    Uint8List? edited;
-    await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (editorContext) => ProImageEditor.memory(
-          bytes,
-          configs: italianImageEditor,
-          callbacks: ProImageEditorCallbacks(
-            onImageEditingComplete: (result) async => edited = result,
-            onCloseEditor: (mode) => Navigator.of(editorContext).pop(),
-          ),
-        ),
-      ),
+    final edited = await editImage(
+      context,
+      page.fileIn(editor.document.directory),
+      ref.read(storageServiceProvider),
     );
 
     final result = edited;
@@ -285,7 +261,7 @@ class _AlbumEditorScreenState extends ConsumerState<AlbumEditorScreen> {
             emphasised: true,
             onTap: () async {
               Navigator.pop(context);
-              final shot = await CameraScreen.takePage(context);
+              final shot = await SystemCameraScreen.takePage();
               await append(shot?.path);
             },
           ),

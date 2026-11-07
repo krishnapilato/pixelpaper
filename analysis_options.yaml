@@ -5,6 +5,9 @@ analyzer:
     - build/**
     - android/**
     - web/**
+    - node_modules/**
+    - test-results/**
+    - playwright-report/**
   language:
     strict-casts: true
     strict-inference: true

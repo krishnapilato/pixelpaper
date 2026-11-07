@@ -10,7 +10,7 @@ import '../../../core/l10n/strings.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../data/models/folder.dart';
-import '../../camera/presentation/camera_screen.dart';
+import '../../camera/presentation/system_camera_screen.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../folders/application/drag_state.dart';
 import '../../gallery/application/capture_flow.dart';
@@ -183,7 +183,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               closedShape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(Radii.md)),
               ),
-              openBuilder: (context, _) => const CameraScreen(),
+              openBuilder: (context, _) => const SystemCameraScreen(),
               closedBuilder: (context, openCamera) => PrimaryActionButton(
                 page: _page,
                 scanLabel: strings('action_scan'),

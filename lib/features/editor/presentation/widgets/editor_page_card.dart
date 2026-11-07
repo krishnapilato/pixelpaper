@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -42,8 +44,9 @@ class EditorPageCanvas extends StatelessWidget {
               aspectRatio: 0.707,
               child: SizedBox.expand(),
             ),
-            EditorPageItem(:final imageBytes?) => Image.memory(
-              imageBytes,
+            EditorPageItem(:final imagePath?) => Image.file(
+              File(imagePath),
+              cacheWidth: 1600,
               fit: BoxFit.contain,
               gaplessPlayback: true,
             ),
@@ -105,8 +108,8 @@ class EditorFilmstripThumb extends StatelessWidget {
             children: [
               switch (page) {
                 EditorPageItem(blank: true) => const SizedBox.expand(),
-                EditorPageItem(:final imageBytes?) => Image.memory(
-                  imageBytes,
+                EditorPageItem(:final imagePath?) => Image.file(
+                  File(imagePath),
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
                   cacheWidth: 180,

@@ -57,6 +57,7 @@ class _PixelPaperAppState extends ConsumerState<PixelPaperApp> {
 /// photos the picker handed over while the app was dead are kept, then every
 /// temporary copy of the user's files is removed and the bin is expired.
 Future<void> runStartupMaintenance(WidgetRef ref) async {
+  final startedAt = DateTime.now();
   Future<void> step(Future<void> Function() run) async {
     try {
       await run();
@@ -66,8 +67,10 @@ Future<void> runStartupMaintenance(WidgetRef ref) async {
   }
 
   await step(() => CaptureFlow.recoverLostPhotos(ref));
-  await step(CaptureFlow.clearLeftovers);
-  await step(ref.read(storageServiceProvider).clearTransient);
+  await step(() => CaptureFlow.clearLeftovers(olderThan: startedAt));
+  await step(
+    () => ref.read(storageServiceProvider).clearTransient(olderThan: startedAt),
+  );
   await step(ref.read(libraryRepositoryProvider).purgeExpired);
   await step(ref.read(storageServiceProvider).prunePreviewCache);
 }

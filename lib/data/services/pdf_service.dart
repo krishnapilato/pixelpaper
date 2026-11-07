@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfrx/pdfrx.dart';
@@ -13,17 +14,23 @@ import '../../core/state/limits.dart';
 import 'image_sanitizer.dart';
 import 'storage_service.dart';
 
+enum PdfImageQuality { original, compact }
+
+class PdfMemoryLimitException implements Exception {
+  const PdfMemoryLimitException();
+}
+
 /// One page of a rewritten PDF: kept from the source, a new image, or blank.
 @immutable
 class PageBlueprint {
-  const PageBlueprint.fromSource(int this.sourceIndex) : imageBytes = null;
-  const PageBlueprint.image(Uint8List this.imageBytes) : sourceIndex = null;
-  const PageBlueprint.blank() : sourceIndex = null, imageBytes = null;
+  const PageBlueprint.fromSource(int this.sourceIndex) : imagePath = null;
+  const PageBlueprint.image(String this.imagePath) : sourceIndex = null;
+  const PageBlueprint.blank() : sourceIndex = null, imagePath = null;
 
   final int? sourceIndex;
-  final Uint8List? imageBytes;
+  final String? imagePath;
 
-  bool get isBlank => sourceIndex == null && imageBytes == null;
+  bool get isBlank => sourceIndex == null && imagePath == null;
 }
 
 /// All PDF work, on PDFium through pdfrx (files are opened by path, never
@@ -58,6 +65,14 @@ class PdfService {
   /// edge. Pixels are embedded as shot, minus their metadata.
   Future<Uint8List> composeFromImages(List<String> imagePaths) =>
       compute(_composeIsolate, imagePaths);
+
+  /// Only paths cross the isolate boundary. The output is committed on disk
+  /// there, rather than duplicating a potentially large PDF on the UI isolate.
+  Future<void> composeToFile(
+    List<String> paths,
+    File target, {
+    PdfImageQuality quality = PdfImageQuality.original,
+  }) => compute(_composeToFile, (paths, target.path, quality));
 
   Future<int> pageCount(File file) async {
     try {
@@ -107,7 +122,36 @@ class PdfService {
         documentPath,
         'scan|${stat.modified.millisecondsSinceEpoch}',
       );
-      return await _storage.copyAtomic(source, target);
+      final buffer = await ui.ImmutableBuffer.fromFilePath(source.path);
+      ui.ImageDescriptor? descriptor;
+      ui.Codec? codec;
+      try {
+        descriptor = await ui.ImageDescriptor.encoded(buffer);
+        final scale = math.min(
+          1.0,
+          800 / math.max(descriptor.width, descriptor.height),
+        );
+        codec = await descriptor.instantiateCodec(
+          targetWidth: math.max(1, (descriptor.width * scale).round()),
+          targetHeight: math.max(1, (descriptor.height * scale).round()),
+        );
+        final frame = await codec.getNextFrame();
+        try {
+          final png = await frame.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          if (png == null) return null;
+          await _storage.writeAtomic(target, png.buffer.asUint8List());
+        } finally {
+          frame.image.dispose();
+        }
+        unawaited(_storage.prunePreviewCache());
+        return target;
+      } finally {
+        codec?.dispose();
+        descriptor?.dispose();
+        buffer.dispose();
+      }
     } on Object {
       return null;
     }
@@ -151,7 +195,9 @@ class PdfService {
     required List<PageBlueprint> pages,
   }) async {
     if (pages.isEmpty) throw ArgumentError.value(pages, 'pages', 'empty');
+    await pdfrxFlutterInitialize();
     final source = await PdfDocument.openFile(target.path);
+    PdfDocument? destination;
     final added = <PdfDocument>[];
     final Uint8List bytes;
     try {
@@ -159,12 +205,11 @@ class PdfService {
       for (final blueprint in pages) {
         final index = blueprint.sourceIndex;
         if (index != null) {
-          if (index >= 0 && index < source.pages.length) {
-            assembled.add(source.pages[index]);
-          }
+          RangeError.checkValidIndex(index, source.pages);
+          assembled.add(source.pages[index]);
           continue;
         }
-        final single = await compute(_singlePageIsolate, blueprint.imageBytes);
+        final single = await compute(_singlePageFromPath, blueprint.imagePath);
         final doc = await PdfDocument.openData(
           single,
           sourceName: 'pixelpaper-new-${_serial++}',
@@ -173,10 +218,16 @@ class PdfService {
         assembled.add(doc.pages.first);
       }
       if (assembled.isEmpty) throw StateError('No page left to write');
-      source.pages = assembled;
-      bytes = await source.encodePdf();
+      // Assemble into a fresh document. Mixing source-backed pages and new
+      // pages in place renumbers proxies before native assembly in pdfrx,
+      // producing invalid source indices after insertion/reordering.
+      destination = await PdfDocument.createNew(
+        sourceName: 'pixelpaper-output-${_serial++}',
+      );
+      destination.pages = assembled;
+      bytes = await destination.encodePdf();
     } finally {
-      for (final doc in [...added, source]) {
+      for (final doc in [?destination, ...added, source]) {
         await _release(doc);
       }
     }
@@ -196,6 +247,7 @@ class PdfService {
     File file,
     Future<T> Function(PdfDocument doc) use,
   ) async {
+    await pdfrxFlutterInitialize();
     final doc = await PdfDocument.openFile(file.path);
     try {
       return await use(doc);
@@ -237,13 +289,73 @@ Uint8List _withoutMetadata(Uint8List bytes) {
 }
 
 Future<Uint8List> _composeIsolate(List<String> paths) async {
+  await _checkCompositionBudget(paths);
   final doc = pw.Document();
   for (final path in paths) {
     final file = File(path);
-    if (!await file.exists()) continue;
     doc.addPage(_imagePage(await file.readAsBytes()));
   }
   return doc.save();
+}
+
+const _pdfInputBudget = 96 * 1024 * 1024;
+const _maxDecodedPixels = 24000000;
+
+Future<void> _checkCompositionBudget(List<String> paths) async {
+  if (paths.isEmpty) throw ArgumentError('No image pages');
+  var total = 0;
+  for (final path in paths) {
+    total += await File(path).length();
+    if (total > _pdfInputBudget) throw const PdfMemoryLimitException();
+  }
+}
+
+Future<void> _composeToFile((List<String>, String, PdfImageQuality) job) async {
+  final (paths, target, quality) = job;
+  await _checkCompositionBudget(paths);
+  final doc = pw.Document();
+  var retainedRasterBytes = 0;
+  for (final path in paths) {
+    var bytes = await File(path).readAsBytes();
+    final format = ImageSanitizer.sniff(bytes);
+    // JPEGs are embedded without decoding or recompression in original mode.
+    // PNG and compact mode require a pixel buffer: inspect headers first.
+    if (format != ImageFormat.jpeg || quality == PdfImageQuality.compact) {
+      final decoder = img.findDecoderForData(bytes);
+      final info = decoder?.startDecode(bytes);
+      if (info == null) throw const FormatException('Unreadable image');
+      if (info.width * info.height > _maxDecodedPixels) {
+        throw const PdfMemoryLimitException();
+      }
+      if (quality == PdfImageQuality.original) {
+        retainedRasterBytes += info.width * info.height * 4;
+        if (retainedRasterBytes > _pdfInputBudget) {
+          throw const PdfMemoryLimitException();
+        }
+      }
+      if (quality == PdfImageQuality.compact) {
+        final decoded = decoder!.decode(bytes);
+        if (decoded == null) throw const FormatException('Unreadable image');
+        final upright = img.bakeOrientation(decoded);
+        final resized = (upright.width > 2400 || upright.height > 2400)
+            ? img.copyResize(
+                upright,
+                width: upright.width >= upright.height ? 2400 : null,
+                height: upright.height > upright.width ? 2400 : null,
+              )
+            : upright;
+        bytes = img.encodeJpg(resized, quality: 85);
+      }
+    }
+    doc.addPage(_imagePage(bytes));
+  }
+  final part = File('$target.part');
+  try {
+    await part.writeAsBytes(await doc.save(), flush: true);
+    await part.rename(target);
+  } finally {
+    if (await part.exists()) await part.delete();
+  }
 }
 
 Future<Uint8List> _singlePageIsolate(Uint8List? image) {
@@ -258,4 +370,18 @@ Future<Uint8List> _singlePageIsolate(Uint8List? image) {
           : _imagePage(image),
     );
   return doc.save();
+}
+
+Future<Uint8List> _singlePageFromPath(String? path) async {
+  if (path == null) return _singlePageIsolate(null);
+  await _checkCompositionBudget([path]);
+  final bytes = await File(path).readAsBytes();
+  if (ImageSanitizer.sniff(bytes) != ImageFormat.jpeg) {
+    final info = img.findDecoderForData(bytes)?.startDecode(bytes);
+    if (info == null) throw const FormatException('Unreadable image');
+    if (info.width * info.height > _maxDecodedPixels) {
+      throw const PdfMemoryLimitException();
+    }
+  }
+  return _singlePageIsolate(bytes);
 }

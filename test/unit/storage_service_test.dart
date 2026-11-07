@@ -143,6 +143,23 @@ void main() {
   });
 
   group('transient files', () {
+    test('startup cleanup preserves exports and partial writes created this session', () async {
+      final old = await storage.exportFile('old', '.pdf');
+      await old.writeAsString('old');
+      await old.setLastModified(DateTime(2025));
+      final current = await storage.exportFile('current', '.pdf');
+      await current.writeAsString('current');
+      await current.setLastModified(DateTime(2027));
+      final part = File(
+        p.join((await storage.documentsDir()).path, 'new.part'),
+      );
+      await part.writeAsString('in progress');
+      await part.setLastModified(DateTime(2027));
+      await storage.clearTransient(olderThan: DateTime(2026));
+      expect(await old.exists(), isFalse);
+      expect(await current.exists(), isTrue);
+      expect(await part.exists(), isTrue);
+    });
     test('exports, plugin copies and partial writes are cleared', () async {
       final export = await storage.exportFile('Fattura', '.pdf');
       await export.writeAsString('x');

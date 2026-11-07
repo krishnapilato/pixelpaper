@@ -14,7 +14,7 @@ import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/image_editor_config.dart';
 import '../../../data/services/pdf_service.dart';
-import '../../camera/presentation/camera_screen.dart';
+import '../../camera/presentation/system_camera_screen.dart';
 import '../application/editor_controller.dart';
 import 'widgets/editor_page_card.dart';
 
@@ -87,9 +87,10 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
     }
 
     return PopScope(
-      canPop: !(state?.dirty ?? false),
+      canPop:
+          !(state?.dirty ?? false) && !(state?.saving ?? false) && !_preparing,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || state == null) return;
+        if (didPop || state == null || state.saving || _preparing) return;
         final leave = await confirmAction(
           context,
           title: strings('editor_discard_title'),
@@ -120,7 +121,10 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.xs),
               child: FilledButton(
-                onPressed: (state?.dirty ?? false) && !(state?.saving ?? false)
+                onPressed:
+                    !_preparing &&
+                        (state?.dirty ?? false) &&
+                        !(state?.saving ?? false)
                     ? _save
                     : null,
                 child: Text(strings('editor_save')),
@@ -175,7 +179,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               BusyOverlay(label: strings('editor_rendering_page')),
           ],
         ),
-        bottomNavigationBar: state == null
+        bottomNavigationBar: state == null || state.saving || _preparing
             ? null
             : _EditorDock(
                 strings: strings,
@@ -234,7 +238,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
 
     final result = edited;
     if (result == null || !mounted) return; // closed without saving
-    _controller.replaceWithImage(index, result);
+    await _controller.replaceWithImage(index, result);
+    if (!mounted) return;
     _goTo(index, animate: false);
     showSnack(
       context,
@@ -251,7 +256,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   /// and on a fifty-megabyte scan "Preparazione della pagina…" simply never
   /// finished. PDFium opens the file by path and hands back the pixels.
   Future<Uint8List?> _pageBitmap(File file, EditorPageItem page) async {
-    if (page.imageBytes != null) return page.imageBytes;
+    if (page.imagePath != null) return File(page.imagePath!).readAsBytes();
     if (page.blank) return _whiteSheet();
 
     final index = page.sourceIndex;
@@ -259,13 +264,15 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
 
     PdfDocument? document;
     try {
+      await pdfrxFlutterInitialize();
       document = await PdfDocument.openFile(file.path);
       if (index < 0 || index >= document.pages.length) return null;
       final source = document.pages[index];
 
       // ~190 dpi on A4: the edited page still prints cleanly, and one sheet
       // stays a few megabytes instead of tens.
-      final scale = 1600 / source.width;
+      final scale =
+          3200 / (source.width > source.height ? source.width : source.height);
       final rendered = await source.render(
         fullWidth: source.width * scale,
         fullHeight: source.height * scale,
@@ -353,9 +360,9 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               // this one page worse than every other page in the same document,
               // and a page added in the editor is an archive page like any
               // other. Full resolution, re-encoded by nobody.
-              final shot = await CameraScreen.takePage(context);
+              final shot = await SystemCameraScreen.takePage();
               if (shot == null) return;
-              _controller.addImage(await shot.readAsBytes());
+              await _controller.addImageFile(File(shot.path));
               await appended();
             },
           ),
@@ -370,7 +377,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
                 requestFullMetadata: false,
               );
               if (shot == null) return;
-              _controller.addImage(await shot.readAsBytes());
+              await _controller.addImageFile(File(shot.path));
               await appended();
             },
           ),
@@ -419,6 +426,7 @@ class _Editor extends StatelessWidget {
     // screen unusable on a large document.
     return PdfDocumentViewBuilder.file(
       state.document.path,
+      key: ValueKey(state.document.signature),
       loadingBuilder: (context) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

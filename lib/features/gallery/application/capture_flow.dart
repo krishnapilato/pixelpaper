@@ -12,7 +12,7 @@ import '../../../core/widgets/feedback.dart';
 import '../../../data/models/capture.dart';
 import '../../../data/models/folder.dart';
 import '../../../data/providers.dart';
-import '../../camera/presentation/camera_screen.dart';
+import '../../camera/presentation/system_camera_screen.dart';
 import '../../folders/application/folders_controller.dart';
 import 'gallery_controller.dart';
 
@@ -24,10 +24,9 @@ abstract final class CaptureFlow {
   /// into the camera with a container transform. This is for every other
   /// door — the empty state, the scanner's fallback.
   static Future<void> openCamera(BuildContext context) {
-    return Navigator.of(
-      context,
-      rootNavigator: true,
-    ).push<void>(cameraRoute<void>());
+    return Navigator.of(context, rootNavigator: true).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const SystemCameraScreen()),
+    );
   }
 
   /// Brings existing photos into the app's own gallery, in the folder on
@@ -130,14 +129,18 @@ abstract final class CaptureFlow {
   /// wrote but never got to file. Runs at start-up, when neither can still
   /// be in use; only picker folders that are already empty are removed, so
   /// a photo still waiting to be recovered is never touched.
-  static Future<void> clearLeftovers() async {
+  static Future<void> clearLeftovers({DateTime? olderThan}) async {
     if (!Platform.isAndroid) return;
     try {
       final cache = await getTemporaryDirectory();
       await for (final entry in cache.list(followLinks: false)) {
+        if (olderThan != null &&
+            !(await entry.stat()).modified.isBefore(olderThan)) {
+          continue;
+        }
         final name = p.basename(entry.path);
         try {
-          if (entry is Directory && name == 'camera') {
+          if (entry is Directory && (name == 'camera' || name == 'pdf_edits')) {
             await entry.delete(recursive: true);
           } else if (_pickerName.hasMatch(name)) {
             if (entry is File && name.endsWith('.jpg')) {

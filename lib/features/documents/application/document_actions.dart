@@ -1,7 +1,7 @@
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saf_stream/saf_stream.dart';
+import 'package:saf_util/saf_util.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/l10n/strings.dart';
@@ -74,11 +74,11 @@ abstract final class DocumentActions {
               final folder = await store.exportFolder();
               if (folder != null) {
                 try {
-                  await SafStream().writeFileBytes(
+                  await SafStream().pasteLocalFile(
+                    pdf.path,
                     folder.uri,
                     name,
                     'application/pdf',
-                    await pdf.readAsBytes(),
                   );
                   return strings('export_done_in', {'folder': folder.name});
                 } on Object {
@@ -86,13 +86,17 @@ abstract final class DocumentActions {
                   ref.invalidate(exportFolderProvider);
                 }
               }
-              final saved = await FlutterFileDialog.saveFile(
-                params: SaveFileDialogParams(
-                  sourceFilePath: pdf.path,
-                  fileName: name,
-                ),
+              final destination = await SafUtil().pickDirectory(
+                writePermission: true,
               );
-              return saved == null ? null : strings('export_done');
+              if (destination == null) return null;
+              await SafStream().pasteLocalFile(
+                pdf.path,
+                destination.uri,
+                name,
+                'application/pdf',
+              );
+              return strings('export_done');
             }),
       );
       if (message != null && context.mounted) {

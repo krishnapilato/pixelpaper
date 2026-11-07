@@ -10,7 +10,6 @@ import '../../features/editor/presentation/document_editor_screen.dart';
 import '../../features/gallery/presentation/gallery_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/shell/presentation/home_shell.dart';
-import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/trash/presentation/trash_screen.dart';
 import '../../features/tutorial/presentation/tutorial_screen.dart';
 import '../../features/viewer/presentation/document_viewer_screen.dart';
@@ -44,7 +43,7 @@ final _galleryNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'galleria');
 GoRouter createRouter() {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: Routes.splash,
+    initialLocation: Routes.documents,
     errorPageBuilder: (context, state) =>
         const NoTransitionPage(child: _NotFound()),
     routes: [
@@ -54,8 +53,7 @@ GoRouter createRouter() {
       GoRoute(
         path: Routes.splash,
         parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            const NoTransitionPage(child: SplashScreen()),
+        redirect: (context, state) => Routes.documents,
       ),
       // The two tabs are pages of a pager (see HomeShell), so the shell
       // supplies its own container instead of go_router's IndexedStack. It

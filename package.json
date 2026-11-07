@@ -1,0 +1,11 @@
+{
+  "name": "pixelpaper-guide-checks",
+  "private": true,
+  "scripts": {
+    "test:web": "playwright test",
+    "serve:guide": "node tool/serve-web.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}

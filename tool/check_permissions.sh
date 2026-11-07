@@ -5,7 +5,6 @@
 set -euo pipefail
 
 allowed=(
-  "android.permission.CAMERA"
   "com.khovakrishnapilato.pixelpaper.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
 )
 

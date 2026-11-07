@@ -18,8 +18,8 @@ val flutterSdk: File = loadProperties("local.properties")
     ?.let(::File)
     ?: error("flutter.sdk is not set in android/local.properties")
 
-val flutterCommand: String = flutterSdk
-    .resolve(if (System.getProperty("os.name").startsWith("Windows")) "bin/flutter.bat" else "bin/flutter")
+val analyzerCommand: String = flutterSdk
+    .resolve(if (System.getProperty("os.name").startsWith("Windows")) "bin/dart.bat" else "bin/dart")
     .path
 
 // A bundle exists only to be uploaded to Play: refuse to sign one with the
@@ -40,19 +40,22 @@ if (keystore == null) {
  * The Dart analyzer as part of the build: any error, warning, lint or unused
  * symbol fails it. Up to date while sources and analysis rules are unchanged.
  */
-val analyzeDart by tasks.registering(Exec::class) {
+val analyzeDart = tasks.register<Exec>("analyzeDart") {
     group = "verification"
-    description = "Runs flutter analyze with infos and warnings treated as errors."
+    description = "Runs dart analyze with infos and warnings treated as errors."
 
     val projectRoot = rootProject.projectDir.parentFile
     val marker = layout.buildDirectory.file("analyze-dart/passed")
 
     workingDir = projectRoot
-    commandLine(flutterCommand, "analyze", "--no-pub", "--fatal-infos", "--fatal-warnings")
+    // flutter analyze reinjects dev plugins and would overwrite the release
+    // registrant with integration_test. Dart uses the same analyzer directly.
+    commandLine(analyzerCommand, "analyze", "--fatal-infos", "--fatal-warnings")
 
     inputs.files(
         fileTree(projectRoot.resolve("lib")),
         fileTree(projectRoot.resolve("test")),
+        fileTree(projectRoot.resolve("integration_test")),
         projectRoot.resolve("analysis_options.yaml"),
         projectRoot.resolve("pubspec.yaml"),
         projectRoot.resolve("pubspec.lock"),

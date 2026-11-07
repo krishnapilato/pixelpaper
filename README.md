@@ -3,8 +3,7 @@
 > **«I tuoi dati restano con te.»**
 
 Scanner di documenti e archivio PDF per Android. Tutto resta sul telefono:
-nessun account, nessun cloud, nessuna richiesta di rete, nessun permesso oltre
-alla fotocamera.
+nessun account, nessun cloud, nessuna richiesta di rete, nessun permesso di accesso alla fotocamera o all’archivio.
 
 [![Android](https://github.com/krishnapilato/pixelpaper/actions/workflows/android.yml/badge.svg)](https://github.com/krishnapilato/pixelpaper/actions/workflows/android.yml)
 
@@ -74,9 +73,9 @@ scanner ones show the emulator's virtual scene.</sub>
 | :--- | :--- |
 | **Due schede, un pulsante** | Archivio e Galleria affiancati: tocca la barra o scorri. Il pulsante d’azione segue il dito: scansione nell’Archivio, fotocamera nella Galleria; nella Galleria una **pressione di 2 secondi importa** le foto già sul telefono. |
 | **Scanner** | Il flusso ML Kit di Google: bordi, prospettiva, ombre, più pagine di fila. Scegli solo il nome. |
-| **Fotocamera** | CameraX alla piena risoluzione, senza ritagli. Tocca per mettere a fuoco ed esporre, trascina per compensare, zoom, flash, autoscatto, griglia. Resta aperta tra uno scatto e l’altro. |
-| **Galleria** | Foto a piena risoluzione, da due a quattro colonne. Selezionale **nell’ordine delle pagine** e “Crea album” le copia in un documento in quell’ordine. |
-| **Archivio** | Lista o griglia, ricerca, ordinamento, rinomina, condividi, **esporta**, stampa. Un documento fatto di foto è un **album**: il PDF si crea solo quando lo condividi, stampi o esporti. |
+| **Fotocamera** | App di sistema come predefinita, senza ricompressione imposta da PixelPaper. Una sessione permette altri scatti fino alla chiusura. I controlli della fotocamera esterna dipendono dal dispositivo. |
+| **Galleria** | Foto a piena risoluzione, da due a quattro colonne. Selezionale **nell’ordine delle pagine** e “Crea PDF” salva subito un PDF in quell’ordine, con qualità Originale o Compatto. |
+| **Archivio** | Lista o griglia, ricerca, ordinamento, rinomina, condividi, **esporta**, stampa. I nuovi documenti della galleria sono PDF persistenti. Gli album creati dalle versioni precedenti restano leggibili e modificabili. |
 | **Editor pagine** | Riordino trascinando la striscia, aggiunta da fotocamera o galleria (e pagina bianca per i PDF), modifica della pagina come immagine, duplica, elimina. |
 | **Cartelle e Cestino** | Un livello di cartelle per documenti e foto. Ogni eliminazione è annullabile e resta nel Cestino 30 giorni; svuotarlo cancella davvero i file. |
 | **Testo** | Riconoscimento del testo sul dispositivo (ML Kit, alfabeto latino). |
@@ -88,7 +87,7 @@ scanner ones show the emulator's virtual scene.</sub>
 Privacy first non è uno slogan: ogni punto qui sotto è verificato da un test o
 da un controllo della pipeline.
 
-- **Un solo permesso: la fotocamera.** Niente internet, niente archivio,
+- **Nessun permesso fotocamera o archivio.** Scatti e importazioni passano dalle app di sistema. Niente internet,
   niente posizione. La CI fallisce se un plugin ne aggiunge uno
   (`tool/check_permissions.sh`).
 - **Niente metadati in uscita.** Foto condivise e PDF esportati perdono
@@ -134,10 +133,9 @@ lib/
   ricostruisce solo se il dato è cambiato davvero.
 - **Editor come controller.** Le sessioni di modifica (album e PDF) vivono in
   controller testabili; i file scritti e poi scartati vengono rimossi.
-- **Nessuna attesa oltre 20 secondi.** Ogni spinner è legato a `Limits.wait`:
-  oltre, l’operazione è segnalata come fallita e la schermata torna usabile.
+- **Salvataggi senza falso annullamento.** Le scritture non cancellabili vengono attese fino al completamento; un timeout non riabilita un secondo salvataggio mentre il primo continua. I timeout restano sulle letture.
 - **PDF su PDFium** (`pdfrx`): riordino ed eliminazione di pagine spostano le
-  pagine originali, vettori e annotazioni compresi, in pochi millisecondi.
+  pagine originali, vettori e annotazioni compresi, senza rasterizzarle. La pagina modificata come immagine viene rasterizzata con dimensioni limitate.
 - **Animazioni** sui token Material 3 e rispettose di “Rimuovi animazioni”
   di Android.
 
@@ -156,7 +154,7 @@ lib/
 
 ```bash
 flutter analyze --fatal-infos --fatal-warnings
-dart format --output=none --set-exit-if-changed lib test
+dart format --output=none --set-exit-if-changed lib test integration_test
 flutter test --coverage
 ```
 
@@ -171,9 +169,9 @@ flutter test --coverage
 
 | Strumento | Versione |
 | :--- | :--- |
-| Flutter / Dart | 3.47.8 / 3.13 |
-| JDK | 27 in locale (minimo 21); 25 LTS in CI |
-| Gradle | 9.8.2 (la prima con supporto a Java 27) |
+| Flutter / Dart | 3.47.9 / 3.13.7 |
+| JDK | 27 in locale e in CI; bytecode Android 21 |
+| Gradle | 9.9.0 |
 | Android Gradle Plugin | 9.5.0 |
 | Kotlin | 2.4.21 |
 | compileSdk / bytecode | 37 / Java 21 |
@@ -297,3 +295,25 @@ italiano, inglese, francese e latino sì; greco, cirillico, ebraico e arabo no.
 Il limite pratico è la stampa: caratteri moderni ottimi, gotico, incunaboli,
 s lunga e scrittura a mano danno risultati scarsi. Per questo la galleria
 conserva le foto a piena risoluzione e senza ritagli.
+
+## Prestazioni e limiti operativi
+
+L’avvio entra direttamente nell’Archivio: niente splash animato aggiuntivo. Le letture iniziali usano i metadati SQLite; il refresh manuale riconcilia database e filesystem. La libreria conserva le immagini e i PDF come file esterni al database.
+
+I nuovi PDF vengono generati in un isolate e scritti su disco senza trasferire il PDF completo all’isolate UI. Originale incorpora i JPEG senza ridurli o ricomprimerli; Compatto usa JPEG 85% e un lato lungo massimo di 2400 pixel, senza ingrandire immagini più piccole. L’OCR resta una funzione separata: il PDF fotografico non acquisisce automaticamente un livello testuale ricercabile.
+
+Per limitare i picchi: importazione immagini fino a 64 MiB, input aggregato della composizione fino a 96 MiB, immagini da decodificare nella composizione fino a 24 MP e budget aggregato delle superfici PNG originali di 96 MiB. L’editor usa copie di lavoro fino a 3200 pixel sul lato lungo e 20 stati di cronologia; una foto originale resta intatta se si annulla. Questi budget riducono l’esposizione, ma non costituiscono una garanzia sul picco RAM totale di ogni dispositivo.
+
+Il salvataggio PDF prepara un nuovo file e sostituisce il riferimento nel database solo dopo la codifica, con controllo di concorrenza. Un errore di codifica o commit mantiene il documento precedente. La pulizia all’avvio evita file creati durante la sessione corrente.
+
+Le dipendenze dirette sono alle ultime versioni stabili risolvibili. Non sono presenti override: `material_color_utilities` e `test_api` sono fissati da Flutter; `cross_file` 0.3.x è richiesto dai plugin di importazione e condivisione; `qr` 3.x è richiesto da `barcode`. `flutter_file_dialog` è stato eliminato: l’esportazione usa il selettore cartelle di Android e una copia nativa tramite SAF. Parte dell’integrazione Flutter/AGP usa ancora API Gradle legacy: la migrazione ad AGP 10 richiederà versioni compatibili.
+
+La velocità su telefoni reali va verificata in modalità profile/release con documenti rappresentativi: cold start, prima pagina PDF, apertura editor, salvataggio multipagina e picchi di memoria. Un test sull’emulatore non sostituisce queste misure.
+
+## Smoke test
+
+- App Android: `flutter test integration_test/app_smoke_test.dart -d <device-id>`. Avvio, Galleria, Impostazioni, generazione di un PDF di due pagine, anteprima, aggiunta e riordino di una pagina bianca, salvataggio e verifica del conteggio tramite PDFium. Il test rimuove soltanto il documento e l’immagine che crea.
+- Guida: `npm ci --ignore-scripts`, `npx playwright install chromium`, `npm run test:web`. Controlla desktop e mobile, asset, navigazione, scorrimento, collegamenti interni e preferenza di movimento ridotto. Node e Playwright servono solo in sviluppo/CI: la guida distribuita resta HTML/CSS senza dipendenze client.
+- La pipeline Android richiede lo smoke test prima di build/release; la pipeline Pages richiede i sei controlli web prima della pubblicazione. Questi test non verificano la qualità dell’OCR, le app fotocamera dei diversi produttori o la stampa su hardware reale.
+
+Quando passi dai test debug alla release, usa `flutter build apk --release --split-per-abi` senza `--no-pub`: Flutter deve rigenerare il registro dei plugin escludendo quelli di sviluppo. Il task Gradle di verifica usa direttamente `dart analyze`, senza modificare il registro dei plugin.

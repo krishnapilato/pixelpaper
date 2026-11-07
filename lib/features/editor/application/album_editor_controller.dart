@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/state/limits.dart';
 import '../../../data/models/document_page.dart';
 import '../../../data/models/scanned_document.dart';
 import '../../../data/providers.dart';
@@ -150,8 +149,7 @@ class AlbumEditorController extends AsyncNotifier<AlbumEditorState> {
     try {
       final saved = await ref
           .read(documentsControllerProvider.notifier)
-          .savePages(current.document, current.pages)
-          .bounded();
+          .savePages(current.document, current.pages);
       final pages = await _repository.pagesOf(saved);
       _set(
         current.copyWith(
@@ -193,7 +191,7 @@ class AlbumEditorController extends AsyncNotifier<AlbumEditorState> {
     if (current == null || !current.isIdle) return;
     _set(current.copyWith(activity: EditorActivity.working));
     try {
-      final next = await task(current).bounded();
+      final next = await task(current);
       _set((next ?? current).copyWith(activity: EditorActivity.idle));
     } on Object {
       _set(current.copyWith(activity: EditorActivity.idle));

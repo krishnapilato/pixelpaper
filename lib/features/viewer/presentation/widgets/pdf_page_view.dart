@@ -18,6 +18,8 @@
 /// a way to allocate hundreds of megabytes.
 library;
 
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -42,6 +44,7 @@ class PdfPager extends StatelessWidget {
     required this.pageCount,
     this.onPageChanged,
     this.padding = EdgeInsets.zero,
+    this.firstPagePreview,
   });
 
   final String file;
@@ -50,6 +53,7 @@ class PdfPager extends StatelessWidget {
   final int pageCount;
   final ValueChanged<int>? onPageChanged;
   final EdgeInsets padding;
+  final String? firstPagePreview;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +61,20 @@ class PdfPager extends StatelessWidget {
 
     return PdfDocumentViewBuilder.file(
       file,
-      loadingBuilder: (context) =>
-          const Center(child: CircularProgressIndicator()),
+      loadingBuilder: (context) => firstPagePreview == null
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: padding,
+              child: Center(
+                child: Image.file(
+                  File(firstPagePreview!),
+                  fit: BoxFit.contain,
+                  cacheWidth: 1200,
+                  errorBuilder: (_, error, stack) =>
+                      const CircularProgressIndicator(),
+                ),
+              ),
+            ),
       errorBuilder: (context, error, stackTrace) => Center(
         child: Icon(
           Icons.error_outline_rounded,
@@ -119,10 +135,15 @@ class PdfPageImage extends StatelessWidget {
     if (index < 0 || index >= document.pages.length) {
       return const SizedBox.shrink();
     }
+    final page = document.pages[index];
+    final longest = page.width > page.height ? page.width : page.height;
+    final safeDpi = longest > 0
+        ? (2400 * 72 / longest).clamp(1.0, maximumDpi)
+        : maximumDpi;
     return PdfPageView(
       document: document,
       pageNumber: index + 1,
-      maximumDpi: maximumDpi,
+      maximumDpi: safeDpi,
       backgroundColor: Colors.white,
     );
   }

@@ -8,11 +8,13 @@ import '../../../core/l10n/strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/dimens.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/feedback.dart';
 import '../../../core/widgets/motion.dart';
 import '../../../core/widgets/text_prompt.dart';
 import '../../../data/models/capture.dart';
 import '../../../data/models/folder.dart';
+import '../../../data/services/pdf_service.dart';
 import '../../documents/application/documents_controller.dart';
 import '../../folders/application/folders_controller.dart';
 import '../../folders/presentation/draggable_item.dart';
@@ -273,8 +275,8 @@ class _GalleryAppBar extends ConsumerWidget {
             tooltip: strings('common_share'),
           ),
           IconButton(
-            onPressed: () => _createAlbum(context, ref, selected),
-            icon: const Icon(Icons.photo_album_outlined),
+            onPressed: () => _createPdf(context, ref, selected),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: strings('gallery_create_album'),
           ),
           // The rest lives in an overflow: four visible actions is where a
@@ -386,16 +388,39 @@ Future<void> _move(
   );
 }
 
-/// Copies the selected photos, in the order they were picked, into a new
-/// album in the Archivio. No PDF is made here: that happens when the album is
-/// shared, printed or exported.
-Future<void> _createAlbum(
+/// Creates a PDF immediately, preserving the order of the selection.
+Future<void> _createPdf(
   BuildContext context,
   WidgetRef ref,
   List<Capture> captures,
 ) async {
   if (captures.isEmpty) return;
   final strings = ref.read(stringsProvider);
+
+  final quality = await showAppSheet<PdfImageQuality>(
+    context: context,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SheetHeader(title: strings('pdf_quality_title')),
+        SheetAction(
+          icon: Icons.high_quality_outlined,
+          label: strings('pdf_quality_original'),
+          detail: strings('pdf_quality_original_detail'),
+          emphasised: true,
+          onTap: () => Navigator.pop(context, PdfImageQuality.original),
+        ),
+        SheetAction(
+          icon: Icons.compress_rounded,
+          label: strings('pdf_quality_compact'),
+          detail: strings('pdf_quality_compact_detail'),
+          onTap: () => Navigator.pop(context, PdfImageQuality.compact),
+        ),
+        const SheetFooterSpace(),
+      ],
+    ),
+  );
+  if (quality == null || !context.mounted) return;
 
   final name = await askForText(
     context,
@@ -405,7 +430,7 @@ Future<void> _createAlbum(
     actionLabel: strings('gallery_create_album'),
     cancelLabel: strings('common_cancel'),
     initialValue: Fmt.defaultDocumentName(DateTime.now()),
-    icon: Icons.photo_album_outlined,
+    icon: Icons.picture_as_pdf_outlined,
   );
   if (name == null || !context.mounted) return;
 
@@ -417,7 +442,7 @@ Future<void> _createAlbum(
       strings.plural('gallery_creating_album', paths.length),
       () => ref
           .read(documentsControllerProvider.notifier)
-          .createAlbum(imagePaths: paths, title: name),
+          .createPdf(imagePaths: paths, title: name, quality: quality),
     );
     ref.read(gallerySelectionProvider.notifier).clear();
     if (!context.mounted) return;
@@ -427,6 +452,14 @@ Future<void> _createAlbum(
       icon: Icons.check_circle_outline_rounded,
     );
     unawaited(context.push(Routes.viewer(document.id)));
+  } on PdfMemoryLimitException {
+    if (context.mounted) {
+      showSnack(
+        context,
+        strings('pdf_memory_limit'),
+        icon: Icons.info_outline_rounded,
+      );
+    }
   } on Object {
     if (!context.mounted) return;
     showSnack(
